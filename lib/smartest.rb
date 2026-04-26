@@ -18,6 +18,7 @@ require_relative "smartest/dsl"
 require_relative "smartest/test_result"
 require_relative "smartest/reporter"
 require_relative "smartest/runner"
+require_relative "smartest/init_generator"
 
 module Smartest
   class << self

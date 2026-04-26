@@ -336,3 +336,90 @@ test("cli loads files and returns failure status") do
     expect(stdout).to include("expected \"a\" to eq \"b\"")
   end
 end
+
+test("cli prints version") do
+  stdout, stderr, status = Open3.capture3(
+    { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+    "ruby",
+    File.expand_path("../exe/smartest", __dir__),
+    "--version"
+  )
+
+  expect(status.success?).to eq(true)
+  expect(stderr).to eq("")
+  expect(stdout).to eq("#{Smartest::VERSION}\n")
+end
+
+test("cli prints help") do
+  stdout, stderr, status = Open3.capture3(
+    { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+    "ruby",
+    File.expand_path("../exe/smartest", __dir__),
+    "--help"
+  )
+
+  expect(status.success?).to eq(true)
+  expect(stderr).to eq("")
+  expect(stdout).to include("Usage:")
+  expect(stdout).to include("smartest [paths...]")
+  expect(stdout).to include("smartest --init")
+end
+
+test("cli initializes a runnable test scaffold") do
+  Dir.mktmpdir do |dir|
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "--init",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("create  test")
+    expect(stdout).to include("create  test/test_helper.rb")
+    expect(stdout).to include("create  test/example_test.rb")
+    expect(File.read(File.join(dir, "test/test_helper.rb"))).to include('require "smartest/autorun"')
+    expect(File.read(File.join(dir, "test/example_test.rb"))).to include('require_relative "test_helper"')
+
+    run_stdout, run_stderr, run_status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      chdir: dir
+    )
+
+    expect(run_status.success?).to eq(true)
+    expect(run_stderr).to eq("")
+    expect(run_stdout).to include("example")
+    expect(run_stdout).to include("1 test, 1 passed, 0 failed")
+  end
+end
+
+test("cli init does not overwrite existing scaffold files") do
+  Dir.mktmpdir do |dir|
+    test_dir = File.join(dir, "test")
+    FileUtils.mkdir_p(test_dir)
+    helper_path = File.join(test_dir, "test_helper.rb")
+    example_path = File.join(test_dir, "example_test.rb")
+    File.write(helper_path, "# custom helper\n")
+    File.write(example_path, "# custom test\n")
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "--init",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("exist   test")
+    expect(stdout).to include("exist   test/test_helper.rb")
+    expect(stdout).to include("exist   test/example_test.rb")
+    expect(File.read(helper_path)).to eq("# custom helper\n")
+    expect(File.read(example_path)).to eq("# custom test\n")
+  end
+end

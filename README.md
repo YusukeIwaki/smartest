@@ -48,21 +48,34 @@ gem install smartest
 
 ## Quick start
 
-Create a test file:
+Initialize a test scaffold:
+
+```bash
+bundle exec smartest --init
+```
+
+This creates:
+
+```text
+test/test_helper.rb
+test/example_test.rb
+```
+
+The generated example looks like this:
 
 ```ruby
 # test/example_test.rb
-require "smartest/autorun"
+require_relative "test_helper"
 
-test("factorial") do
-  expect(1 * 2 * 3).to eq(6)
+test("example") do
+  expect(1 + 1).to eq(2)
 end
 ```
 
 Run it:
 
 ```bash
-ruby test/example_test.rb
+bundle exec smartest
 ```
 
 Or, when using the CLI:
@@ -71,14 +84,21 @@ Or, when using the CLI:
 smartest test/**/*_test.rb
 ```
 
+CLI help and version output are available with:
+
+```bash
+smartest --help
+smartest --version
+```
+
 Expected output:
 
 ```text
 Running 1 test
 
-✓ factorial
+✓ example
 
-1 passed, 0 failed
+1 test, 1 passed, 0 failed
 ```
 
 ## Defining tests
@@ -130,13 +150,36 @@ test("array") do
 end
 ```
 
-Planned matchers include:
+Supported matchers include:
 
 ```ruby
 eq(expected)
 include(expected)
 be_nil
 raise_error(ErrorClass)
+```
+
+## Building the gem
+
+Smartest is packaged as a Ruby gem.
+
+Build it locally:
+
+```bash
+gem build smartest.gemspec
+```
+
+Install the built package:
+
+```bash
+gem install ./smartest-0.1.0.gem
+```
+
+Release tasks are provided by Bundler:
+
+```bash
+rake build
+rake release
 ```
 
 ## Fixtures

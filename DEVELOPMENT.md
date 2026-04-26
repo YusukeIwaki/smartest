@@ -59,6 +59,13 @@ smartest/
     fixtures/
       sample_fixture.rb
 
+  documentation/
+    docs/
+
+  Gemfile
+  smartest.gemspec
+  CHANGELOG.md
+  Rakefile
   README.md
   DEVELOPMENT.md
   SMARTEST_DESIGN.md
@@ -700,21 +707,26 @@ the Smartest CLI.
 
 Before releasing:
 
-- update version
-- run test suite
-- verify CLI
-- verify README examples
-- build gem
-- install locally
-- run a sample project
-- publish gem
+- update `Smartest::VERSION` in `lib/smartest/version.rb`
+- update `CHANGELOG.md`
+- run the test suite
+- verify the CLI
+- verify README and documentation examples
+- build the gem
+- install the built gem locally
+- run a sample project against the installed gem
+- publish the gem
 
 Example commands:
 
 ```bash
-gem build smartest.gemspec
-gem install ./smartest-0.1.0.gem
+rake test
+rake build
+gem install ./pkg/smartest-0.1.0.gem
+rake release
 ```
+
+`rake build` and `rake release` are provided by Bundler's gem tasks.
 
 ## Non-goals for the MVP
 

@@ -16,7 +16,7 @@ const sidebars = {
     {
       type: 'category',
       label: 'Contributing',
-      items: ['contributing/ai-agent-rules'],
+      items: ['contributing/ai-agent-rules', 'contributing/releasing'],
     },
   ],
 };

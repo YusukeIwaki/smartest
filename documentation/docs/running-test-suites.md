@@ -31,10 +31,24 @@ ruby -Ilib test/example_test.rb
 
 ## CLI
 
+Initialize a new test scaffold:
+
+```bash
+bundle exec smartest --init
+```
+
+The init command creates `test/test_helper.rb` and `test/example_test.rb`. It does not overwrite existing files.
+
 From this repository, run the CLI directly:
 
 ```bash
 ruby -Ilib exe/smartest test/**/*_test.rb
+```
+
+After installing the gem, use the executable directly:
+
+```bash
+smartest test/**/*_test.rb
 ```
 
 If no paths are passed, the CLI looks for:
@@ -53,6 +67,18 @@ Or a shell glob:
 
 ```bash
 ruby -Ilib exe/smartest test/**/*_test.rb
+```
+
+Show CLI help:
+
+```bash
+smartest --help
+```
+
+Show the installed Smartest version:
+
+```bash
+smartest --version
 ```
 
 ## Exit Status

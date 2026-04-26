@@ -6,11 +6,31 @@ description: Install Smartest, write a first test, and run it.
 
 # Getting Started
 
-This guide creates one test file and runs it with Smartest.
+This guide creates a small test scaffold and runs it with Smartest.
 
 ## Requirements
 
 Smartest is a Ruby test runner. The current development version is tested with Ruby 3.3.
+
+## Installation
+
+Add Smartest to your application's Gemfile:
+
+```ruby
+gem "smartest"
+```
+
+Then install it:
+
+```bash
+bundle install
+```
+
+Or install it directly:
+
+```bash
+gem install smartest
+```
 
 If you are working from this repository, run examples with the local `lib/` directory on Ruby's load path:
 
@@ -18,17 +38,27 @@ If you are working from this repository, run examples with the local `lib/` dire
 ruby -Ilib test/example_test.rb
 ```
 
-When Smartest is packaged as a gem, applications can require it normally through Bundler.
-
 ## Create a Test File
 
-Create `test/example_test.rb`:
+Initialize a test scaffold:
+
+```bash
+bundle exec smartest --init
+```
+
+This creates `test/test_helper.rb`:
 
 ```ruby
 require "smartest/autorun"
+```
 
-test("factorial") do
-  expect(1 * 2 * 3).to eq(6)
+It also creates `test/example_test.rb`:
+
+```ruby
+require_relative "test_helper"
+
+test("example") do
+  expect(1 + 1).to eq(2)
 end
 ```
 
@@ -45,12 +75,18 @@ From this repository:
 ruby -Ilib test/example_test.rb
 ```
 
+After installing the gem:
+
+```bash
+bundle exec smartest
+```
+
 Expected output:
 
 ```text
 Running 1 test
 
-✓ factorial
+✓ example
 
 1 test, 1 passed, 0 failed
 ```
