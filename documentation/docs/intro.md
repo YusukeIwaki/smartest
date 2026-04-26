@@ -36,6 +36,7 @@ end
 - [Writing Tests](./writing-tests.md) explains test structure and expectations.
 - [Running Test Suites](./running-test-suites.md) covers autorun and the CLI.
 - [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and cleanup.
+- [Browser Tests With Playwright](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
 
 ## Current Scope
 
