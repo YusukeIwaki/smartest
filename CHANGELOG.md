@@ -10,5 +10,6 @@
 - Support `eq`, `include`, `be_nil`, and `raise_error` matchers.
 - Add the `smartest` CLI.
 - Add `--help` and `--version` CLI options.
+- Use `smartest/**/*_test.rb` as the default CLI glob so Smartest can coexist with Minitest files under `test/`.
 - Add gem packaging metadata and release tasks.
 - Add Docusaurus documentation.

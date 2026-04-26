@@ -82,19 +82,19 @@ end
 The recommended layout keeps fixtures in their own files and tests in files ending with `_test.rb`:
 
 ```text
-test/
+smartest/
   test_helper.rb
   fixtures/
     app_fixture.rb
   example_test.rb
 ```
 
-Fixture files under `test/fixtures/` are loaded by the generated
-`test/test_helper.rb`.
+Fixture files under `smartest/fixtures/` are loaded by the generated
+`smartest/test_helper.rb`.
 
 Example:
 
-```ruby title="test/example_test.rb"
+```ruby title="smartest/example_test.rb"
 require "test_helper"
 
 use_fixture AppFixture

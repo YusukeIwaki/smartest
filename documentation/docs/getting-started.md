@@ -40,7 +40,7 @@ Initialize a test scaffold:
 bundle exec smartest --init
 ```
 
-This creates `test/test_helper.rb` and `test/fixtures/`:
+This creates `smartest/test_helper.rb` and `smartest/fixtures/`:
 
 ```ruby
 require "smartest/autorun"
@@ -50,7 +50,7 @@ Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
 end
 ```
 
-It also creates `test/example_test.rb`:
+It also creates `smartest/example_test.rb`:
 
 ```ruby
 require "test_helper"
@@ -60,10 +60,10 @@ test("example") do
 end
 ```
 
-The `smartest` CLI adds `test/` to Ruby's load path before loading test files,
+The `smartest` CLI adds `smartest/` to Ruby's load path before loading test files,
 so `require "test_helper"` works directly.
 
-The generated helper loads every Ruby file under `test/fixtures/` in sorted
+The generated helper loads every Ruby file under `smartest/fixtures/` in sorted
 order, so test files do not need individual fixture file requires.
 
 `smartest/autorun` in the helper does two things:

@@ -30,10 +30,10 @@ end
 
 ## Loading Fixture Files
 
-The generated `test/test_helper.rb` loads every Ruby file under
-`test/fixtures/` in sorted order:
+The generated `smartest/test_helper.rb` loads every Ruby file under
+`smartest/fixtures/` in sorted order:
 
-```ruby title="test/test_helper.rb"
+```ruby title="smartest/test_helper.rb"
 require "smartest/autorun"
 
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|

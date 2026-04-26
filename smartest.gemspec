@@ -35,7 +35,7 @@ Gem::Specification.new do |spec|
         "exe/*",
         "lib/**/*.rb",
         "smartest.gemspec",
-        "test/**/*.rb"
+        "smartest/**/*.rb"
       ]
     )
   end

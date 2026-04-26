@@ -315,13 +315,13 @@ end
 
 test("cli loads files and returns failure status") do
   Dir.mktmpdir do |dir|
-    test_dir = File.join(dir, "test")
-    FileUtils.mkdir_p(test_dir)
-    File.write(File.join(test_dir, "test_helper.rb"), <<~RUBY)
+    smartest_dir = File.join(dir, "smartest")
+    FileUtils.mkdir_p(smartest_dir)
+    File.write(File.join(smartest_dir, "test_helper.rb"), <<~RUBY)
       require "smartest/autorun"
     RUBY
 
-    test_file = File.join(test_dir, "sample_test.rb")
+    test_file = File.join(smartest_dir, "sample_test.rb")
     File.write(test_file, <<~RUBY)
       require "test_helper"
 
@@ -334,7 +334,7 @@ test("cli loads files and returns failure status") do
       { "RUBYLIB" => File.expand_path("../lib", __dir__) },
       "ruby",
       File.expand_path("../exe/smartest", __dir__),
-      "test/sample_test.rb",
+      "smartest/sample_test.rb",
       chdir: dir
     )
 
@@ -342,6 +342,45 @@ test("cli loads files and returns failure status") do
     expect(stderr).to eq("")
     expect(stdout).to include("cli failure")
     expect(stdout).to include("expected \"a\" to eq \"b\"")
+  end
+end
+
+test("cli default suite ignores minitest-style test directory") do
+  Dir.mktmpdir do |dir|
+    smartest_dir = File.join(dir, "smartest")
+    FileUtils.mkdir_p(smartest_dir)
+    File.write(File.join(smartest_dir, "test_helper.rb"), <<~RUBY)
+      require "smartest/autorun"
+    RUBY
+
+    File.write(File.join(smartest_dir, "sample_test.rb"), <<~RUBY)
+      require "test_helper"
+
+      test("smartest default") do
+        expect(1).to eq(1)
+      end
+    RUBY
+
+    minitest_dir = File.join(dir, "test")
+    FileUtils.mkdir_p(minitest_dir)
+    File.write(File.join(minitest_dir, "test_helper.rb"), <<~RUBY)
+      raise "loaded minitest helper"
+    RUBY
+    File.write(File.join(minitest_dir, "sample_test.rb"), <<~RUBY)
+      raise "loaded minitest test"
+    RUBY
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("smartest default")
+    expect(stdout).to include("1 test, 1 passed, 0 failed")
   end
 end
 
@@ -371,6 +410,7 @@ test("cli prints help") do
   expect(stdout).to include("Usage:")
   expect(stdout).to include("smartest [paths...]")
   expect(stdout).to include("smartest --init")
+  expect(stdout).to include("smartest/**/*_test.rb")
 end
 
 test("cli initializes a runnable test scaffold") do
@@ -385,32 +425,32 @@ test("cli initializes a runnable test scaffold") do
 
     expect(status.success?).to eq(true)
     expect(stderr).to eq("")
-    expect(stdout).to include("create  test")
-    expect(stdout).to include("create  test/fixtures")
-    expect(stdout).to include("create  test/test_helper.rb")
-    expect(stdout).to include("create  test/example_test.rb")
-    helper_contents = File.read(File.join(dir, "test/test_helper.rb"))
+    expect(stdout).to include("create  smartest")
+    expect(stdout).to include("create  smartest/fixtures")
+    expect(stdout).to include("create  smartest/test_helper.rb")
+    expect(stdout).to include("create  smartest/example_test.rb")
+    helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
     expect(helper_contents).to include('require "smartest/autorun"')
     expect(helper_contents).to include('Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each')
-    expect(File.read(File.join(dir, "test/example_test.rb"))).to include('require "test_helper"')
+    expect(File.read(File.join(dir, "smartest/example_test.rb"))).to include('require "test_helper"')
 
-    nested_fixtures_dir = File.join(dir, "test/fixtures/nested")
+    nested_fixtures_dir = File.join(dir, "smartest/fixtures/nested")
     FileUtils.mkdir_p(nested_fixtures_dir)
     File.write(File.join(nested_fixtures_dir, "auto_loaded_fixture.rb"), <<~RUBY)
       class AutoLoadedFixture < Smartest::Fixture
         fixture :auto_loaded_message do
-          "loaded from test/fixtures"
+          "loaded from smartest/fixtures"
         end
       end
     RUBY
 
-    File.write(File.join(dir, "test/auto_loaded_fixture_test.rb"), <<~RUBY)
+    File.write(File.join(dir, "smartest/auto_loaded_fixture_test.rb"), <<~RUBY)
       require "test_helper"
 
       use_fixture AutoLoadedFixture
 
       test("auto-loaded fixture") do |auto_loaded_message:|
-        expect(auto_loaded_message).to eq("loaded from test/fixtures")
+        expect(auto_loaded_message).to eq("loaded from smartest/fixtures")
       end
     RUBY
 
@@ -431,11 +471,11 @@ end
 
 test("cli init does not overwrite existing scaffold files") do
   Dir.mktmpdir do |dir|
-    test_dir = File.join(dir, "test")
-    fixture_dir = File.join(test_dir, "fixtures")
+    smartest_dir = File.join(dir, "smartest")
+    fixture_dir = File.join(smartest_dir, "fixtures")
     FileUtils.mkdir_p(fixture_dir)
-    helper_path = File.join(test_dir, "test_helper.rb")
-    example_path = File.join(test_dir, "example_test.rb")
+    helper_path = File.join(smartest_dir, "test_helper.rb")
+    example_path = File.join(smartest_dir, "example_test.rb")
     fixture_path = File.join(fixture_dir, "custom_fixture.rb")
     File.write(helper_path, "# custom helper\n")
     File.write(example_path, "# custom test\n")
@@ -451,10 +491,10 @@ test("cli init does not overwrite existing scaffold files") do
 
     expect(status.success?).to eq(true)
     expect(stderr).to eq("")
-    expect(stdout).to include("exist   test")
-    expect(stdout).to include("exist   test/fixtures")
-    expect(stdout).to include("exist   test/test_helper.rb")
-    expect(stdout).to include("exist   test/example_test.rb")
+    expect(stdout).to include("exist   smartest")
+    expect(stdout).to include("exist   smartest/fixtures")
+    expect(stdout).to include("exist   smartest/test_helper.rb")
+    expect(stdout).to include("exist   smartest/example_test.rb")
     expect(File.read(helper_path)).to eq("# custom helper\n")
     expect(File.read(example_path)).to eq("# custom test\n")
     expect(File.read(fixture_path)).to eq("# custom fixture\n")

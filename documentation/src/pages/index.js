@@ -24,7 +24,7 @@ export default function Home() {
               <span className="smartest-code-window__dot" />
               <span className="smartest-code-window__dot" />
               <span className="smartest-code-window__dot" />
-              <span>test/example_test.rb</span>
+              <span>smartest/example_test.rb</span>
             </div>
             <CodeBlock language="ruby">{`require "smartest/autorun"
 

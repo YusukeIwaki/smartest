@@ -57,15 +57,15 @@ bundle exec smartest --init
 This creates:
 
 ```text
-test/test_helper.rb
-test/fixtures/
-test/example_test.rb
+smartest/test_helper.rb
+smartest/fixtures/
+smartest/example_test.rb
 ```
 
 The generated example looks like this:
 
 ```ruby
-# test/example_test.rb
+# smartest/example_test.rb
 require "test_helper"
 
 test("example") do
@@ -79,10 +79,13 @@ Run the suite:
 bundle exec smartest
 ```
 
+By default, Smartest loads `smartest/**/*_test.rb`, so a separate `test/`
+directory can remain available for Minitest.
+
 You can also pass explicit paths:
 
 ```bash
-bundle exec smartest test/**/*_test.rb
+bundle exec smartest smartest/**/*_test.rb
 ```
 
 CLI help and version output are available with:
@@ -408,7 +411,7 @@ end
 ## Recommended file structure
 
 ```text
-test/
+smartest/
   test_helper.rb
   fixtures/
     app_fixture.rb
@@ -417,7 +420,7 @@ test/
 ```
 
 ```ruby
-# test/test_helper.rb
+# smartest/test_helper.rb
 require "smartest/autorun"
 
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
@@ -425,13 +428,13 @@ Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
 end
 ```
 
-The generated helper loads Ruby files under `test/fixtures/` in sorted order.
+The generated helper loads Ruby files under `smartest/fixtures/` in sorted order.
 Test files still register the fixture classes they need with `use_fixture`.
 
 Example:
 
 ```ruby
-# test/fixtures/web_fixture.rb
+# smartest/fixtures/web_fixture.rb
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
@@ -446,7 +449,7 @@ end
 ```
 
 ```ruby
-# test/example_test.rb
+# smartest/example_test.rb
 require "test_helper"
 
 use_fixture WebFixture

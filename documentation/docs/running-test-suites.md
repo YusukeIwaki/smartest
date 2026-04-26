@@ -20,7 +20,7 @@ Initialize a new test scaffold:
 bundle exec smartest --init
 ```
 
-The init command creates `test/test_helper.rb`, `test/fixtures/`, and `test/example_test.rb`. It does not overwrite existing files.
+The init command creates `smartest/test_helper.rb`, `smartest/fixtures/`, and `smartest/example_test.rb`. It does not overwrite existing files.
 
 Generated tests require the helper by name:
 
@@ -32,7 +32,7 @@ test("example") do
 end
 ```
 
-The CLI adds `test/` to Ruby's load path before loading files, so helpers can
+The CLI adds `smartest/` to Ruby's load path before loading files, so helpers can
 be required by name.
 
 ## Run Tests
@@ -46,19 +46,22 @@ bundle exec smartest
 If no paths are passed, the CLI looks for:
 
 ```text
-test/**/*_test.rb
+smartest/**/*_test.rb
 ```
+
+Smartest does not load `test/**/*_test.rb` by default, so a project can keep
+Minitest files under `test/` while using Smartest files under `smartest/`.
 
 You can pass a single file:
 
 ```bash
-bundle exec smartest test/user_test.rb
+bundle exec smartest smartest/user_test.rb
 ```
 
 Or a shell glob:
 
 ```bash
-bundle exec smartest test/**/*_test.rb
+bundle exec smartest smartest/**/*_test.rb
 ```
 
 Show CLI help:
@@ -110,7 +113,7 @@ Failures:
 
 ## Helper Loading
 
-`test/test_helper.rb` typically requires `smartest/autorun` and loads fixture
+`smartest/test_helper.rb` typically requires `smartest/autorun` and loads fixture
 files:
 
 ```ruby
@@ -130,4 +133,4 @@ require "test_helper"
 The CLI disables autorun before loading files, so requiring the helper does not
 run the suite twice.
 
-Fixture files under `test/fixtures/` are required by the helper in sorted order.
+Fixture files under `smartest/fixtures/` are required by the helper in sorted order.

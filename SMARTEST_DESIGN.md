@@ -781,7 +781,7 @@ bundle exec smartest
 should default to:
 
 ```text
-test/**/*_test.rb
+smartest/**/*_test.rb
 ```
 
 CLI flow:
@@ -790,9 +790,9 @@ CLI flow:
 require "smartest"
 
 Kernel.include Smartest::DSL
-$LOAD_PATH.unshift File.expand_path("test", Dir.pwd)
+$LOAD_PATH.unshift File.expand_path("smartest", Dir.pwd)
 
-files = ARGV.empty? ? Dir["test/**/*_test.rb"] : ARGV
+files = ARGV.empty? ? Dir["smartest/**/*_test.rb"] : ARGV
 files.each { |file| require File.expand_path(file) }
 
 exit Smartest::Runner.new.run
@@ -1050,7 +1050,7 @@ Could be added later as advanced API.
 ## Final MVP API
 
 ```ruby
-# test/test_helper.rb
+# smartest/test_helper.rb
 require "smartest/autorun"
 
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
@@ -1059,7 +1059,7 @@ end
 ```
 
 ```ruby
-# test/fixtures/app_fixture.rb
+# smartest/fixtures/app_fixture.rb
 class AppFixture < Smartest::Fixture
   fixture :user do
     User.create!(name: "Alice")
@@ -1078,7 +1078,7 @@ end
 ```
 
 ```ruby
-# test/example_test.rb
+# smartest/example_test.rb
 require "test_helper"
 
 use_fixture AppFixture

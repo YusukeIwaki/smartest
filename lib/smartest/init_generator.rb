@@ -5,7 +5,7 @@ require "fileutils"
 module Smartest
   class InitGenerator
     FILES = {
-      "test/test_helper.rb" => <<~RUBY,
+      "smartest/test_helper.rb" => <<~RUBY,
         # frozen_string_literal: true
 
         require "smartest/autorun"
@@ -14,7 +14,7 @@ module Smartest
           require fixture_file
         end
       RUBY
-      "test/example_test.rb" => <<~RUBY
+      "smartest/example_test.rb" => <<~RUBY
         # frozen_string_literal: true
 
         require "test_helper"
@@ -31,8 +31,8 @@ module Smartest
     end
 
     def run
-      create_directory("test")
-      create_directory("test/fixtures")
+      create_directory("smartest")
+      create_directory("smartest/fixtures")
       FILES.each { |path, contents| create_file(path, contents) }
 
       @output.puts

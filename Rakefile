@@ -3,7 +3,7 @@
 require "bundler/gem_tasks"
 
 task :test do
-  ruby "-Ilib", "exe/smartest", "test/**/*_test.rb"
+  ruby "-Ilib", "exe/smartest"
 end
 
 desc "Run tests and build the gem package"

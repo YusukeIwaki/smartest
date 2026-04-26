@@ -12,7 +12,7 @@ usage = <<~USAGE
     smartest --version
     smartest --help
 
-  When no paths are given, Smartest loads test/**/*_test.rb.
+  When no paths are given, Smartest loads smartest/**/*_test.rb.
 USAGE
 
 command = :run
@@ -35,12 +35,12 @@ begin
 
   Smartest.disable_autorun!
   Kernel.prepend Smartest::DSL
-  test_load_path = File.expand_path("test", Dir.pwd)
+  test_load_path = File.expand_path("smartest", Dir.pwd)
   $LOAD_PATH.unshift(test_load_path) if Dir.exist?(test_load_path) && !$LOAD_PATH.include?(test_load_path)
 
   files =
     if ARGV.empty?
-      Dir["test/**/*_test.rb"]
+      Dir["smartest/**/*_test.rb"]
     else
       ARGV.flat_map do |pattern|
         matches = Dir[pattern]
