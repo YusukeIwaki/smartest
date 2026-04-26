@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.metadata = {
     "allowed_push_host" => "https://rubygems.org",
     "bug_tracker_uri" => "https://github.com/YusukeIwaki/smartest/issues",
-    "documentation_uri" => "https://yusukeiwaki.github.io/smartest/",
+    "documentation_uri" => "https://smartest-rb.vercel.app/",
     "homepage_uri" => spec.homepage,
     "rubygems_mfa_required" => "true",
     "source_code_uri" => "https://github.com/YusukeIwaki/smartest/tree/main"

@@ -2,14 +2,17 @@
 
 const {themes} = require('prism-react-renderer');
 
+const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+const siteUrl = process.env.SITE_URL || (vercelUrl ? `https://${vercelUrl}` : 'https://smartest-rb.vercel.app');
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Smartest',
   tagline: 'A small Ruby test runner with keyword-first fixtures',
   favicon: 'img/smartest-mark.svg',
 
-  url: 'https://yusukeiwaki.github.io',
-  baseUrl: '/smartest/',
+  url: siteUrl,
+  baseUrl: '/',
 
   organizationName: 'YusukeIwaki',
   projectName: 'smartest',
