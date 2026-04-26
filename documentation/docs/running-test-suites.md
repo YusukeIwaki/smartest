@@ -82,6 +82,7 @@ Smartest returns:
 
 - `0` when every test passes
 - `1` when any test fails
+- `1` when suite fixture cleanup fails
 - `1` when a test file cannot be loaded
 
 This makes the CLI suitable for CI jobs:

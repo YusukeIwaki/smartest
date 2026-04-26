@@ -3,14 +3,22 @@
 module Smartest
   class Fixture
     class << self
-      def fixture(name, &block)
-        definition = FixtureDefinition.new(
-          name: name,
+      def fixture(name, scope: :test, &block)
+        define_fixture(
+          name,
+          scope: scope,
           block: block,
           location: caller_locations(1, 1).first
         )
+      end
 
-        own_fixture_definitions[definition.name] = definition
+      def suite_fixture(name, &block)
+        define_fixture(
+          name,
+          scope: :suite,
+          block: block,
+          location: caller_locations(1, 1).first
+        )
       end
 
       def fixture_definitions
@@ -25,6 +33,17 @@ module Smartest
       end
 
       private
+
+      def define_fixture(name, scope:, block:, location:)
+        definition = FixtureDefinition.new(
+          name: name,
+          block: block,
+          location: location,
+          scope: scope
+        )
+
+        own_fixture_definitions[definition.name] = definition
+      end
 
       def own_fixture_definitions
         @fixture_definitions ||= {}

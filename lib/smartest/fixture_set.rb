@@ -2,10 +2,13 @@
 
 module Smartest
   class FixtureSet
-    def initialize(fixture_classes, context:)
+    def initialize(fixture_classes, context:, scope: :test, parent: nil)
       @fixture_classes = fixture_classes.to_a
       @context = context
+      @scope = normalize_scope(scope)
+      @parent = parent
       @cache = {}
+      @setup_errors = {}
       @cleanups = []
       @resolving = []
 
@@ -21,7 +24,6 @@ module Smartest
 
     def resolve(name)
       symbol_name = name.to_sym
-      return @cache[symbol_name] if @cache.key?(symbol_name)
 
       if @resolving.include?(symbol_name)
         cycle_start = @resolving.index(symbol_name)
@@ -31,9 +33,18 @@ module Smartest
       definition = @definitions[symbol_name]
       raise FixtureNotFoundError, symbol_name unless definition
 
+      return resolve_from_parent(symbol_name, definition) unless definition.scope == @scope
+      return @cache[symbol_name] if @cache.key?(symbol_name)
+      raise @setup_errors[symbol_name] if @setup_errors.key?(symbol_name)
+
       @resolving << symbol_name
       dependencies = resolve_keywords(definition.dependencies)
       @cache[symbol_name] = @instances[symbol_name].instance_exec(**dependencies, &definition.block)
+    rescue Exception => error
+      raise if Smartest.fatal_exception?(error)
+
+      @setup_errors[symbol_name] = error if definition&.scope == @scope
+      raise
     ensure
       @resolving.pop if @resolving.last == symbol_name
     end
@@ -59,6 +70,26 @@ module Smartest
     end
 
     private
+
+    def normalize_scope(scope)
+      symbol_scope = scope.to_sym
+      return symbol_scope if FixtureDefinition::VALID_SCOPES.include?(symbol_scope)
+
+      raise InvalidFixtureScopeError, scope
+    rescue NoMethodError
+      raise InvalidFixtureScopeError, scope
+    end
+
+    def resolve_from_parent(name, definition)
+      return @parent.resolve(name) if @parent && definition.scope == :suite
+
+      raise InvalidFixtureScopeDependencyError.new(
+        dependent_name: @resolving.last,
+        dependent_scope: @scope,
+        dependency_name: name,
+        dependency_scope: definition.scope
+      )
+    end
 
     def build_fixture_index
       definitions_by_name = Hash.new { |hash, key| hash[key] = [] }

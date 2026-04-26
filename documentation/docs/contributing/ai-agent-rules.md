@@ -13,7 +13,7 @@ When an implementation change affects user-visible behavior, update the document
 
 User-visible behavior includes:
 
-- public Ruby APIs such as `test`, `use_fixture`, `fixture`, `cleanup`, and `expect`
+- public Ruby APIs such as `test`, `use_fixture`, `fixture`, `suite_fixture`, `cleanup`, and `expect`
 - supported matcher behavior
 - CLI arguments, defaults, output, or exit status
 - fixture resolution, caching, cleanup, duplicate detection, or circular dependency behavior

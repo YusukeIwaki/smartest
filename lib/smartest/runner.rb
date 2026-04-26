@@ -9,18 +9,25 @@ module Smartest
 
     def run
       results = []
+      suite_cleanup_errors = []
+      @suite_fixture_set = nil
 
       @reporter.start(@suite.tests.count)
 
-      @suite.tests.each do |test_case|
-        result = run_one(test_case)
-        results << result
-        @reporter.record(result)
+      begin
+        @suite.tests.each do |test_case|
+          result = run_one(test_case)
+          results << result
+          @reporter.record(result)
+        end
+      ensure
+        suite_cleanup_errors = @suite_fixture_set.run_cleanups if @suite_fixture_set
+        @suite_fixture_set = nil
       end
 
-      @reporter.finish(results)
+      @reporter.finish(results, suite_cleanup_errors: suite_cleanup_errors)
 
-      results.any?(&:failed?) ? 1 : 0
+      results.any?(&:failed?) || suite_cleanup_errors.any? ? 1 : 0
     end
 
     private
@@ -33,7 +40,7 @@ module Smartest
       cleanup_errors = []
 
       begin
-        fixture_set = FixtureSet.new(@suite.fixture_classes, context: context)
+        fixture_set = FixtureSet.new(@suite.fixture_classes, context: context, parent: suite_fixture_set)
         fixtures = fixture_set.resolve_keywords(test_case.fixture_names)
         context.instance_exec(**fixtures, &test_case.block)
       rescue Exception => rescued_error
@@ -56,6 +63,14 @@ module Smartest
       else
         TestResult.passed(test_case: test_case, duration: duration)
       end
+    end
+
+    def suite_fixture_set
+      @suite_fixture_set ||= FixtureSet.new(
+        @suite.fixture_classes,
+        context: ExecutionContext.new,
+        scope: :suite
+      )
     end
 
     def now

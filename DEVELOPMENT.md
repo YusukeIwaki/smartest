@@ -14,6 +14,7 @@ Smartest is a Ruby test runner focused on:
 - class-based fixtures
 - explicit keyword-argument fixture dependencies
 - optional cleanup for fixtures that need teardown
+- suite-scoped fixtures for expensive shared resources
 - a small internal architecture that is easy to reason about
 
 The MVP should avoid becoming a full RSpec clone.
@@ -212,6 +213,7 @@ end
 Responsibilities:
 
 - class-level `fixture` DSL
+- class-level `suite_fixture` DSL for suite-scoped fixtures
 - stores fixture definitions
 - supports inheritance
 - exposes `cleanup` to fixture blocks
@@ -229,16 +231,18 @@ Fields:
 - block
 - dependencies
 - location
+- scope
 
 Example:
 
 ```ruby
 class Smartest::FixtureDefinition
-  attr_reader :name, :block, :dependencies, :location
+  attr_reader :name, :block, :dependencies, :location, :scope
 
-  def initialize(name:, block:, location:)
+  def initialize(name:, block:, location:, scope: :test)
     @name = name.to_sym
     @block = block
+    @scope = scope
     @dependencies = ParameterExtractor.required_keyword_names(block)
     @location = location
   end
@@ -265,22 +269,25 @@ should register `AppFixture`.
 
 ### `Smartest::FixtureSet`
 
-Per-test fixture resolver.
+Fixture resolver for one scope.
 
-A new `FixtureSet` is created for each test.
+A suite-scoped `FixtureSet` is created lazily for shared fixtures. A new
+test-scoped `FixtureSet` is created for each test and delegates suite-scoped
+fixture requests to the suite set.
 
 Responsibilities:
 
 - instantiate registered fixture classes
 - find fixture definitions
 - resolve fixture dependencies
-- cache fixture values per test
+- cache fixture values for its scope
 - collect cleanup blocks
 - run cleanup blocks in reverse order
 - detect duplicate fixture names
 - detect circular dependencies
 
-Important: fixture values must not leak across tests.
+Important: regular fixture values must not leak across tests. Suite fixture
+values are intentionally shared across the run.
 
 ### `Smartest::ExecutionContext`
 
@@ -306,11 +313,13 @@ Runs tests.
 Responsibilities:
 
 - iterate over registered test cases
+- create a lazy suite-scoped `FixtureSet`
 - create a fresh `ExecutionContext` per test
 - create a fresh `FixtureSet` per test
 - resolve test keyword fixtures
 - run test body
 - run cleanup in `ensure`
+- run suite fixture cleanup after all tests
 - produce `TestResult`
 - notify reporter
 
@@ -319,7 +328,11 @@ Pseudo-code:
 ```ruby
 def run_one(test_case)
   context = ExecutionContext.new
-  fixture_set = FixtureSet.new(@fixture_classes, context: context)
+  fixture_set = FixtureSet.new(
+    @fixture_classes,
+    context: context,
+    parent: suite_fixture_set
+  )
 
   kwargs = fixture_set.resolve_keywords(test_case.fixture_names)
 
@@ -437,11 +450,13 @@ fixture :server do
 end
 ```
 
-`cleanup` should register a block on the current per-test `FixtureSet`.
+`cleanup` should register a block on the current fixture set. Regular fixture
+cleanups run after the test. `suite_fixture` cleanups run after all tests.
 
 Cleanup blocks must run:
 
 - after the test body
+- after the suite for suite-scoped fixtures
 - after failed tests
 - after fixture setup errors, if cleanup was already registered
 - in reverse registration order
@@ -577,7 +592,15 @@ A practical approach:
 - cleanup stack on `FixtureSet`
 - cleanup in `ensure`
 
-### Phase 5: Hardening
+### Phase 5: Suite-scoped fixtures
+
+- `suite_fixture :name do ... end`
+- suite-level fixture cache
+- suite cleanup after all tests
+- test fixtures may depend on suite fixtures
+- suite fixtures may not depend on test fixtures
+
+### Phase 6: Hardening
 
 - circular dependency detection
 - duplicate fixture detection
@@ -736,7 +759,6 @@ Do not implement these in the first version:
 
 - nested `describe/context`
 - parallel execution
-- suite-scoped fixtures
 - file-scoped fixtures
 - resource fixtures using `use.call`
 - RSpec-compatible matcher ecosystem

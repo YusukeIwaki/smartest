@@ -173,6 +173,127 @@ test("caches fixture values within one test") do
   expect(calls).to eq(1)
 end
 
+test("suite fixtures are created once and cleaned up after the suite") do
+  events = []
+  servers = []
+
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :server do
+      events << :server_setup
+      server = Object.new
+      cleanup { events << :server_cleanup }
+      server
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(SmartestSelfTest.test_case("first", proc { |server:| events << :first; servers << server }))
+  suite.tests.add(SmartestSelfTest.test_case("second", proc { |server:| events << :second; servers << server }))
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq(%i[server_setup first second server_cleanup])
+  expect(servers.length).to eq(2)
+  expect(servers[0].object_id).to eq(servers[1].object_id)
+end
+
+test("test fixtures can depend on suite fixtures") do
+  calls = []
+  server_ids = []
+  client_ids = []
+
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :server do
+      calls << :server
+      Object.new
+    end
+
+    fixture :client do |server:|
+      [server, Object.new]
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(SmartestSelfTest.test_case("first", proc { |client:| server_ids << client.first.object_id; client_ids << client.last.object_id }))
+  suite.tests.add(SmartestSelfTest.test_case("second", proc { |client:| server_ids << client.first.object_id; client_ids << client.last.object_id }))
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(calls).to eq([:server])
+  expect(server_ids.uniq.length).to eq(1)
+  expect(client_ids.uniq.length).to eq(2)
+end
+
+test("suite fixtures cannot depend on test fixtures") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :user do
+      :user
+    end
+
+    suite_fixture :server do |user:|
+      user
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(SmartestSelfTest.test_case("needs server", proc { |server:| expect(server).to eq(:server) }))
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("suite-scoped fixture server cannot depend on test-scoped fixture user")
+end
+
+test("suite fixture setup failures are cached and cleaned up once") do
+  calls = 0
+  events = []
+
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :server do
+      calls += 1
+      cleanup { events << :server_cleanup }
+      raise "server setup failed"
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(SmartestSelfTest.test_case("first", proc { |server:| expect(server).to eq(:server) }))
+  suite.tests.add(SmartestSelfTest.test_case("second", proc { |server:| expect(server).to eq(:server) }))
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(calls).to eq(1)
+  expect(events).to eq([:server_cleanup])
+  expect(output.scan("RuntimeError: server setup failed").length).to eq(2)
+end
+
+test("suite cleanup failures fail the run") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :browser do
+      cleanup { raise "browser close failed" }
+      :browser
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(SmartestSelfTest.test_case("uses browser", proc { |browser:| expect(browser).to eq(:browser) }))
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("Suite cleanup failures:")
+  expect(output).to include("cleanup failed: RuntimeError: browser close failed")
+  expect(output).to include("1 test, 1 passed, 0 failed, 1 suite cleanup failed")
+end
+
 test("runs cleanup in reverse order after failures") do
   events = []
 
@@ -311,6 +432,17 @@ test("rejects positional fixture parameters") do
   end
 
   expect(error.message).to include("Positional fixture dependencies are not supported.")
+end
+
+test("rejects invalid fixture scopes") do
+  error = SmartestSelfTest.capture_error(Smartest::InvalidFixtureScopeError) do
+    Class.new(Smartest::Fixture) do
+      fixture(:bad, scope: :file) { nil }
+    end
+  end
+
+  expect(error.message).to include("invalid fixture scope: :file")
+  expect(error.message).to include("supported scopes: test, suite")
 end
 
 test("cli loads files and returns failure status") do

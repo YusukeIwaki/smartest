@@ -243,11 +243,13 @@ fixture :temp_dir do
 end
 ```
 
-A fixture value is cached per test.
+By default, a fixture value is cached per test.
 
-Within one test, resolving the same fixture multiple times returns the same value.
+Within one test, resolving the same test-scoped fixture multiple times returns
+the same value.
 
-Across tests, fixtures are re-created.
+Across tests, test-scoped fixtures are re-created. `suite_fixture` values are
+cached for the suite and shared intentionally.
 
 ## Test model
 
@@ -373,7 +375,7 @@ run cleanup stack in reverse order
 
 ## Fixture caching
 
-`FixtureSet` owns a per-test cache.
+`FixtureSet` owns a cache for one fixture scope.
 
 ```ruby
 @cache = {
@@ -383,13 +385,15 @@ run cleanup stack in reverse order
 }
 ```
 
-The cache is created fresh for each test.
+The test-scoped cache is created fresh for each test. The suite-scoped cache is
+shared for the runner lifetime.
 
-This prevents test pollution.
+This keeps regular fixtures isolated while allowing explicit suite fixtures for
+expensive shared resources.
 
 ## Cleanup stack
 
-`FixtureSet` owns a per-test cleanup stack.
+`FixtureSet` owns a cleanup stack for one fixture scope.
 
 ```ruby
 @cleanups = []
@@ -407,13 +411,14 @@ This delegates to:
 fixture_set.add_cleanup(&block)
 ```
 
-After the test, cleanup runs in reverse order:
+For test-scoped fixtures, cleanup runs after the test in reverse order:
 
 ```ruby
 @cleanups.reverse_each(&:call)
 ```
 
-Reverse order matters because later resources may depend on earlier ones.
+For suite-scoped fixtures, cleanup runs after all tests. Reverse order matters
+because later resources may depend on earlier ones.
 
 Example:
 
@@ -635,7 +640,7 @@ Duplicate detection applies across registered fixture classes, not parent-child 
 
 ## Fixture instances
 
-Each test gets fresh fixture class instances.
+Each test gets fresh fixture class instances for test-scoped fixtures.
 
 ```text
 test A
@@ -886,26 +891,34 @@ Fixture cleanup already handles resource-specific teardown.
 
 ## Scoping
 
-MVP supports only test-scoped fixtures.
+Fixtures are test-scoped by default.
 
-Every test gets fresh fixture instances and fixture values.
+Every test gets fresh test-scoped fixture instances and fixture values.
 
-Future scopes:
+Expensive shared resources can use `suite_fixture`:
 
 ```ruby
-fixture :server, scope: :suite do
+suite_fixture :server do
+  server = TestServer.start
+  cleanup { server.stop }
+  server
 end
 ```
 
-Possible scopes:
+Supported scopes:
 
 - `:test`
-- `:file`
 - `:suite`
 
-Do not implement scopes in MVP.
+`fixture :name do ... end` creates a test-scoped fixture.
 
-Suite-scoped fixtures introduce test pollution, parallel execution concerns, and lifecycle complexity.
+`suite_fixture :name do ... end` creates a suite-scoped fixture. It is lazy:
+setup runs the first time a test requests it, and cleanup runs after all tests.
+
+Test-scoped fixtures may depend on suite-scoped fixtures. Suite-scoped fixtures
+may depend only on other suite-scoped fixtures.
+
+File-scoped fixtures are not implemented.
 
 ## Parallel execution
 
@@ -1101,7 +1114,6 @@ Possible future features:
 - block expectations
 - `raise_error`
 - hooks
-- suite-scoped fixtures
 - file-scoped fixtures
 - parallel execution
 - watch mode

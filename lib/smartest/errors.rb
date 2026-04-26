@@ -27,6 +27,25 @@ module Smartest
     end
   end
 
+  class InvalidFixtureScopeError < Error
+    def initialize(scope)
+      super("invalid fixture scope: #{scope.inspect}; supported scopes: test, suite")
+    end
+  end
+
+  class InvalidFixtureScopeDependencyError < Error
+    def initialize(dependent_name:, dependent_scope:, dependency_name:, dependency_scope:)
+      message =
+        if dependent_name
+          "#{dependent_scope}-scoped fixture #{dependent_name} cannot depend on #{dependency_scope}-scoped fixture #{dependency_name}"
+        else
+          "cannot resolve #{dependency_scope}-scoped fixture #{dependency_name} from #{dependent_scope} fixture scope"
+        end
+
+      super(message)
+    end
+  end
+
   class InvalidFixtureParameterError < Error; end
 
   class AssertionFailed < Error; end

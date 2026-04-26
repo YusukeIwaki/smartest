@@ -7,6 +7,7 @@
 - Support class-based fixtures through `Smartest::Fixture`.
 - Support required keyword-argument fixture injection and fixture dependencies.
 - Support per-test fixture caching and cleanup.
+- Support suite-scoped fixtures through `suite_fixture`.
 - Support `eq`, `include`, `be_nil`, and `raise_error` matchers.
 - Add the `smartest` CLI.
 - Add `--help` and `--version` CLI options.

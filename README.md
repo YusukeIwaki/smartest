@@ -221,7 +221,7 @@ Fixtures can depend on other fixtures using required keyword arguments.
 
 ```ruby
 class AppFixture < Smartest::Fixture
-  fixture :server do
+  suite_fixture :server do
     TestServer.start
   end
 
@@ -249,6 +249,32 @@ test("GET /health") do |client:|
 end
 ```
 
+## Fixture scopes
+
+Regular `fixture` definitions are test-scoped. Smartest creates a fresh value
+for each test that requests the fixture.
+
+Use `suite_fixture` for expensive resources that should be created once and
+released after the full suite finishes:
+
+```ruby
+class BrowserFixture < Smartest::Fixture
+  suite_fixture :browser do
+    browser = Browser.launch
+    cleanup { browser.close }
+    browser
+  end
+
+  fixture :page do |browser:|
+    browser.new_page
+  end
+end
+```
+
+Suite fixtures are lazy: setup runs the first time a test requests the fixture,
+and cleanup runs once after all tests finish. Test-scoped fixtures can depend on
+suite fixtures, but suite fixtures cannot depend on test-scoped fixtures.
+
 ## Fixtures with teardown
 
 Not every fixture needs teardown. For fixtures that do, use `cleanup`.
@@ -269,7 +295,9 @@ class WebFixture < Smartest::Fixture
 end
 ```
 
-`cleanup` blocks run after the test finishes.
+`cleanup` blocks run after the fixture's scope finishes. For regular fixtures
+that means after the test. For `suite_fixture`, cleanup runs after the full
+suite.
 
 They are executed in reverse order of registration.
 

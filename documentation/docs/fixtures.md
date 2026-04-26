@@ -56,7 +56,7 @@ Fixtures can depend on other fixtures with required keyword arguments:
 
 ```ruby
 class WebFixture < Smartest::Fixture
-  fixture :server do
+  suite_fixture :server do
     TestServer.start
   end
 
@@ -98,20 +98,21 @@ end
 
 If a test requests both `first` and `second`, both fixtures receive the same `token` object for that test.
 
-The next test gets a fresh cache and fresh fixture instances.
+The next test gets a fresh cache and fresh fixture instances for regular
+test-scoped fixtures.
 
 ## Fixture Scope
 
-Smartest currently supports only test-scoped fixtures.
+Smartest supports test-scoped fixtures and suite-scoped fixtures.
 
-Every test gets:
+Regular `fixture` definitions are test-scoped. Every test gets:
 
 - a new `FixtureSet`
 - new fixture class instances
 - a fresh fixture value cache
 - a fresh cleanup stack
 
-That means this fixture runs once for each test that needs it:
+That means a regular fixture runs once for each test that needs it:
 
 ```ruby
 class AppFixture < Smartest::Fixture
@@ -121,23 +122,38 @@ class AppFixture < Smartest::Fixture
 end
 ```
 
-Suite-scoped, file-scoped, or module-scoped fixtures are not implemented yet:
+Use `suite_fixture` for expensive resources that should be shared for the whole
+suite, such as a database connection or browser process:
 
 ```ruby
-fixture :server, scope: :suite do
-  # Not supported in the current MVP.
+class BrowserFixture < Smartest::Fixture
+  suite_fixture :browser do
+    browser = Browser.launch
+    cleanup { browser.close }
+    browser
+  end
+
+  fixture :page do |browser:|
+    browser.new_page
+  end
 end
 ```
 
-The current `fixture` DSL accepts only a fixture name and a block:
+Suite fixtures are lazy. Setup runs the first time a test requests the fixture,
+and cleanup runs once after all tests finish.
+
+Test-scoped fixtures can depend on suite fixtures:
 
 ```ruby
-fixture :server do
-  TestServer.start
+fixture :page do |browser:|
+  browser.new_page
 end
 ```
 
-If a future version adds scopes, the documentation should describe lifecycle, caching, cleanup timing, and interaction with parallel execution before the API is released.
+Suite fixtures cannot depend on test-scoped fixtures, because there is no single
+test-scoped value that can safely be shared across the full suite.
+
+File-scoped or module-scoped fixtures are not implemented yet.
 
 ## Cleanup
 
@@ -156,6 +172,9 @@ end
 ```
 
 Register cleanup immediately after acquiring the resource. Cleanup runs even if a later setup step or the test body fails.
+
+For regular fixtures, cleanup runs after the test finishes. For `suite_fixture`,
+cleanup runs once after the full suite finishes.
 
 Cleanups run in reverse registration order. If `browser` depends on `server`, the browser cleanup runs before the server cleanup:
 

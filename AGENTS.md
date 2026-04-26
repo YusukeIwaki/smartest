@@ -8,7 +8,7 @@ When changing implementation behavior, update documentation in the same change.
 
 Implementation behavior includes:
 
-- public Ruby APIs such as `test`, `use_fixture`, `fixture`, `cleanup`, and `expect`
+- public Ruby APIs such as `test`, `use_fixture`, `fixture`, `suite_fixture`, `cleanup`, and `expect`
 - matcher behavior
 - CLI arguments, default globs, output, and exit status
 - fixture resolution, caching, cleanup, duplicate fixture detection, and circular dependency detection

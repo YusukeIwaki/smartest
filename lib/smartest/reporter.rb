@@ -19,13 +19,19 @@ module Smartest
       @io.puts "#{mark} #{result.test_case.name}"
     end
 
-    def finish(results)
+    def finish(results, suite_cleanup_errors: [])
       failures = results.select(&:failed?)
 
       report_failures(failures) if failures.any?
+      report_suite_cleanup_errors(suite_cleanup_errors) if suite_cleanup_errors.any?
 
       @io.puts
-      @io.puts "#{results.count} #{results.count == 1 ? 'test' : 'tests'}, #{results.count(&:passed?)} passed, #{failures.count} failed"
+      summary = "#{results.count} #{results.count == 1 ? 'test' : 'tests'}, #{results.count(&:passed?)} passed, #{failures.count} failed"
+      if suite_cleanup_errors.any?
+        cleanup_label = suite_cleanup_errors.count == 1 ? "suite cleanup" : "suite cleanups"
+        summary = "#{summary}, #{suite_cleanup_errors.count} #{cleanup_label} failed"
+      end
+      @io.puts summary
     end
 
     private
@@ -40,6 +46,18 @@ module Smartest
         report_location(result.test_case.location)
         report_error(result.error) if result.error
         result.cleanup_errors.each { |error| report_cleanup_error(error) }
+        @io.puts
+      end
+    end
+
+    def report_suite_cleanup_errors(errors)
+      @io.puts
+      @io.puts "Suite cleanup failures:"
+      @io.puts
+
+      errors.each_with_index do |error, index|
+        @io.puts "#{index + 1}) suite cleanup"
+        report_cleanup_error(error)
         @io.puts
       end
     end

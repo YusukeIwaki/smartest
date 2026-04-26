@@ -43,6 +43,40 @@ circular fixture dependency: a -> b -> a
 
 Break the cycle by extracting shared setup into a lower-level fixture.
 
+## `Smartest::InvalidFixtureScopeError`
+
+Raised when a fixture is defined with an unsupported internal scope.
+
+Use `fixture` for test-scoped fixtures and `suite_fixture` for suite-scoped
+fixtures:
+
+```ruby
+class AppFixture < Smartest::Fixture
+  suite_fixture :database do
+    Database.connect
+  end
+end
+```
+
+## `Smartest::InvalidFixtureScopeDependencyError`
+
+Raised when a suite-scoped fixture depends on a test-scoped fixture:
+
+```ruby
+class AppFixture < Smartest::Fixture
+  fixture :user do
+    User.create!(name: "Alice")
+  end
+
+  suite_fixture :browser do |user:|
+    Browser.launch(user: user)
+  end
+end
+```
+
+Test-scoped fixtures may depend on suite-scoped fixtures. Suite-scoped fixtures
+may depend only on other suite-scoped fixtures.
+
 ## `Smartest::InvalidFixtureParameterError`
 
 Raised when a test or fixture block uses positional parameters:
