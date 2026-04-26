@@ -6,30 +6,13 @@ description: Run Smartest tests through autorun or the CLI.
 
 # Running Test Suites
 
-Smartest has two entry points:
+The primary Smartest workflow is:
 
-- `smartest/autorun` for single-file execution
-- `exe/smartest` for loading one or more test files from the command line
+- initialize a test scaffold with `bundle exec smartest --init`
+- write tests that require `test_helper`
+- run the suite with `bundle exec smartest`
 
-## Autorun
-
-Use `smartest/autorun` when a file should run itself:
-
-```ruby title="test/example_test.rb"
-require "smartest/autorun"
-
-test("factorial") do
-  expect(1 * 2 * 3).to eq(6)
-end
-```
-
-Run it:
-
-```bash
-ruby -Ilib test/example_test.rb
-```
-
-## CLI
+## Initialize
 
 Initialize a new test scaffold:
 
@@ -37,18 +20,27 @@ Initialize a new test scaffold:
 bundle exec smartest --init
 ```
 
-The init command creates `test/test_helper.rb` and `test/example_test.rb`. It does not overwrite existing files.
+The init command creates `test/test_helper.rb`, `test/fixtures/`, and `test/example_test.rb`. It does not overwrite existing files.
 
-From this repository, run the CLI directly:
+Generated tests require the helper by name:
 
-```bash
-ruby -Ilib exe/smartest test/**/*_test.rb
+```ruby
+require "test_helper"
+
+test("example") do
+  expect(1 + 1).to eq(2)
+end
 ```
 
-After installing the gem, use the executable directly:
+The CLI adds `test/` to Ruby's load path before loading files, so helpers can
+be required by name.
+
+## Run Tests
+
+Run the default suite:
 
 ```bash
-smartest test/**/*_test.rb
+bundle exec smartest
 ```
 
 If no paths are passed, the CLI looks for:
@@ -60,25 +52,25 @@ test/**/*_test.rb
 You can pass a single file:
 
 ```bash
-ruby -Ilib exe/smartest test/user_test.rb
+bundle exec smartest test/user_test.rb
 ```
 
 Or a shell glob:
 
 ```bash
-ruby -Ilib exe/smartest test/**/*_test.rb
+bundle exec smartest test/**/*_test.rb
 ```
 
 Show CLI help:
 
 ```bash
-smartest --help
+bundle exec smartest --help
 ```
 
 Show the installed Smartest version:
 
 ```bash
-smartest --version
+bundle exec smartest --version
 ```
 
 ## Exit Status
@@ -92,7 +84,7 @@ Smartest returns:
 This makes the CLI suitable for CI jobs:
 
 ```bash
-ruby -Ilib exe/smartest test/**/*_test.rb
+bundle exec smartest
 ```
 
 ## Reading Output
@@ -116,6 +108,26 @@ Failures:
    expected 2 to eq 3
 ```
 
-## Autorun and CLI Together
+## Helper Loading
 
-Test files may require `smartest/autorun` and still be loaded by the CLI. The CLI disables autorun before loading files so the suite is not run twice.
+`test/test_helper.rb` typically requires `smartest/autorun` and loads fixture
+files:
+
+```ruby
+require "smartest/autorun"
+
+Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
+  require fixture_file
+end
+```
+
+Test files require that helper:
+
+```ruby
+require "test_helper"
+```
+
+The CLI disables autorun before loading files, so requiring the helper does not
+run the suite twice.
+
+Fixture files under `test/fixtures/` are required by the helper in sorted order.

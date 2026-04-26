@@ -50,7 +50,7 @@ smartest --version
 Then run a sample test file:
 
 ```bash
-smartest test/**/*_test.rb
+bundle exec smartest
 ```
 
 ## Publishing

@@ -28,6 +28,28 @@ test("user") do |user:|
 end
 ```
 
+## Loading Fixture Files
+
+The generated `test/test_helper.rb` loads every Ruby file under
+`test/fixtures/` in sorted order:
+
+```ruby title="test/test_helper.rb"
+require "smartest/autorun"
+
+Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
+  require fixture_file
+end
+```
+
+Test files can require only the helper, then register the fixture classes they
+need:
+
+```ruby
+require "test_helper"
+
+use_fixture AppFixture
+```
+
 ## Keyword Dependencies
 
 Fixtures can depend on other fixtures with required keyword arguments:

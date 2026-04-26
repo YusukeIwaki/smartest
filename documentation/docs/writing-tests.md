@@ -83,16 +83,19 @@ The recommended layout keeps fixtures in their own files and tests in files endi
 
 ```text
 test/
+  test_helper.rb
   fixtures/
     app_fixture.rb
   example_test.rb
 ```
 
+Fixture files under `test/fixtures/` are loaded by the generated
+`test/test_helper.rb`.
+
 Example:
 
 ```ruby title="test/example_test.rb"
-require "smartest/autorun"
-require_relative "fixtures/app_fixture"
+require "test_helper"
 
 use_fixture AppFixture
 

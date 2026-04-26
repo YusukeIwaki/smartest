@@ -9,11 +9,15 @@ module Smartest
         # frozen_string_literal: true
 
         require "smartest/autorun"
+
+        Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
+          require fixture_file
+        end
       RUBY
       "test/example_test.rb" => <<~RUBY
         # frozen_string_literal: true
 
-        require_relative "test_helper"
+        require "test_helper"
 
         test("example") do
           expect(1 + 1).to eq(2)
@@ -28,6 +32,7 @@ module Smartest
 
     def run
       create_directory("test")
+      create_directory("test/fixtures")
       FILES.each { |path, contents| create_file(path, contents) }
 
       @output.puts

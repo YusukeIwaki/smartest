@@ -35,6 +35,8 @@ begin
 
   Smartest.disable_autorun!
   Kernel.prepend Smartest::DSL
+  test_load_path = File.expand_path("test", Dir.pwd)
+  $LOAD_PATH.unshift(test_load_path) if Dir.exist?(test_load_path) && !$LOAD_PATH.include?(test_load_path)
 
   files =
     if ARGV.empty?

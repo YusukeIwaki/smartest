@@ -590,6 +590,8 @@ A practical approach:
 - `exe/smartest`
 - load files from ARGV
 - default glob `test/**/*_test.rb`
+- add `test/` to the load path before loading tests
+- generate a `test/test_helper.rb` that loads `test/fixtures/**/*.rb`
 - exit code 0 on success, 1 on failure
 
 ## MVP API rules
@@ -691,7 +693,7 @@ Use keyword fixture dependencies:
 During development:
 
 ```bash
-ruby -Ilib exe/smartest test/**/*_test.rb
+bundle exec ruby exe/smartest test/**/*_test.rb
 ```
 
 or:

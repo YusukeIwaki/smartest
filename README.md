@@ -58,6 +58,7 @@ This creates:
 
 ```text
 test/test_helper.rb
+test/fixtures/
 test/example_test.rb
 ```
 
@@ -65,30 +66,30 @@ The generated example looks like this:
 
 ```ruby
 # test/example_test.rb
-require_relative "test_helper"
+require "test_helper"
 
 test("example") do
   expect(1 + 1).to eq(2)
 end
 ```
 
-Run it:
+Run the suite:
 
 ```bash
 bundle exec smartest
 ```
 
-Or, when using the CLI:
+You can also pass explicit paths:
 
 ```bash
-smartest test/**/*_test.rb
+bundle exec smartest test/**/*_test.rb
 ```
 
 CLI help and version output are available with:
 
 ```bash
-smartest --help
-smartest --version
+bundle exec smartest --help
+bundle exec smartest --version
 ```
 
 Expected output:
@@ -408,11 +409,24 @@ end
 
 ```text
 test/
+  test_helper.rb
   fixtures/
     app_fixture.rb
     web_fixture.rb
   example_test.rb
 ```
+
+```ruby
+# test/test_helper.rb
+require "smartest/autorun"
+
+Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
+  require fixture_file
+end
+```
+
+The generated helper loads Ruby files under `test/fixtures/` in sorted order.
+Test files still register the fixture classes they need with `use_fixture`.
 
 Example:
 
@@ -433,8 +447,7 @@ end
 
 ```ruby
 # test/example_test.rb
-require "smartest/autorun"
-require_relative "fixtures/web_fixture"
+require "test_helper"
 
 use_fixture WebFixture
 

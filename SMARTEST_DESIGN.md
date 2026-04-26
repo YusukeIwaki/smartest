@@ -769,13 +769,13 @@ Future reporters may include:
 The CLI should support:
 
 ```bash
-smartest test/**/*_test.rb
+bundle exec smartest
 ```
 
 If no paths are given:
 
 ```bash
-smartest
+bundle exec smartest
 ```
 
 should default to:
@@ -790,6 +790,7 @@ CLI flow:
 require "smartest"
 
 Kernel.include Smartest::DSL
+$LOAD_PATH.unshift File.expand_path("test", Dir.pwd)
 
 files = ARGV.empty? ? Dir["test/**/*_test.rb"] : ARGV
 files.each { |file| require File.expand_path(file) }
@@ -1049,8 +1050,16 @@ Could be added later as advanced API.
 ## Final MVP API
 
 ```ruby
+# test/test_helper.rb
 require "smartest/autorun"
 
+Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
+  require fixture_file
+end
+```
+
+```ruby
+# test/fixtures/app_fixture.rb
 class AppFixture < Smartest::Fixture
   fixture :user do
     User.create!(name: "Alice")
@@ -1066,6 +1075,11 @@ class AppFixture < Smartest::Fixture
     Client.new(base_url: server.url)
   end
 end
+```
+
+```ruby
+# test/example_test.rb
+require "test_helper"
 
 use_fixture AppFixture
 

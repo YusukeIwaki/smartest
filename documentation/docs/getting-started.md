@@ -32,12 +32,6 @@ Or install it directly:
 gem install smartest
 ```
 
-If you are working from this repository, run examples with the local `lib/` directory on Ruby's load path:
-
-```bash
-ruby -Ilib test/example_test.rb
-```
-
 ## Create a Test File
 
 Initialize a test scaffold:
@@ -46,36 +40,38 @@ Initialize a test scaffold:
 bundle exec smartest --init
 ```
 
-This creates `test/test_helper.rb`:
+This creates `test/test_helper.rb` and `test/fixtures/`:
 
 ```ruby
 require "smartest/autorun"
+
+Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
+  require fixture_file
+end
 ```
 
 It also creates `test/example_test.rb`:
 
 ```ruby
-require_relative "test_helper"
+require "test_helper"
 
 test("example") do
   expect(1 + 1).to eq(2)
 end
 ```
 
-`smartest/autorun` does two things:
+The `smartest` CLI adds `test/` to Ruby's load path before loading test files,
+so `require "test_helper"` works directly.
+
+The generated helper loads every Ruby file under `test/fixtures/` in sorted
+order, so test files do not need individual fixture file requires.
+
+`smartest/autorun` in the helper does two things:
 
 - makes the top-level `test` and `use_fixture` DSL available
 - runs the registered tests when Ruby exits
 
 ## Run the Test
-
-From this repository:
-
-```bash
-ruby -Ilib test/example_test.rb
-```
-
-After installing the gem:
 
 ```bash
 bundle exec smartest
