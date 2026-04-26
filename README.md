@@ -163,29 +163,6 @@ be_nil
 raise_error(ErrorClass)
 ```
 
-## Building the gem
-
-Smartest is packaged as a Ruby gem.
-
-Build it locally:
-
-```bash
-gem build smartest.gemspec
-```
-
-Install the built package:
-
-```bash
-gem install ./smartest-0.1.0.gem
-```
-
-Release tasks are provided by Bundler:
-
-```bash
-rake build
-rake release
-```
-
 ## Fixtures
 
 Fixtures are defined in classes.

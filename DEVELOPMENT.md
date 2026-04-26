@@ -740,7 +740,7 @@ Before releasing:
 - build the gem
 - install the built gem locally
 - run a sample project against the installed gem
-- publish the gem
+- push the release tag
 
 Example commands:
 
@@ -748,10 +748,15 @@ Example commands:
 rake test
 rake build
 gem install ./pkg/smartest-0.1.0.gem
-rake release
+git tag 0.1.0
+git push origin 0.1.0
 ```
 
-`rake build` and `rake release` are provided by Bundler's gem tasks.
+`rake build` is provided by Bundler's gem tasks. Pushing a tag that matches
+`Smartest::VERSION`, such as `0.1.0` or `0.1.0.alpha1`, triggers the Deploy
+GitHub Actions workflow. The workflow runs `rake verify`, builds the gem, and
+publishes `pkg/smartest-$VERSION.gem` to RubyGems using the `RUBYGEMS_API_KEY`
+repository secret.
 
 ## Non-goals for the MVP
 

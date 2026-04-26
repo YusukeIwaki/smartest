@@ -1,0 +1,43 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+.alpha[0-9]+'
+
+permissions:
+  contents: read
+
+jobs:
+  push_to_rubygems:
+    name: Push to RubyGems
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set RELEASE_TAG
+        run: echo "RELEASE_TAG=${GITHUB_REF#refs/*/}" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Check Smartest::VERSION
+        run: bundle exec ruby -Ilib -rsmartest/version -e 'raise "invalid Smartest::VERSION" unless Smartest::VERSION == ENV.fetch("RELEASE_TAG")'
+
+      - run: bundle exec rake verify
+
+      - name: Set up RubyGems credentials
+        run: |
+          test -n "$RUBYGEMS_API_KEY" || { echo "RUBYGEMS_API_KEY secret is required"; exit 1; }
+          mkdir -p ~/.gem/
+          echo "---" > ~/.gem/credentials
+          echo ":rubygems_api_key: $RUBYGEMS_API_KEY" >> ~/.gem/credentials
+          chmod 600 ~/.gem/credentials
+        env:
+          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+
+      - run: gem push "pkg/smartest-${RELEASE_TAG}.gem"

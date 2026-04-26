@@ -61,6 +61,21 @@ Before publishing:
 2. Update `CHANGELOG.md`.
 3. Run `rake verify`.
 4. Install and smoke-test the built gem.
-5. Publish with `rake release`.
+5. Make sure the GitHub repository has a `RUBYGEMS_API_KEY` secret.
+6. Push a tag that matches `Smartest::VERSION`.
 
-`rake release` uses Bundler's gem release task and publishes to RubyGems.
+Release tags must use one of these formats:
+
+- `0.1.0`
+- `0.1.0.alpha1`
+
+Example:
+
+```bash
+git tag 0.1.0
+git push origin 0.1.0
+```
+
+Pushing the tag triggers the Deploy GitHub Actions workflow. The workflow checks
+that `Smartest::VERSION` matches the tag, runs `rake verify`, and pushes the
+built `pkg/smartest-$VERSION.gem` package to RubyGems.
