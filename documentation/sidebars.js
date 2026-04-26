@@ -1,0 +1,24 @@
+// @ts-check
+
+/** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
+const sidebars = {
+  docs: [
+    'intro',
+    'getting-started',
+    'writing-tests',
+    'running-test-suites',
+    'fixtures',
+    {
+      type: 'category',
+      label: 'Reference',
+      items: ['reference/expectations', 'reference/errors'],
+    },
+    {
+      type: 'category',
+      label: 'Contributing',
+      items: ['contributing/ai-agent-rules'],
+    },
+  ],
+};
+
+module.exports = sidebars;

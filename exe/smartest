@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "smartest"
+
+begin
+  Smartest.disable_autorun!
+  Kernel.prepend Smartest::DSL
+
+  files =
+    if ARGV.empty?
+      Dir["test/**/*_test.rb"]
+    else
+      ARGV.flat_map do |pattern|
+        matches = Dir[pattern]
+        matches.empty? ? [pattern] : matches
+      end.uniq
+    end
+
+  files.each do |file|
+    load File.expand_path(file)
+  end
+
+  exit Smartest::Runner.new.run
+rescue Exception => error
+  raise if Smartest.fatal_exception?(error)
+
+  warn "Error loading tests:"
+  warn "#{error.class}: #{error.message}"
+  warn error.backtrace&.first
+  exit 1
+end

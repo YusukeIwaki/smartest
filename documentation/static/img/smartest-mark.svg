@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Smartest mark</title>
+  <desc id="desc">A geometric mark for the Smartest documentation site.</desc>
+  <rect width="96" height="96" rx="20" fill="#256f5c"/>
+  <path d="M26 50.5 40.5 65 72 31" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 24h26v10H24zM24 39h18v10H24z" fill="#b8ebdc"/>
+</svg>
