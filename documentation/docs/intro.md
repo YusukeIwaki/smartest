@@ -36,6 +36,7 @@ end
 - [Skipping Tests](./skipping-tests.md) covers skipped tests and expected failures.
 - [Running Test Suites](./running-test-suites.md) covers autorun and the CLI.
 - [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and cleanup.
+- [Helpers](./helpers.md) explains registering helper modules from `around_test`.
 - [Browser Tests With Playwright](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
 
 ## Current Scope

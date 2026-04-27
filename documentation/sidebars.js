@@ -10,6 +10,7 @@ const sidebars = {
     'skipping-tests',
     'fixtures',
     'matchers',
+    'helpers',
     'playwright-browser-tests',
     {
       type: 'category',

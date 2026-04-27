@@ -73,8 +73,8 @@ module Smartest
       test_run = TestRun.new(
         fixture_classes: @suite.fixture_classes,
         matcher_modules: @suite.matcher_modules
-      ) do |fixture_classes:, matcher_modules:|
-        run_test_body(test_case, fixture_classes, matcher_modules, run_state, cleanup_errors)
+      ) do |fixture_classes:, matcher_modules:, helper_modules:|
+        run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, cleanup_errors)
       end
 
       begin
@@ -114,8 +114,8 @@ module Smartest
       end
     end
 
-    def run_test_body(test_case, fixture_classes, matcher_modules, run_state, cleanup_errors)
-      context = build_context(matcher_modules, run_state)
+    def run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, cleanup_errors)
+      context = build_context(matcher_modules, run_state, helper_modules)
       fixture_set = nil
 
       begin
@@ -152,10 +152,20 @@ module Smartest
       )
     end
 
-    def build_context(matcher_modules = @suite.matcher_modules, run_state = TestRunState.new)
+    def build_context(matcher_modules = @suite.matcher_modules, run_state = TestRunState.new, helper_modules = [])
       ExecutionContext.new(run_state: run_state).tap do |context|
+        helper_modules.each { |helper_module| extend_helper_module(context, helper_module) }
         matcher_modules.each { |matcher_module| context.extend(matcher_module) }
       end
+    end
+
+    def extend_helper_module(context, helper_module)
+      context.extend(helper_module)
+
+      helper_methods = helper_module.public_instance_methods + helper_module.protected_instance_methods
+      return if helper_methods.empty?
+
+      context.singleton_class.class_eval { private(*helper_methods) }
     end
 
     def around_test_protocol_error?(error)

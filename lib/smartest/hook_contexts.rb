@@ -49,6 +49,10 @@ module Smartest
       @test_run.add_matcher_module(matcher_module)
     end
 
+    def use_helper(helper_module)
+      @test_run.add_helper_module(helper_module)
+    end
+
     def skip(reason = nil)
       raise Skipped, reason
     end

@@ -141,7 +141,8 @@ Register fixture classes with suite-scoped fixtures from `around_suite` instead.
 ## `Smartest::AroundTestRunError`
 
 Raised when an `around_test` hook does not call `test.run`, calls it more than
-once, or tries to call `use_fixture` or `use_matcher` after `test.run`:
+once, or tries to call `use_fixture`, `use_helper`, or `use_matcher` after
+`test.run`:
 
 ```ruby
 around_test do |_test|

@@ -162,11 +162,13 @@ around_suite do |suite|
 end
 ```
 
-`around_test` can register fixture classes and matcher modules for that test run:
+`around_test` can register fixture classes, helper modules, and matcher modules
+for that test run:
 
 ```ruby
 around_test do |test|
   use_fixture LocalFixture
+  use_helper LocalHelper
   use_matcher LocalMatcher
   test.run
 end
@@ -177,7 +179,9 @@ fixtures. If a class defines `suite_fixture`, register it from `around_suite`
 instead so its cache and cleanup belong to the suite lifecycle.
 
 `use_fixture` and `use_matcher` are only available inside `around_suite` or
-`around_test` blocks. They are not top-level DSL methods.
+`around_test` blocks. `use_helper` is only available inside `around_test`. None
+of them are top-level DSL methods. See [Helpers](./helpers.md) for details on
+helper registration.
 
 ## Exit Status
 

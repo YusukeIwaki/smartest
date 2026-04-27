@@ -517,6 +517,22 @@ test("rejects class matcher registrations") do
   expect(error.message).to include("matcher must be a module")
 end
 
+test("rejects non-module helper registrations") do
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    Smartest::HelperRegistry.new.add(Object.new)
+  end
+
+  expect(error.message).to include("helper must be a module")
+end
+
+test("rejects class helper registrations") do
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    Smartest::HelperRegistry.new.add(Class.new)
+  end
+
+  expect(error.message).to include("helper must be a module")
+end
+
 test("resolves keyword fixture dependencies per test") do
   calls = []
 
@@ -910,6 +926,73 @@ test("around_test can register matchers for one test run") do
   status, = SmartestSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
+end
+
+test("around_test can register private helpers for one test run") do
+  helper_module = Module.new do
+    def local_helper_value
+      "local"
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "uses local helper",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          use_helper helper_module
+          test_run.run
+        end
+      ],
+      block: proc do
+        expect(local_helper_value).to eq("local")
+        expect(private_methods).to include(:local_helper_value)
+        expect(public_methods).not_to include(:local_helper_value)
+      end
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "without helper",
+      proc { expect(respond_to?(:local_helper_value, true)).to eq(false) }
+    )
+  )
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+end
+
+test("around_test rejects helper registrations after test.run") do
+  helper_module = Module.new do
+    def late_helper_value
+      "late"
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "late helper",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          test_run.run
+          use_helper helper_module
+        end
+      ],
+      block: proc { expect(true).to eq(true) }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("Smartest::AroundTestRunError: use_helper must be called before test.run")
 end
 
 test("around_test must call test.run") do
