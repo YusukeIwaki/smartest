@@ -86,21 +86,23 @@ smartest/
   test_helper.rb
   fixtures/
     app_fixture.rb
+  matchers/
+    predicate_matcher.rb
   example_test.rb
 ```
 
-Fixture files under `smartest/fixtures/` are loaded by the generated
-`smartest/test_helper.rb`.
+Fixture files under `smartest/fixtures/` and matcher files under
+`smartest/matchers/` are loaded by the generated `smartest/test_helper.rb`.
+Register fixture classes from the helper with `use_fixture`.
 
 Example:
 
 ```ruby title="smartest/example_test.rb"
 require "test_helper"
 
-use_fixture AppFixture
-
 test("user name") do |user:|
   expect(user.name).to eq("Alice")
+  expect(user).to be_active
 end
 ```
 

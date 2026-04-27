@@ -17,6 +17,10 @@ module Smartest
       Smartest.suite.fixture_classes.add(klass)
     end
 
-    private :test, :use_fixture
+    def use_matcher(matcher_module)
+      Smartest.suite.matcher_modules.add(matcher_module)
+    end
+
+    private :test, :use_fixture, :use_matcher
   end
 end

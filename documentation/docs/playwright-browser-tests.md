@@ -61,10 +61,13 @@ require "playwright"
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
+
+use_fixture PlaywrightFixture
 ```
 
 The generated helper already loads every file under `smartest/fixtures/`, so the
-Playwright fixture can live with the rest of the suite setup.
+Playwright fixture can live with the rest of the suite setup. Register it from
+the helper so every browser test can request `page:`.
 
 ## Define Playwright Fixtures
 
@@ -114,12 +117,10 @@ stops the Playwright runtime.
 
 ## Write a Browser Test
 
-Register the fixture class from the test file and request `page:`:
+Request `page:` from the test file:
 
 ```ruby title="smartest/rubygems_search_test.rb"
 require "test_helper"
-
-use_fixture PlaywrightFixture
 
 test("finds the smartest gem on RubyGems") do |page:|
   page.goto("https://rubygems.org/")
@@ -148,6 +149,7 @@ bundle exec smartest
 ```
 
 Because the test file requires `test_helper`, Smartest loads the Playwright
-fixture file, registers `PlaywrightFixture`, resolves `page:`, and runs the test.
+fixture file, registers `PlaywrightFixture` from the helper, resolves `page:`,
+and runs the test.
 
 ![Playwright browser test running from Smartest](/img/playwright-browser-tests.gif)

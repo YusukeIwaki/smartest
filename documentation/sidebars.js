@@ -8,11 +8,12 @@ const sidebars = {
     'writing-tests',
     'running-test-suites',
     'fixtures',
+    'matchers',
     'playwright-browser-tests',
     {
       type: 'category',
       label: 'Reference',
-      items: ['reference/expectations', 'reference/errors'],
+      items: ['reference/errors'],
     },
     {
       type: 'category',

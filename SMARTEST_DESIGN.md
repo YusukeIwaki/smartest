@@ -294,7 +294,7 @@ context.instance_exec(**fixtures, &block)
 
 This keeps the top-level DSL small.
 
-Only `test`, `fixture`, and `use_fixture` need to be globally available when using `smartest/autorun`.
+Only `test`, `fixture`, `use_fixture`, and `use_matcher` need to be globally available when using `smartest/autorun`.
 
 ## Core architecture
 

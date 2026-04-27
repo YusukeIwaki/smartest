@@ -13,7 +13,7 @@ When an implementation change affects user-visible behavior, update the document
 
 User-visible behavior includes:
 
-- public Ruby APIs such as `test`, `use_fixture`, `fixture`, `suite_fixture`, `cleanup`, and `expect`
+- public Ruby APIs such as `test`, `use_fixture`, `use_matcher`, `fixture`, `suite_fixture`, `cleanup`, and `expect`
 - supported matcher behavior
 - CLI arguments, defaults, output, or exit status
 - fixture resolution, caching, cleanup, duplicate detection, or circular dependency behavior
@@ -43,7 +43,7 @@ Write docs as task-oriented guides:
 
 ## Common Page Mapping
 
-- Test definition or expectations: update `writing-tests.md` and `reference/expectations.md`.
+- Test definition or expectations: update `writing-tests.md`; update `matchers.md` when matcher behavior changes.
 - CLI behavior: update `running-test-suites.md`.
 - Fixture behavior: update `fixtures.md` and `reference/errors.md` if errors change.
 - Setup or installation behavior: update `getting-started.md`.

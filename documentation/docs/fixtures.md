@@ -18,11 +18,21 @@ class AppFixture < Smartest::Fixture
 end
 ```
 
-Register a fixture class with `use_fixture`:
+Register fixture classes from `smartest/test_helper.rb` with `use_fixture`:
 
-```ruby
+```ruby title="smartest/test_helper.rb" {7}
+require "smartest/autorun"
+
+Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
+  require fixture_file
+end
+
 use_fixture AppFixture
+```
 
+Tests can then request fixtures by keyword:
+
+```ruby {1}
 test("user") do |user:|
   expect(user.name).to eq("Alice")
 end
@@ -39,15 +49,18 @@ require "smartest/autorun"
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
+
+use_fixture AppFixture
 ```
 
-Test files can require only the helper, then register the fixture classes they
-need:
+Test files can require only the helper, then request the registered fixtures:
 
 ```ruby
 require "test_helper"
 
-use_fixture AppFixture
+test("user") do |user:|
+  expect(user.name).to eq("Alice")
+end
 ```
 
 ## Keyword Dependencies
@@ -66,11 +79,15 @@ class WebFixture < Smartest::Fixture
 end
 ```
 
+Register the fixture class from `smartest/test_helper.rb`:
+
+```ruby title="smartest/test_helper.rb"
+use_fixture WebFixture
+```
+
 When a test requests `client`, Smartest resolves `server` first:
 
 ```ruby
-use_fixture WebFixture
-
 test("GET /health") do |client:|
   response = client.get("/health")
 
@@ -196,7 +213,7 @@ end
 
 Fixture names must be unique across registered fixture classes:
 
-```ruby
+```ruby title="smartest/test_helper.rb"
 use_fixture UserFixture
 use_fixture AdminFixture
 ```

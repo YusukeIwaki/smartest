@@ -35,7 +35,7 @@ module Smartest
 
     def run_one(test_case)
       started_at = now
-      context = ExecutionContext.new
+      context = build_context
       fixture_set = nil
       error = nil
       cleanup_errors = []
@@ -69,9 +69,15 @@ module Smartest
     def suite_fixture_set
       @suite_fixture_set ||= FixtureSet.new(
         @suite.fixture_classes,
-        context: ExecutionContext.new,
+        context: build_context,
         scope: :suite
       )
+    end
+
+    def build_context
+      ExecutionContext.new.tap do |context|
+        @suite.matcher_modules.each { |matcher_module| context.extend(matcher_module) }
+      end
     end
 
     def now

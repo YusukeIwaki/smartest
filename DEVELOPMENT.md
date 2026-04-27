@@ -126,6 +126,7 @@ Required methods:
 ```ruby
 test(name, **metadata, &block)
 use_fixture(klass)
+use_matcher(matcher_module)
 ```
 
 Possible later methods:

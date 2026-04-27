@@ -20,7 +20,9 @@ Initialize a new test scaffold:
 bundle exec smartest --init
 ```
 
-The init command creates `smartest/test_helper.rb`, `smartest/fixtures/`, and `smartest/example_test.rb`. It does not overwrite existing files.
+The init command creates `smartest/test_helper.rb`, `smartest/fixtures/`,
+`smartest/matchers/`, `smartest/matchers/predicate_matcher.rb`, and
+`smartest/example_test.rb`. It does not overwrite existing files.
 
 Generated tests require the helper by name:
 
@@ -123,7 +125,7 @@ Failures:
 ## Helper Loading
 
 `smartest/test_helper.rb` typically requires `smartest/autorun` and loads fixture
-files:
+and matcher files:
 
 ```ruby
 require "smartest/autorun"
@@ -131,6 +133,12 @@ require "smartest/autorun"
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
+
+Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
+  require matcher_file
+end
+
+use_matcher PredicateMatcher
 ```
 
 Test files require that helper:
@@ -142,4 +150,5 @@ require "test_helper"
 The CLI disables autorun before loading files, so requiring the helper does not
 run the suite twice.
 
-Fixture files under `smartest/fixtures/` are required by the helper in sorted order.
+Fixture files under `smartest/fixtures/` and matcher files under
+`smartest/matchers/` are required by the helper in sorted order.

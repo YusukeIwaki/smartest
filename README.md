@@ -59,6 +59,8 @@ This creates:
 ```text
 smartest/test_helper.rb
 smartest/fixtures/
+smartest/matchers/
+smartest/matchers/predicate_matcher.rb
 smartest/example_test.rb
 ```
 
@@ -171,6 +173,10 @@ be_nil
 raise_error(ErrorClass)
 ```
 
+Custom matcher modules can be registered with `use_matcher`. The generated
+scaffold includes a `PredicateMatcher` custom matcher for `be_<predicate>` calls.
+See [Matchers](documentation/docs/matchers.md).
+
 ## Fixtures
 
 Fixtures are defined in classes.
@@ -184,9 +190,17 @@ class AppFixture < Smartest::Fixture
     )
   end
 end
+```
 
+Register fixture classes from `smartest/test_helper.rb`:
+
+```ruby
 use_fixture AppFixture
+```
 
+Tests request fixtures by keyword:
+
+```ruby
 test("user") do |user:|
   expect(user.name).to eq("Alice")
 end
@@ -337,8 +351,16 @@ class WebFixture < Smartest::Fixture
     client
   end
 end
+```
 
+```ruby
+# smartest/test_helper.rb
 use_fixture WebFixture
+```
+
+```ruby
+# smartest/web_test.rb
+require "test_helper"
 
 test("GET /me") do |logged_in_client:|
   response = logged_in_client.get("/me")
@@ -369,7 +391,7 @@ server cleanup
 
 ## Registering fixture classes
 
-Use `use_fixture`:
+Use `use_fixture` from `smartest/test_helper.rb`:
 
 ```ruby
 use_fixture AppFixture
@@ -429,6 +451,9 @@ smartest/
   fixtures/
     app_fixture.rb
     web_fixture.rb
+  matchers/
+    predicate_matcher.rb
+    have_status_matcher.rb
   example_test.rb
 ```
 
@@ -439,10 +464,18 @@ require "smartest/autorun"
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
+
+Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
+  require matcher_file
+end
+
+use_fixture WebFixture
+use_matcher PredicateMatcher
 ```
 
-The generated helper loads Ruby files under `smartest/fixtures/` in sorted order.
-Test files still register the fixture classes they need with `use_fixture`.
+The generated helper loads Ruby files under `smartest/fixtures/` and
+`smartest/matchers/` in sorted order. Register fixture classes and matcher
+modules from the helper with `use_fixture` and `use_matcher`.
 
 Example:
 
@@ -464,8 +497,6 @@ end
 ```ruby
 # smartest/example_test.rb
 require "test_helper"
-
-use_fixture WebFixture
 
 test("GET /health") do |client:|
   expect(client.get("/health").status).to eq(200)

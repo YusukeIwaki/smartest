@@ -95,6 +95,58 @@ test("supports basic matchers") do
   expect(status).to eq(0)
 end
 
+test("registers matcher modules for suite execution contexts") do
+  status_matcher = Class.new do
+    def initialize(expected)
+      @expected = expected
+    end
+
+    def matches?(actual)
+      @actual = actual
+      actual.status == @expected
+    end
+
+    def failure_message
+      "expected #{@actual.inspect} to have status #{@expected.inspect}"
+    end
+
+    def negated_failure_message
+      "expected #{@actual.inspect} not to have status #{@expected.inspect}"
+    end
+  end
+
+  custom_matchers = Module.new do
+    define_method(:have_status) do |expected|
+      status_matcher.new(expected)
+    end
+  end
+
+  response = Struct.new(:status).new(200)
+  suite = Smartest::Suite.new
+  suite.matcher_modules.add(custom_matchers)
+  suite.tests.add(SmartestSelfTest.test_case("custom matcher", proc { expect(response).to have_status(200) }))
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+end
+
+test("rejects non-module matcher registrations") do
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    Smartest::MatcherRegistry.new.add(Object.new)
+  end
+
+  expect(error.message).to include("matcher must be a module")
+end
+
+test("rejects class matcher registrations") do
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    Smartest::MatcherRegistry.new.add(Class.new)
+  end
+
+  expect(error.message).to include("matcher must be a module")
+end
+
 test("resolves keyword fixture dependencies per test") do
   calls = []
 
@@ -477,6 +529,72 @@ test("cli loads files and returns failure status") do
   end
 end
 
+test("cli loads matcher files registered in test helper") do
+  Dir.mktmpdir do |dir|
+    smartest_dir = File.join(dir, "smartest")
+    matchers_dir = File.join(smartest_dir, "matchers")
+    FileUtils.mkdir_p(matchers_dir)
+    File.write(File.join(smartest_dir, "test_helper.rb"), <<~RUBY)
+      require "smartest/autorun"
+
+      Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
+        require matcher_file
+      end
+
+      use_matcher HaveStatusMatcher
+    RUBY
+    File.write(File.join(matchers_dir, "have_status_matcher.rb"), <<~RUBY)
+      module HaveStatusMatcher
+        class MatcherImpl
+          def initialize(expected)
+            @expected = expected
+          end
+
+          def matches?(actual)
+            @actual = actual
+            actual.status == @expected
+          end
+
+          def failure_message
+            "expected \#{@actual.inspect} to have status \#{@expected.inspect}"
+          end
+
+          def negated_failure_message
+            "expected \#{@actual.inspect} not to have status \#{@expected.inspect}"
+          end
+        end
+
+        def have_status(expected)
+          MatcherImpl.new(expected)
+        end
+      end
+    RUBY
+
+    File.write(File.join(smartest_dir, "sample_test.rb"), <<~RUBY)
+      require "test_helper"
+
+      Response = Struct.new(:status)
+
+      test("custom matcher") do
+        expect(Response.new(200)).to have_status(200)
+      end
+    RUBY
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "smartest/sample_test.rb",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("custom matcher")
+    expect(stdout).to include("1 test, 1 passed, 0 failed")
+  end
+end
+
 test("cli runs tests matching a file line filter") do
   Dir.mktmpdir do |dir|
     smartest_dir = File.join(dir, "smartest")
@@ -645,11 +763,17 @@ test("cli initializes a runnable test scaffold") do
     expect(stderr).to eq("")
     expect(stdout).to include("create  smartest")
     expect(stdout).to include("create  smartest/fixtures")
+    expect(stdout).to include("create  smartest/matchers")
     expect(stdout).to include("create  smartest/test_helper.rb")
+    expect(stdout).to include("create  smartest/matchers/predicate_matcher.rb")
     expect(stdout).to include("create  smartest/example_test.rb")
     helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
     expect(helper_contents).to include('require "smartest/autorun"')
     expect(helper_contents).to include('Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each')
+    expect(helper_contents).to include('Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each')
+    expect(helper_contents).to include("use_matcher PredicateMatcher")
+    predicate_matcher_contents = File.read(File.join(dir, "smartest/matchers/predicate_matcher.rb"))
+    expect(predicate_matcher_contents).to include("module PredicateMatcher")
     expect(File.read(File.join(dir, "smartest/example_test.rb"))).to include('require "test_helper"')
 
     nested_fixtures_dir = File.join(dir, "smartest/fixtures/nested")
@@ -672,6 +796,54 @@ test("cli initializes a runnable test scaffold") do
       end
     RUBY
 
+    nested_matchers_dir = File.join(dir, "smartest/matchers/nested")
+    FileUtils.mkdir_p(nested_matchers_dir)
+    File.write(File.join(nested_matchers_dir, "auto_loaded_matcher.rb"), <<~RUBY)
+      module AutoLoadedMatcher
+        class Matcher
+          def initialize(expected)
+            @expected = expected
+          end
+
+          def matches?(actual)
+            @actual = actual
+            actual == @expected
+          end
+
+          def failure_message
+            "expected \#{@actual.inspect} to auto-eq \#{@expected.inspect}"
+          end
+
+          def negated_failure_message
+            "expected \#{@actual.inspect} not to auto-eq \#{@expected.inspect}"
+          end
+        end
+
+        def auto_eq(expected)
+          Matcher.new(expected)
+        end
+      end
+    RUBY
+
+    File.write(File.join(dir, "smartest/auto_loaded_matcher_test.rb"), <<~RUBY)
+      require "test_helper"
+
+      use_matcher AutoLoadedMatcher
+
+      test("auto-loaded matcher") do
+        expect("loaded from smartest/matchers").to auto_eq("loaded from smartest/matchers")
+      end
+    RUBY
+
+    File.write(File.join(dir, "smartest/predicate_matcher_test.rb"), <<~RUBY)
+      require "test_helper"
+
+      test("generated predicate matcher") do
+        expect("").to be_empty
+        expect(2).to be_between(1, 3)
+      end
+    RUBY
+
     run_stdout, run_stderr, run_status = Open3.capture3(
       { "RUBYLIB" => File.expand_path("../lib", __dir__) },
       "ruby",
@@ -683,7 +855,9 @@ test("cli initializes a runnable test scaffold") do
     expect(run_stderr).to eq("")
     expect(run_stdout).to include("example")
     expect(run_stdout).to include("auto-loaded fixture")
-    expect(run_stdout).to include("2 tests, 2 passed, 0 failed")
+    expect(run_stdout).to include("auto-loaded matcher")
+    expect(run_stdout).to include("generated predicate matcher")
+    expect(run_stdout).to include("4 tests, 4 passed, 0 failed")
   end
 end
 
@@ -691,13 +865,17 @@ test("cli init does not overwrite existing scaffold files") do
   Dir.mktmpdir do |dir|
     smartest_dir = File.join(dir, "smartest")
     fixture_dir = File.join(smartest_dir, "fixtures")
+    matcher_dir = File.join(smartest_dir, "matchers")
     FileUtils.mkdir_p(fixture_dir)
+    FileUtils.mkdir_p(matcher_dir)
     helper_path = File.join(smartest_dir, "test_helper.rb")
     example_path = File.join(smartest_dir, "example_test.rb")
     fixture_path = File.join(fixture_dir, "custom_fixture.rb")
+    matcher_path = File.join(matcher_dir, "predicate_matcher.rb")
     File.write(helper_path, "# custom helper\n")
     File.write(example_path, "# custom test\n")
     File.write(fixture_path, "# custom fixture\n")
+    File.write(matcher_path, "# custom matcher\n")
 
     stdout, stderr, status = Open3.capture3(
       { "RUBYLIB" => File.expand_path("../lib", __dir__) },
@@ -711,10 +889,13 @@ test("cli init does not overwrite existing scaffold files") do
     expect(stderr).to eq("")
     expect(stdout).to include("exist   smartest")
     expect(stdout).to include("exist   smartest/fixtures")
+    expect(stdout).to include("exist   smartest/matchers")
     expect(stdout).to include("exist   smartest/test_helper.rb")
+    expect(stdout).to include("exist   smartest/matchers/predicate_matcher.rb")
     expect(stdout).to include("exist   smartest/example_test.rb")
     expect(File.read(helper_path)).to eq("# custom helper\n")
     expect(File.read(example_path)).to eq("# custom test\n")
     expect(File.read(fixture_path)).to eq("# custom fixture\n")
+    expect(File.read(matcher_path)).to eq("# custom matcher\n")
   end
 end

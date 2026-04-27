@@ -9,6 +9,8 @@
 - Support per-test fixture caching and cleanup.
 - Support suite-scoped fixtures through `suite_fixture`.
 - Support `eq`, `include`, `be_nil`, and `raise_error` matchers.
+- Support custom matcher modules through `use_matcher`.
+- Generate an opt-in `PredicateMatcher` custom matcher for `be_<predicate>` calls.
 - Add the `smartest` CLI.
 - Add `--help` and `--version` CLI options.
 - Use `smartest/**/*_test.rb` as the default CLI glob so Smartest can coexist with Minitest files under `test/`.

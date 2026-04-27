@@ -40,7 +40,8 @@ Initialize a test scaffold:
 bundle exec smartest --init
 ```
 
-This creates `smartest/test_helper.rb` and `smartest/fixtures/`:
+This creates `smartest/test_helper.rb`, `smartest/fixtures/`,
+`smartest/matchers/`, and `smartest/matchers/predicate_matcher.rb`:
 
 ```ruby
 require "smartest/autorun"
@@ -48,6 +49,12 @@ require "smartest/autorun"
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
+
+Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
+  require matcher_file
+end
+
+use_matcher PredicateMatcher
 ```
 
 It also creates `smartest/example_test.rb`:
@@ -63,12 +70,13 @@ end
 The `smartest` CLI adds `smartest/` to Ruby's load path before loading test files,
 so `require "test_helper"` works directly.
 
-The generated helper loads every Ruby file under `smartest/fixtures/` in sorted
-order, so test files do not need individual fixture file requires.
+The generated helper loads every Ruby file under `smartest/fixtures/` and
+`smartest/matchers/` in sorted order, so test files do not need individual
+fixture or matcher file requires.
 
 `smartest/autorun` in the helper does two things:
 
-- makes the top-level `test` and `use_fixture` DSL available
+- makes the top-level `test`, `use_fixture`, and `use_matcher` DSL available
 - runs the registered tests when Ruby exits
 
 ## Run the Test
