@@ -54,6 +54,16 @@ expect("screenshot.png").to end_with(".png")
 expect("archive.tar.gz").to end_with(".zip", ".gz")
 ```
 
+### `be_a(class_or_module)` / `be_an(class_or_module)`
+
+Passes when `actual.is_a?(class_or_module)` returns true. Subclasses and module
+inclusion are recognized:
+
+```ruby
+expect("smartest").to be_a(String)
+expect(StandardError.new("bad")).to be_an(Exception)
+```
+
 ### `be_nil`
 
 Passes when `actual.nil?` is true:
@@ -63,13 +73,60 @@ expect(nil).to be_nil
 expect("value").not_to be_nil
 ```
 
-### `raise_error(error_class)`
+### `match(regexp)`
 
-Passes when the block raises the expected error class:
+Passes when `regexp.match?(actual)` returns true:
+
+```ruby
+expect("https://example.test").to match(%r{\Ahttps://})
+expect("about:blank").not_to match(%r{\Ahttps://})
+```
+
+### `contain_exactly(item, ...)`
+
+Passes when `actual` contains exactly the expected items, in any order.
+Duplicate expected items require duplicate actual items:
+
+```ruby
+expect(%w[request close request]).to contain_exactly(
+  "request",
+  "request",
+  "close"
+)
+```
+
+Expected items can be matcher objects, so `contain_exactly` can compose with
+other built-in or custom matchers:
+
+```ruby
+expect(["request: /users", 200]).to contain_exactly(
+  match(%r{\Arequest: /users}),
+  eq(200)
+)
+```
+
+### `match_array(items)`
+
+Equivalent to `contain_exactly`, but accepts the expected items as one array:
+
+```ruby
+expect(%i[request close open]).to match_array(%i[open request close])
+```
+
+### `raise_error(error_class)` / `raise_error(message_regexp)` / `raise_error(error_class, message_regexp)`
+
+Passes when the block raises the expected error class, or when the raised
+error message matches the expected regexp. Pass both an error class and a
+message regexp to check both:
 
 ```ruby
 expect { Integer("x") }.to raise_error(ArgumentError)
+expect { raise "request timed out" }.to raise_error(/timed out/)
+expect { Integer("x") }.to raise_error(ArgumentError, /invalid/)
 ```
+
+`raise_error` supports an error class, a message regexp, or both. No-argument
+and exact string message forms are not supported.
 
 Fatal process-level exceptions such as `SystemExit` and `Interrupt` are re-raised
 instead of being treated as assertion failures.

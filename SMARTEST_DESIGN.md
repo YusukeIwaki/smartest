@@ -727,8 +727,15 @@ eq(expected)
 include(expected)
 start_with(prefix, ...)
 end_with(suffix, ...)
+be_a(ClassOrModule)
+be_an(ClassOrModule)
 be_nil
+match(regexp)
+contain_exactly(item, ...)
+match_array(items)
 raise_error(ErrorClass)
+raise_error(/message/)
+raise_error(ErrorClass, /message/)
 change { value }
 ```
 

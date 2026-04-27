@@ -43,8 +43,20 @@ test("downloads") do
   expect("screenshot.png").to end_with(".png")
 end
 
+test("types") do
+  expect("smartest").to be_a(String)
+end
+
 test("nil values") do
   expect(nil).to be_nil
+end
+
+test("messages") do
+  expect("timeout after 1000ms").to match(/timeout/)
+end
+
+test("events") do
+  expect(%i[request close open]).to contain_exactly(:open, :request, :close)
 end
 ```
 
@@ -53,6 +65,8 @@ Block expectations use Ruby blocks:
 ```ruby
 test("raises an error") do
   expect { Integer("not a number") }.to raise_error(ArgumentError)
+  expect { raise "request timed out" }.to raise_error(/timed out/)
+  expect { Integer("not a number") }.to raise_error(ArgumentError, /invalid/)
 end
 
 test("changes state") do

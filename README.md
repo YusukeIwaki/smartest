@@ -179,6 +179,8 @@ Smartest uses an expectation style:
 expect(actual).to eq(expected)
 expect(actual).not_to eq(expected)
 expect { action }.to raise_error(ErrorClass)
+expect { action }.to raise_error(/message/)
+expect { action }.to raise_error(ErrorClass, /message/)
 expect { action }.to change { value }
 ```
 
@@ -200,6 +202,18 @@ end
 test("download") do
   expect("screenshot.png").to end_with(".png")
 end
+
+test("type") do
+  expect("smartest").to be_a(String)
+end
+
+test("URL pattern") do
+  expect("https://example.test").to match(%r{\Ahttps://})
+end
+
+test("events") do
+  expect(%i[request close open]).to contain_exactly(:open, :request, :close)
+end
 ```
 
 Supported matchers include:
@@ -209,12 +223,28 @@ eq(expected)
 include(expected)
 start_with(prefix, ...)
 end_with(suffix, ...)
+be_a(ClassOrModule)
+be_an(ClassOrModule)
 be_nil
+match(regexp)
+contain_exactly(item, ...)
+match_array(items)
 raise_error(ErrorClass)
+raise_error(/message/)
+raise_error(ErrorClass, /message/)
 change { value }
 change { value }.from(before).to(after)
 change { value }.by(delta)
 ```
+
+`raise_error` accepts an error class, a message regexp, or both. Use an error
+class to check the raised exception class, a regexp to check the raised
+exception message, or both to require both conditions. No-argument and exact
+string message forms are not supported.
+
+`contain_exactly` and `match_array` compare collections without requiring a
+specific order, preserve duplicate counts, and can use matcher objects such as
+`match(/foo/)` or `eq(42)` as expected items.
 
 `change` is only supported with `expect { ... }` block expectations and must be
 written with a value block.

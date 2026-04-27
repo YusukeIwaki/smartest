@@ -48,6 +48,15 @@ class SelfTestRegisteredFixture < Smartest::Fixture
   end
 end
 
+class SelfTestBaseType; end
+class SelfTestChildType < SelfTestBaseType; end
+
+module SelfTestMarkerType; end
+
+class SelfTestMarkedType
+  include SelfTestMarkerType
+end
+
 around_suite do |suite|
   use_fixture SelfTestRegisteredFixture
   suite.run
@@ -181,9 +190,25 @@ test("supports basic matchers") do
         expect("https://example.test").not_to start_with("about:")
         expect("report.txt").not_to end_with(".png")
         expect(Object.new).not_to start_with("prefix")
+        expect(SelfTestChildType.new).to be_a(SelfTestBaseType)
+        expect(SelfTestMarkedType.new).to be_an(SelfTestMarkerType)
         expect(nil).to be_nil
         expect("value").not_to be_nil
+        expect("https://example.test").to match(%r{\Ahttps://})
+        expect("about:blank").not_to match(%r{\Ahttps://})
+        expect(%w[request close request]).to contain_exactly("request", "request", "close")
+        expect(%i[request close open]).to match_array(%i[open request close])
+        expect(["foo", 42]).to contain_exactly(match(/foo/), eq(42))
+        expect(["ab", "ac"]).to contain_exactly(match(/a/), "ab")
+        expect([nil, false]).to contain_exactly(false, nil)
+        expect([:request]).not_to contain_exactly(:request, :request)
         expect { raise ArgumentError, "bad" }.to raise_error(ArgumentError)
+        expect { raise RuntimeError, "request timed out" }.to raise_error(/timed out/)
+        expect { raise ArgumentError, "bad input" }.to raise_error(ArgumentError, /bad/)
+        expect { raise ArgumentError, "bad" }.not_to raise_error(RuntimeError)
+        expect { raise ArgumentError, "bad" }.not_to raise_error(/timed out/)
+        expect { raise ArgumentError, "bad" }.not_to raise_error(ArgumentError, /timed out/)
+        expect { :ok }.not_to raise_error(/timed out/)
       end
     )
   )
@@ -191,6 +216,166 @@ test("supports basic matchers") do
   status, = SmartestSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
+end
+
+test("reports be_a and match matcher failures") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad type",
+      proc { expect(nil).to be_a(String) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad negated type",
+      proc { expect(SelfTestChildType.new).not_to be_an(SelfTestBaseType) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad regex",
+      proc { expect("about:blank").to match(%r{\Ahttps://}) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad negated regex",
+      proc { expect("https://example.test").not_to match(%r{\Ahttps://}) }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("expected nil to be a kind of String, but was NilClass")
+  expect(output).to include("not to be a kind of SelfTestBaseType, but was SelfTestChildType")
+  expect(output).to include('expected "about:blank" to match /\\Ahttps:\\/\\//')
+  expect(output).to include('expected "https://example.test" not to match /\\Ahttps:\\/\\//')
+end
+
+test("reports contain_exactly and match_array matcher failures") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad collection",
+      proc { expect(["foo", "baz", 2]).to contain_exactly(match(/foo/), eq(42), "bar") }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad duplicate count",
+      proc { expect([:request]).to match_array(%i[request request]) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad negated collection",
+      proc { expect(%w[b a]).not_to contain_exactly("a", "b") }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include('expected ["foo", "baz", 2] to contain exactly [match /foo/, eq 42, "bar"]')
+  expect(output).to include('missing: [eq 42, "bar"]')
+  expect(output).to include('extra: ["baz", 2]')
+  expect(output).to include("expected [:request] to match array [:request, :request]")
+  expect(output).to include("missing: [:request]")
+  expect(output).to include('expected ["b", "a"] not to contain exactly ["a", "b"]')
+end
+
+test("reports raise_error matcher failures") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "nothing raised",
+      proc { expect { :ok }.to raise_error(/timeout/) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad message",
+      proc { expect { raise RuntimeError, "permission denied" }.to raise_error(/timeout/) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad negated message",
+      proc { expect { raise RuntimeError, "timeout after 1s" }.not_to raise_error(/timeout/) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad class and message class",
+      proc { expect { raise RuntimeError, "timeout after 1s" }.to raise_error(ArgumentError, /timeout/) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad class and message message",
+      proc { expect { raise ArgumentError, "permission denied" }.to raise_error(ArgumentError, /timeout/) }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad negated class and message",
+      proc { expect { raise ArgumentError, "timeout after 1s" }.not_to raise_error(ArgumentError, /timeout/) }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("expected block to raise error with message matching /timeout/, but nothing was raised")
+  expect(output).to include(
+    "expected block to raise error with message matching /timeout/, but raised RuntimeError: permission denied"
+  )
+  expect(output).to include(
+    "expected block not to raise error with message matching /timeout/, but raised RuntimeError: timeout after 1s"
+  )
+  expect(output).to include(
+    "expected block to raise ArgumentError with message matching /timeout/, but raised RuntimeError: timeout after 1s"
+  )
+  expect(output).to include(
+    "expected block to raise ArgumentError with message matching /timeout/, but raised ArgumentError: permission denied"
+  )
+  expect(output).to include(
+    "expected block not to raise ArgumentError with message matching /timeout/, but raised ArgumentError: timeout after 1s"
+  )
+end
+
+test("rejects unsupported raise_error argument forms") do
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    raise_error
+  end
+
+  expect(error.message).to eq("raise_error supports an error class, message regexp, or error class and message regexp")
+
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    raise_error("timeout")
+  end
+
+  expect(error.message).to eq("raise_error supports an error class, message regexp, or error class and message regexp")
+
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    raise_error(String)
+  end
+
+  expect(error.message).to eq("raise_error supports an error class, message regexp, or error class and message regexp")
+
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    raise_error(RuntimeError, "timeout")
+  end
+
+  expect(error.message).to eq("raise_error supports an error class, message regexp, or error class and message regexp")
+
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    raise_error(/timeout/, RuntimeError)
+  end
+
+  expect(error.message).to eq("raise_error supports an error class, message regexp, or error class and message regexp")
 end
 
 test("reports start_with and end_with matcher failures") do
