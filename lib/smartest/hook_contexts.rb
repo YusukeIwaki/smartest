@@ -30,8 +30,9 @@ module Smartest
   end
 
   class AroundTestContext
-    def initialize(test_run)
+    def initialize(test_run, run_state:)
       @test_run = test_run
+      @run_state = run_state
     end
 
     def call(hook, run_target = @test_run)
@@ -46,6 +47,14 @@ module Smartest
 
     def use_matcher(matcher_module)
       @test_run.add_matcher_module(matcher_module)
+    end
+
+    def skip(reason = nil)
+      raise Skipped, reason
+    end
+
+    def pending(reason = nil)
+      @run_state.pending(reason)
     end
   end
 end

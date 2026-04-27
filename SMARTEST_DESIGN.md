@@ -299,7 +299,8 @@ This keeps the top-level DSL small.
 
 Only `test`, `around_suite`, and `around_test` should be globally available when
 using `smartest/autorun`. `use_fixture` and `use_matcher` are available only
-inside hook execution contexts.
+inside hook execution contexts. `skip` and `pending` are available only inside
+test bodies and `around_test` hook execution contexts.
 
 ## Core architecture
 
@@ -691,6 +692,8 @@ end
 Fixture blocks can call private methods because they execute with `instance_exec`.
 
 Fixture classes may optionally delegate missing methods to the execution context.
+They should not delegate `skip` or `pending`; those are test-body and
+`around_test` controls, not fixture APIs.
 
 This is useful for integration helpers.
 
@@ -831,28 +834,38 @@ Care must be taken not to run twice if both CLI and autorun are used.
 
 ## Exit status
 
-- all tests passed: `0`
+- all tests passed, skipped, or pending as expected: `0`
 - any test failed: `1`
+- pending test unexpectedly passed: `1`
 - configuration/load error: `1`
 - interrupted: re-raise or exit non-zero
 
 ## Metadata
 
-`test` should accept metadata:
+`test` accepts metadata and stores it on `TestCase`, but metadata does not drive
+runner behavior in the MVP:
 
 ```ruby
-test("name", skip: true) do
-end
-
 test("name", tags: [:db]) do
 end
 ```
 
-MVP can store metadata without implementing all behavior.
+Runtime skipping and pending behavior are method calls inside the test body or
+`around_test`, not metadata:
+
+```ruby
+test("name") do
+  skip "reason" if runtime_condition?
+end
+
+test("name") do
+  pending "reason" if expected_to_fail?
+  expect(actual).to eq(expected)
+end
+```
 
 Useful metadata later:
 
-- `skip: true`
 - `only: true`
 - `tags: [:db]`
 - `timeout: 5`
@@ -1198,11 +1211,25 @@ test("GET /health") do |client:|
 end
 ```
 
+```ruby
+test("PDF export") do |browser:|
+  skip "firefox is not supported" if browser.firefox?
+
+  export_pdf(browser)
+end
+
+test("PDF export over BiDi") do |browser:|
+  pending "Not supported by WebDriver BiDi yet" if browser.bidi?
+
+  export_pdf(browser)
+  expect(browser.downloads).not_to be_empty
+end
+```
+
 ## Future ideas
 
 Possible future features:
 
-- `skip`
 - `only`
 - tags
 - custom reporters

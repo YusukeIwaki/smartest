@@ -1,5 +1,4 @@
 ---
-sidebar_position: 5
 title: Fixtures
 description: Define class-based Smartest fixtures with keyword dependencies and cleanup.
 ---

@@ -67,16 +67,20 @@ module Smartest
     def run_one(test_case)
       started_at = now
       error = nil
+      skipped = nil
       cleanup_errors = []
+      run_state = TestRunState.new
       test_run = TestRun.new(
         fixture_classes: @suite.fixture_classes,
         matcher_modules: @suite.matcher_modules
       ) do |fixture_classes:, matcher_modules:|
-        cleanup_errors = run_test_body(test_case, fixture_classes, matcher_modules)
+        run_test_body(test_case, fixture_classes, matcher_modules, run_state, cleanup_errors)
       end
 
       begin
-        run_around_test_hooks(@suite.around_test_hooks + test_case.around_test_hooks, test_run)
+        run_around_test_hooks(@suite.around_test_hooks + test_case.around_test_hooks, test_run, run_state)
+      rescue Skipped => skipped_error
+        skipped = skipped_error
       rescue Exception => rescued_error
         raise if Smartest.fatal_exception?(rescued_error)
 
@@ -84,6 +88,19 @@ module Smartest
       end
 
       duration = now - started_at
+
+      return TestResult.failed(test_case: test_case, error: nil, duration: duration, cleanup_errors: cleanup_errors) if skipped && cleanup_errors.any?
+      return TestResult.skipped(test_case: test_case, reason: skipped.reason, duration: duration) if skipped
+
+      if run_state.pending?
+        if error && !around_test_protocol_error?(error)
+          return TestResult.failed(test_case: test_case, error: nil, duration: duration, cleanup_errors: cleanup_errors) if cleanup_errors.any?
+
+          return TestResult.pending(test_case: test_case, reason: run_state.pending_reason, duration: duration)
+        end
+
+        error ||= PendingPassedError.new(run_state.pending_reason)
+      end
 
       if error || cleanup_errors.any?
         TestResult.failed(
@@ -97,23 +114,20 @@ module Smartest
       end
     end
 
-    def run_test_body(test_case, fixture_classes, matcher_modules)
-      context = build_context(matcher_modules)
+    def run_test_body(test_case, fixture_classes, matcher_modules, run_state, cleanup_errors)
+      context = build_context(matcher_modules, run_state)
       fixture_set = nil
-      cleanup_errors = []
 
       begin
         fixture_set = FixtureSet.new(fixture_classes, context: context, parent: suite_fixture_set)
         fixtures = fixture_set.resolve_keywords(test_case.fixture_names)
         context.instance_exec(**fixtures, &test_case.block)
       ensure
-        cleanup_errors = fixture_set.run_cleanups if fixture_set
+        cleanup_errors.concat(fixture_set.run_cleanups) if fixture_set
       end
-
-      cleanup_errors
     end
 
-    def run_around_test_hooks(hooks, test_run, index = 0)
+    def run_around_test_hooks(hooks, test_run, run_state, index = 0)
       return test_run.run if index >= hooks.length
 
       hook = hooks[index]
@@ -121,10 +135,10 @@ module Smartest
         fixture_classes: [],
         matcher_modules: []
       ) do |**_keywords|
-        run_around_test_hooks(hooks, test_run, index + 1)
+        run_around_test_hooks(hooks, test_run, run_state, index + 1)
       end
 
-      AroundTestContext.new(test_run).call(hook, next_run)
+      AroundTestContext.new(test_run, run_state: run_state).call(hook, next_run)
       raise AroundTestRunError, "around_test hook did not call test.run" unless next_run.ran?
 
       next_run.result
@@ -138,10 +152,14 @@ module Smartest
       )
     end
 
-    def build_context(matcher_modules = @suite.matcher_modules)
-      ExecutionContext.new.tap do |context|
+    def build_context(matcher_modules = @suite.matcher_modules, run_state = TestRunState.new)
+      ExecutionContext.new(run_state: run_state).tap do |context|
         matcher_modules.each { |matcher_module| context.extend(matcher_module) }
       end
+    end
+
+    def around_test_protocol_error?(error)
+      error.is_a?(AroundTestRunError)
     end
 
     def now

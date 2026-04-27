@@ -1,5 +1,4 @@
 ---
-sidebar_position: 1
 title: Overview
 description: Smartest is a small Ruby test runner built around explicit keyword fixtures.
 ---
@@ -34,6 +33,7 @@ end
 
 - [Getting Started](./getting-started.md) shows the smallest runnable test file.
 - [Writing Tests](./writing-tests.md) explains test structure and expectations.
+- [Skipping Tests](./skipping-tests.md) covers skipped tests and expected failures.
 - [Running Test Suites](./running-test-suites.md) covers autorun and the CLI.
 - [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and cleanup.
 - [Browser Tests With Playwright](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
@@ -50,6 +50,7 @@ Smartest currently focuses on the MVP runner:
 - suite-scoped fixtures through `suite_fixture`
 - suite hooks through `around_suite`
 - test hooks through `around_test`
+- skipped and pending tests through `skip` and `pending`
 - console reporting
 - a CLI runner
 

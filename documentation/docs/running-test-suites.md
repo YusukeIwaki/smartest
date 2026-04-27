@@ -1,5 +1,4 @@
 ---
-sidebar_position: 4
 title: Running Test Suites
 description: Run Smartest tests through autorun or the CLI.
 ---
@@ -184,8 +183,9 @@ instead so its cache and cleanup belong to the suite lifecycle.
 
 Smartest returns:
 
-- `0` when every test passes
+- `0` when every test passes, is skipped, or is pending as expected
 - `1` when any test fails
+- `1` when a pending test unexpectedly passes
 - `1` when suite fixture cleanup fails
 - `1` when an `around_suite` hook fails
 - `1` when an `around_test` hook fails

@@ -4,6 +4,8 @@ module Smartest
   class Reporter
     PASS_MARK = "\u2713"
     FAIL_MARK = "\u2717"
+    SKIP_MARK = "-"
+    PENDING_MARK = "*"
 
     def initialize(io = $stdout)
       @io = io
@@ -15,12 +17,13 @@ module Smartest
     end
 
     def record(result)
-      mark = result.passed? ? PASS_MARK : FAIL_MARK
-      @io.puts "#{mark} #{result.test_case.name}"
+      @io.puts record_line(result)
     end
 
     def finish(results, suite_cleanup_errors: [], suite_errors: [])
       failures = results.select(&:failed?)
+      skipped = results.select(&:skipped?)
+      pending = results.select(&:pending?)
 
       report_failures(failures) if failures.any?
       report_suite_errors(suite_errors) if suite_errors.any?
@@ -28,6 +31,8 @@ module Smartest
 
       @io.puts
       summary = "#{results.count} #{results.count == 1 ? 'test' : 'tests'}, #{results.count(&:passed?)} passed, #{failures.count} failed"
+      summary = "#{summary}, #{skipped.count} skipped" if skipped.any?
+      summary = "#{summary}, #{pending.count} pending" if pending.any?
       if suite_errors.any?
         suite_label = suite_errors.count == 1 ? "suite failure" : "suite failures"
         summary = "#{summary}, #{suite_errors.count} #{suite_label}"
@@ -40,6 +45,21 @@ module Smartest
     end
 
     private
+
+    def record_line(result)
+      case result.status
+      when :passed
+        "#{PASS_MARK} #{result.test_case.name}"
+      when :failed
+        "#{FAIL_MARK} #{result.test_case.name}"
+      when :skipped
+        "#{SKIP_MARK} #{result.test_case.name} (skipped: #{result.reason})"
+      when :pending
+        "#{PENDING_MARK} #{result.test_case.name} (pending: #{result.reason})"
+      else
+        "#{FAIL_MARK} #{result.test_case.name}"
+      end
+    end
 
     def report_failures(failures)
       @io.puts

@@ -1,5 +1,4 @@
 ---
-sidebar_position: 2
 title: Getting Started
 description: Install Smartest, write a first test, and run it.
 ---

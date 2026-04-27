@@ -5,7 +5,8 @@ description: Smartest errors and common causes.
 
 # Errors
 
-Smartest raises framework-specific errors for invalid test and fixture definitions.
+Smartest raises framework-specific errors for invalid test and fixture
+definitions, assertion failures, and test status control flow.
 
 ## `Smartest::AssertionFailed`
 
@@ -13,6 +14,23 @@ Raised when an expectation fails:
 
 ```text
 expected 2 to eq 3
+```
+
+## `Smartest::Skipped`
+
+Used internally when `skip` stops a test body or `around_test` hook. Smartest
+reports the test as skipped instead of failed:
+
+```text
+- PDF export (skipped: firefox is not supported)
+```
+
+## `Smartest::PendingPassedError`
+
+Raised when a test calls `pending` but then passes:
+
+```text
+expected pending test to fail, but it passed: Not supported by WebDriver BiDi yet
 ```
 
 ## `Smartest::FixtureNotFoundError`

@@ -143,6 +143,34 @@ end
 
 This makes fixture usage explicit and avoids relying on positional argument order.
 
+## Skipping and pending tests
+
+Use `skip` at the start of a test when the rest of the body should not run:
+
+```ruby
+test("PDF export") do |browser:|
+  skip "firefox is not supported" if browser.firefox?
+
+  export_pdf(browser)
+end
+```
+
+Use `pending` when the test should continue running but is expected to fail. If
+the test passes after `pending`, Smartest fails it so the stale pending marker is
+removed.
+
+```ruby
+test("PDF export") do |browser:|
+  pending "Not supported by WebDriver BiDi yet" if browser.bidi?
+
+  export_pdf(browser)
+end
+```
+
+`skip` and `pending` are available in test bodies and `around_test` hooks, but
+not as `test` metadata or fixture APIs. See
+[Skipping Tests](documentation/docs/skipping-tests.md).
+
 ## Expectations
 
 Smartest uses an expectation style:
@@ -648,6 +676,7 @@ The intended MVP includes:
 - fixture cleanup
 - suite hooks with `around_suite`
 - test hooks with `around_test`
+- skipped and pending tests through `skip` and `pending`
 - `expect(...).to eq(...)`
 - console reporter
 - CLI runner

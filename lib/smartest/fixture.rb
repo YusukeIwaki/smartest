@@ -2,6 +2,8 @@
 
 module Smartest
   class Fixture
+    RESERVED_CONTEXT_METHODS = %i[skip pending].freeze
+
     class << self
       def fixture(name, scope: :test, &block)
         define_fixture(
@@ -64,6 +66,8 @@ module Smartest
     end
 
     def method_missing(method_name, *args, &block)
+      return super if RESERVED_CONTEXT_METHODS.include?(method_name)
+
       if @context.respond_to?(method_name, true)
         @context.__send__(method_name, *args, &block)
       else
@@ -72,6 +76,8 @@ module Smartest
     end
 
     def respond_to_missing?(method_name, include_private = false)
+      return super if RESERVED_CONTEXT_METHODS.include?(method_name)
+
       @context.respond_to?(method_name, true) || super
     end
   end

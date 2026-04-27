@@ -1,5 +1,4 @@
 ---
-sidebar_position: 3
 title: Writing Tests
 description: Define tests with Smartest and make assertions with expectations.
 ---
@@ -48,6 +47,9 @@ test("raises an error") do
   expect { Integer("not a number") }.to raise_error(ArgumentError)
 end
 ```
+
+Use [Skipping Tests](./skipping-tests.md) when a test should be skipped under a
+runtime condition or marked as an expected failure with `pending`.
 
 ## Requesting Fixtures
 

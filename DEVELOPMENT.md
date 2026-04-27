@@ -224,6 +224,7 @@ Responsibilities:
 - supports inheritance
 - exposes `cleanup` to fixture blocks
 - optionally delegates helper methods to `ExecutionContext`
+- does not delegate `skip` or `pending` to fixture blocks
 
 Fixture definitions should not execute at declaration time.
 
@@ -306,6 +307,7 @@ Responsibilities:
 
 - include expectation methods
 - include matchers
+- expose `skip` and `pending` to test bodies
 - expose helper methods
 - optionally provide integration helpers later
 
@@ -329,6 +331,7 @@ Responsibilities:
 - resolve test keyword fixtures
 - run test body
 - run cleanup in `ensure`
+- track skipped and pending test state
 - run suite fixture cleanup after all tests
 - produce `TestResult`
 - notify reporter
@@ -342,7 +345,8 @@ Pseudo-code:
 
 ```ruby
 def run_one(test_case)
-  context = ExecutionContext.new
+  run_state = TestRunState.new
+  context = ExecutionContext.new(run_state: run_state)
   fixture_set = FixtureSet.new(
     @fixture_classes,
     context: context,
@@ -353,9 +357,19 @@ def run_one(test_case)
 
   context.instance_exec(**kwargs, &test_case.block)
 
-  TestResult.passed(test_case)
+  if run_state.pending?
+    TestResult.failed(test_case, PendingPassedError.new(run_state.pending_reason))
+  else
+    TestResult.passed(test_case)
+  end
+rescue Skipped => skipped
+  TestResult.skipped(test_case, skipped.reason)
 rescue Exception => error
-  TestResult.failed(test_case, error)
+  if run_state.pending?
+    TestResult.pending(test_case, run_state.pending_reason)
+  else
+    TestResult.failed(test_case, error)
+  end
 ensure
   fixture_set&.run_cleanups
 end
@@ -370,13 +384,15 @@ Fields:
 - test case
 - status
 - error
+- reason
 - duration
 
 Statuses:
 
 - passed
 - failed
-- skipped, later
+- skipped
+- pending
 
 ### `Smartest::Reporter`
 
@@ -385,7 +401,7 @@ Console reporter for MVP.
 Responsibilities:
 
 - print run start
-- print per-test pass/fail
+- print per-test pass/fail/skip/pending
 - print failure details
 - print summary
 - return appropriate exit status through runner
@@ -565,6 +581,8 @@ module Smartest
   class CircularFixtureDependencyError < Error; end
   class InvalidFixtureParameterError < Error; end
   class AssertionFailed < Error; end
+  class Skipped < Error; end
+  class PendingPassedError < AssertionFailed; end
 end
 ```
 
@@ -649,12 +667,34 @@ A practical approach:
 - expose `use_fixture` and `use_matcher` only inside hook contexts
 - make `around_test` registered from `around_suite` suite-wide
 
+### Phase 9: Skipped and pending tests
+
+- `skip "reason"` inside test bodies and `around_test` hooks
+- `pending "reason"` inside test bodies and `around_test` hooks
+- skipped tests do not fail the run
+- pending tests pass only when the remaining execution fails
+- pending tests fail with `Smartest::PendingPassedError` when they pass
+- `skip` and `pending` are not `test` metadata
+
 ## MVP API rules
 
 Supported:
 
 ```ruby
 test("name") do
+end
+```
+
+```ruby
+test("name") do
+  skip "reason" if runtime_condition?
+end
+```
+
+```ruby
+test("name") do
+  pending "reason" if expected_to_fail?
+  expect(actual).to eq(expected)
 end
 ```
 
@@ -685,6 +725,7 @@ end
 
 ```ruby
 around_test do |test|
+  pending "reason" if expected_to_fail?
   test.run
 end
 ```
@@ -703,6 +744,16 @@ end
 
 ```ruby
 fixture :client, with: [:server] do |server|
+end
+```
+
+```ruby
+test("name", skip: true) do
+end
+```
+
+```ruby
+test("name", pending: true) do
 end
 ```
 

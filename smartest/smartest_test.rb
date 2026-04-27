@@ -79,6 +79,92 @@ test("reports expectation failures") do
   expect(output).to include("1 test, 0 passed, 1 failed")
 end
 
+test("skip marks a test as skipped and stops the body") do
+  events = []
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "unsupported export",
+      proc do
+        events << :before_skip
+        skip "firefox is not supported"
+        events << :after_skip
+      end
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq([:before_skip])
+  expect(output).to include("- unsupported export (skipped: firefox is not supported)")
+  expect(output).to include("1 test, 0 passed, 0 failed, 1 skipped")
+  expect(output).not_to include("Failures:")
+end
+
+test("pending marks a failing test as pending") do
+  events = []
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bidi export",
+      proc do
+        pending "Not supported by WebDriver BiDi yet"
+        events << :after_pending
+        expect("actual").to eq("expected")
+        events << :after_failure
+      end
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq([:after_pending])
+  expect(output).to include("* bidi export (pending: Not supported by WebDriver BiDi yet)")
+  expect(output).to include("1 test, 0 passed, 0 failed, 1 pending")
+  expect(output).not_to include("Failures:")
+end
+
+test("pending fails when the test passes") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "fixed bidi export",
+      proc do
+        pending "Not supported by WebDriver BiDi yet"
+        expect("actual").to eq("actual")
+      end
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("expected pending test to fail, but it passed: Not supported by WebDriver BiDi yet")
+  expect(output).to include("1 test, 0 passed, 1 failed")
+end
+
+test("skip and pending are not available inside fixtures") do
+  %i[skip pending].each do |method_name|
+    fixture_class = Class.new(Smartest::Fixture) do
+      fixture :value do
+        __send__(method_name, "reason")
+      end
+    end
+
+    suite = Smartest::Suite.new
+    suite.fixture_classes.add(fixture_class)
+    suite.tests.add(SmartestSelfTest.test_case("#{method_name} fixture", proc { |value:| expect(value).to eq(:value) }))
+
+    status, output = SmartestSelfTest.run_suite(suite)
+
+    expect(status).to eq(1)
+    expect(output).to include("NoMethodError")
+    expect(output).to include(method_name.to_s)
+  end
+end
+
 test("supports basic matchers") do
   suite = Smartest::Suite.new
   suite.tests.add(
@@ -561,6 +647,81 @@ test("around_test must call test.run") do
 
   expect(status).to eq(1)
   expect(output).to include("Smartest::AroundTestRunError: around_test hook did not call test.run")
+end
+
+test("around_test can skip before test.run") do
+  events = []
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "skipped by hook",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          events << :around_before
+          skip "browser is not supported"
+          test_run.run
+          events << :around_after
+        end
+      ],
+      block: proc { events << :test_body }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq([:around_before])
+  expect(output).to include("- skipped by hook (skipped: browser is not supported)")
+  expect(output).to include("1 test, 0 passed, 0 failed, 1 skipped")
+end
+
+test("around_test can mark a failing test as pending") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "pending by hook",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          pending "driver bug"
+          test_run.run
+        end
+      ],
+      block: proc { expect("actual").to eq("expected") }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(output).to include("* pending by hook (pending: driver bug)")
+  expect(output).to include("1 test, 0 passed, 0 failed, 1 pending")
+end
+
+test("pending around_test hooks must still call test.run") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "pending hook missing run",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |_test_run|
+          pending "driver bug"
+        end
+      ],
+      block: proc { expect(true).to eq(false) }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("Smartest::AroundTestRunError: around_test hook did not call test.run")
+  expect(output).to include("1 test, 0 passed, 1 failed")
 end
 
 test("use_fixture and use_matcher are only available inside hooks") do

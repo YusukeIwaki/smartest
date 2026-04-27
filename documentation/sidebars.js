@@ -7,6 +7,7 @@ const sidebars = {
     'getting-started',
     'writing-tests',
     'running-test-suites',
+    'skipping-tests',
     'fixtures',
     'matchers',
     'playwright-browser-tests',
