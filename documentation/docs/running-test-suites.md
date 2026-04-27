@@ -64,6 +64,14 @@ Or a shell glob:
 bundle exec smartest smartest/**/*_test.rb
 ```
 
+Run tests by line number. Smartest runs tests whose `test` blocks contain or
+intersect the selected lines:
+
+```bash
+bundle exec smartest smartest/user_test.rb:12
+bundle exec smartest smartest/user_test.rb:3-12
+```
+
 Show CLI help:
 
 ```bash

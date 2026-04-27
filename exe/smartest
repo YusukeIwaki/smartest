@@ -8,6 +8,7 @@ require "smartest"
 usage = <<~USAGE
   Usage:
     smartest [paths...]
+    smartest path/to/test_file.rb:line[-line]
     smartest --init
     smartest --version
     smartest --help
@@ -38,21 +39,13 @@ begin
   test_load_path = File.expand_path("smartest", Dir.pwd)
   $LOAD_PATH.unshift(test_load_path) if Dir.exist?(test_load_path) && !$LOAD_PATH.include?(test_load_path)
 
-  files =
-    if ARGV.empty?
-      Dir["smartest/**/*_test.rb"]
-    else
-      ARGV.flat_map do |pattern|
-        matches = Dir[pattern]
-        matches.empty? ? [pattern] : matches
-      end.uniq
-    end
+  arguments = Smartest::CLIArguments.new(ARGV)
 
-  files.each do |file|
+  arguments.files.each do |file|
     load File.expand_path(file)
   end
 
-  exit Smartest::Runner.new.run
+  exit Smartest::Runner.new(tests: arguments.select_tests(Smartest.suite.tests)).run
 rescue Exception => error
   raise if Smartest.fatal_exception?(error)
 

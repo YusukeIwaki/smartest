@@ -794,14 +794,18 @@ CLI flow:
 ```ruby
 require "smartest"
 
-Kernel.include Smartest::DSL
+Smartest.disable_autorun!
+Kernel.prepend Smartest::DSL
 $LOAD_PATH.unshift File.expand_path("smartest", Dir.pwd)
 
-files = ARGV.empty? ? Dir["smartest/**/*_test.rb"] : ARGV
-files.each { |file| require File.expand_path(file) }
+arguments = Smartest::CLIArguments.new(ARGV)
+arguments.files.each { |file| load File.expand_path(file) }
 
-exit Smartest::Runner.new.run
+exit Smartest::Runner.new(tests: arguments.select_tests(Smartest.suite.tests)).run
 ```
+
+`Smartest::CLIArguments` should support file paths, shell globs, `path:line`,
+and `path:start-end` filters.
 
 `smartest/autorun` should use `at_exit`.
 

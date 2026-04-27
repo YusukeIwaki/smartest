@@ -88,6 +88,14 @@ You can also pass explicit paths:
 bundle exec smartest smartest/**/*_test.rb
 ```
 
+To run tests by line number, append `:line` or `:start-end` to the file path.
+Smartest runs tests whose `test` blocks contain or intersect the selected lines:
+
+```bash
+bundle exec smartest smartest/user_test.rb:12
+bundle exec smartest smartest/user_test.rb:3-12
+```
+
 CLI help and version output are available with:
 
 ```bash

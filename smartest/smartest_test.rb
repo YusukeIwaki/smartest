@@ -477,6 +477,91 @@ test("cli loads files and returns failure status") do
   end
 end
 
+test("cli runs tests matching a file line filter") do
+  Dir.mktmpdir do |dir|
+    smartest_dir = File.join(dir, "smartest")
+    FileUtils.mkdir_p(smartest_dir)
+    File.write(File.join(smartest_dir, "test_helper.rb"), <<~RUBY)
+      require "smartest/autorun"
+    RUBY
+
+    test_file = File.join(smartest_dir, "sample_test.rb")
+    File.write(test_file, <<~RUBY)
+      require "test_helper"
+
+      test("line one") do
+        expect(1).to eq(1)
+      end
+
+      test("line two") do
+        expect(2).to eq(2)
+      end
+    RUBY
+    line_number = File.readlines(test_file).find_index { |line| line.include?("expect(2)") } + 1
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "smartest/sample_test.rb:#{line_number}",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("Running 1 test")
+    expect(stdout).not_to include("line one")
+    expect(stdout).to include("line two")
+    expect(stdout).to include("1 test, 1 passed, 0 failed")
+  end
+end
+
+test("cli runs tests intersecting a file line range filter") do
+  Dir.mktmpdir do |dir|
+    smartest_dir = File.join(dir, "smartest")
+    FileUtils.mkdir_p(smartest_dir)
+    File.write(File.join(smartest_dir, "test_helper.rb"), <<~RUBY)
+      require "smartest/autorun"
+    RUBY
+
+    test_file = File.join(smartest_dir, "sample_test.rb")
+    File.write(test_file, <<~RUBY)
+      require "test_helper"
+
+      test("range one") do
+        expect(1).to eq(1)
+      end
+
+      test("range two") do
+        expect(2).to eq(2)
+      end
+
+      test("range three") do
+        expect(3).to eq(3)
+      end
+    RUBY
+    lines = File.readlines(test_file)
+    start_line = lines.find_index { |line| line.include?("expect(1)") } + 1
+    end_line = lines.find_index { |line| line.include?("expect(2)") } + 1
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "smartest/sample_test.rb:#{start_line}-#{end_line}",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("Running 2 tests")
+    expect(stdout).to include("range one")
+    expect(stdout).to include("range two")
+    expect(stdout).not_to include("range three")
+    expect(stdout).to include("2 tests, 2 passed, 0 failed")
+  end
+end
+
 test("cli default suite ignores minitest-style test directory") do
   Dir.mktmpdir do |dir|
     smartest_dir = File.join(dir, "smartest")
@@ -541,6 +626,7 @@ test("cli prints help") do
   expect(stderr).to eq("")
   expect(stdout).to include("Usage:")
   expect(stdout).to include("smartest [paths...]")
+  expect(stdout).to include("smartest path/to/test_file.rb:line[-line]")
   expect(stdout).to include("smartest --init")
   expect(stdout).to include("smartest/**/*_test.rb")
 end

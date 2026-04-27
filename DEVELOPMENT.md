@@ -613,6 +613,8 @@ A practical approach:
 - `exe/smartest`
 - load files from ARGV
 - default glob `smartest/**/*_test.rb`
+- support `path:line` and `path:start-end` filters that run tests whose `test`
+  blocks contain or intersect the lines
 - add `smartest/` to the load path before loading tests
 - generate a `smartest/test_helper.rb` that loads `smartest/fixtures/**/*.rb`
 - exit code 0 on success, 1 on failure

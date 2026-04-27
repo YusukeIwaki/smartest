@@ -19,6 +19,7 @@ require_relative "smartest/test_result"
 require_relative "smartest/reporter"
 require_relative "smartest/runner"
 require_relative "smartest/init_generator"
+require_relative "smartest/cli_arguments"
 
 module Smartest
   class << self

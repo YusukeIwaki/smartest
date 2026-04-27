@@ -2,9 +2,10 @@
 
 module Smartest
   class Runner
-    def initialize(suite: Smartest.suite, reporter: Reporter.new)
+    def initialize(suite: Smartest.suite, reporter: Reporter.new, tests: nil)
       @suite = suite
       @reporter = reporter
+      @tests = tests || suite.tests
     end
 
     def run
@@ -12,10 +13,10 @@ module Smartest
       suite_cleanup_errors = []
       @suite_fixture_set = nil
 
-      @reporter.start(@suite.tests.count)
+      @reporter.start(@tests.count)
 
       begin
-        @suite.tests.each do |test_case|
+        @tests.each do |test_case|
           result = run_one(test_case)
           results << result
           @reporter.record(result)
