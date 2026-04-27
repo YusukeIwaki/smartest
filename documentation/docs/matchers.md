@@ -5,11 +5,13 @@ description: Built-in Smartest matchers and custom matcher registration.
 
 # Matchers
 
-Matchers are passed to `expect(actual).to` or `expect(actual).not_to`.
+Matchers are passed to `expect(actual).to`, `expect(actual).not_to`, or block
+expectations such as `expect { action }.to`.
 
 ```ruby
 expect(actual).to matcher
 expect(actual).not_to matcher
+expect { action }.to matcher
 ```
 
 ## Built-in Matchers
@@ -32,6 +34,26 @@ expect([1, 2, 3]).to include(2)
 expect("smartest").to include("test")
 ```
 
+### `start_with(prefix, ...)`
+
+Passes when `actual.start_with?(*prefixes)` returns true. Multiple prefixes pass
+if any prefix matches:
+
+```ruby
+expect("about:blank").to start_with("about:")
+expect("https://cdn-b.test/app.js").to start_with("https://cdn-a.test", "https://cdn-b.test")
+```
+
+### `end_with(suffix, ...)`
+
+Passes when `actual.end_with?(*suffixes)` returns true. Multiple suffixes pass
+if any suffix matches:
+
+```ruby
+expect("screenshot.png").to end_with(".png")
+expect("archive.tar.gz").to end_with(".zip", ".gz")
+```
+
 ### `be_nil`
 
 Passes when `actual.nil?` is true:
@@ -51,6 +73,27 @@ expect { Integer("x") }.to raise_error(ArgumentError)
 
 Fatal process-level exceptions such as `SystemExit` and `Interrupt` are re-raised
 instead of being treated as assertion failures.
+
+### `change { value }`
+
+Passes when the value block returns a different value before and after the
+action block runs:
+
+```ruby
+count = 0
+
+expect { count += 1 }.to change { count }
+expect { count += 1 }.to change { count }.by(1)
+expect { count += 1 }.to change { count }.from(2).to(3)
+expect { count }.not_to change { count }
+```
+
+`from(expected)`, `to(expected)`, and `by(delta)` can be chained together to
+constrain the before value, after value, and numeric difference.
+
+`change` is only supported with block expectations and must receive a block.
+Smartest does not support RSpec's object-and-method form such as
+`change(object, :method)`.
 
 ## Generated Predicate Matcher
 

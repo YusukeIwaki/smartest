@@ -8,7 +8,7 @@
 - Support required keyword-argument fixture injection and fixture dependencies.
 - Support per-test fixture caching and cleanup.
 - Support suite-scoped fixtures through `suite_fixture`.
-- Support `eq`, `include`, `be_nil`, and `raise_error` matchers.
+- Support `eq`, `include`, `start_with`, `end_with`, `be_nil`, `raise_error`, and `change` matchers.
 - Support custom matcher modules through `use_matcher`.
 - Generate an opt-in `PredicateMatcher` custom matcher for `be_<predicate>` calls.
 - Add the `smartest` CLI.

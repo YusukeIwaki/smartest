@@ -178,6 +178,8 @@ Smartest uses an expectation style:
 ```ruby
 expect(actual).to eq(expected)
 expect(actual).not_to eq(expected)
+expect { action }.to raise_error(ErrorClass)
+expect { action }.to change { value }
 ```
 
 Examples:
@@ -190,6 +192,14 @@ end
 test("array") do
   expect([1, 2, 3]).to include(2)
 end
+
+test("URL") do
+  expect("about:blank").to start_with("about:")
+end
+
+test("download") do
+  expect("screenshot.png").to end_with(".png")
+end
 ```
 
 Supported matchers include:
@@ -197,9 +207,17 @@ Supported matchers include:
 ```ruby
 eq(expected)
 include(expected)
+start_with(prefix, ...)
+end_with(suffix, ...)
 be_nil
 raise_error(ErrorClass)
+change { value }
+change { value }.from(before).to(after)
+change { value }.by(delta)
 ```
+
+`change` is only supported with `expect { ... }` block expectations and must be
+written with a value block.
 
 Custom matcher modules can be registered from `around_suite` or `around_test`
 with `use_matcher`. The generated scaffold includes a `PredicateMatcher` custom

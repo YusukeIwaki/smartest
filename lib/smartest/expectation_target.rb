@@ -13,6 +13,12 @@ module Smartest
     end
 
     def not_to(matcher)
+      if matcher.respond_to?(:does_not_match?)
+        return self if matcher.does_not_match?(@actual)
+
+        raise AssertionFailed, matcher.negated_failure_message
+      end
+
       return self unless matcher.matches?(@actual)
 
       raise AssertionFailed, matcher.negated_failure_message

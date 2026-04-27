@@ -717,6 +717,19 @@ MVP expectation API:
 ```ruby
 expect(actual).to eq(expected)
 expect(actual).not_to eq(expected)
+expect { action }.to change { value }
+```
+
+Current built-in matchers include:
+
+```ruby
+eq(expected)
+include(expected)
+start_with(prefix, ...)
+end_with(suffix, ...)
+be_nil
+raise_error(ErrorClass)
+change { value }
 ```
 
 Internal model:
@@ -1235,8 +1248,6 @@ Possible future features:
 - custom reporters
 - JSON output
 - richer matchers
-- block expectations
-- `raise_error`
 - file-scoped fixtures
 - parallel execution
 - watch mode

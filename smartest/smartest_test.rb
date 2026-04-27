@@ -172,6 +172,15 @@ test("supports basic matchers") do
       "matchers",
       proc do
         expect([1, 2, 3]).to include(2)
+        expect("about:blank").to start_with("about:")
+        expect("https://cdn-b.test/assets/app.js").to start_with(
+          "https://cdn-a.test",
+          "https://cdn-b.test"
+        )
+        expect("screenshot.png").to end_with(".jpg", ".png")
+        expect("https://example.test").not_to start_with("about:")
+        expect("report.txt").not_to end_with(".png")
+        expect(Object.new).not_to start_with("prefix")
         expect(nil).to be_nil
         expect("value").not_to be_nil
         expect { raise ArgumentError, "bad" }.to raise_error(ArgumentError)
@@ -182,6 +191,93 @@ test("supports basic matchers") do
   status, = SmartestSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
+end
+
+test("reports start_with and end_with matcher failures") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad prefix",
+      proc { expect("https://example.test/path").to start_with("about:") }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad suffix",
+      proc { expect("asset.gif").to end_with(".jpg", ".png") }
+    )
+  )
+  suite.tests.add(
+    SmartestSelfTest.test_case(
+      "bad negated suffix",
+      proc { expect("screenshot.png").not_to end_with(".png") }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include('expected "https://example.test/path" to start with "about:"')
+  expect(output).to include('expected "asset.gif" to end with ".jpg" or ".png"')
+  expect(output).to include('expected "screenshot.png" not to end with ".png"')
+end
+
+test("supports change matcher for block expectations") do
+  value = 0
+  action_calls = 0
+
+  expect {
+    action_calls += 1
+    value += 2
+  }.to change { value }.from(0).to(2).by(2)
+
+  expect(action_calls).to eq(1)
+  expect { value }.not_to change { value }
+end
+
+test("reports change matcher failures with before and after values") do
+  value = 0
+
+  error = SmartestSelfTest.capture_error(Smartest::AssertionFailed) do
+    expect { value += 1 }.to change { value }.from(0).to(2).by(2)
+  end
+
+  expect(error.message).to include("0 before")
+  expect(error.message).to include("1 after")
+  expect(error.message).to include("to(2)")
+  expect(error.message).to include("by(2)")
+end
+
+test("fails negated change matcher when the value changes") do
+  value = 0
+
+  error = SmartestSelfTest.capture_error(Smartest::AssertionFailed) do
+    expect { value += 1 }.not_to change { value }
+  end
+
+  expect(error.message).to include("expected value not to change")
+  expect(error.message).to include("0 before")
+  expect(error.message).to include("1 after")
+end
+
+test("requires change matcher value and action blocks") do
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    change
+  end
+
+  expect(error.message).to eq("change requires a block")
+
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    change(:value) { :other }
+  end
+
+  expect(error.message).to include("change does not support arguments")
+
+  error = SmartestSelfTest.capture_error(Smartest::AssertionFailed) do
+    expect(:value).to change { :other }
+  end
+
+  expect(error.message).to include("expected a block to change value")
 end
 
 test("registers matcher modules for suite execution contexts") do

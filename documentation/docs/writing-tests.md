@@ -35,6 +35,14 @@ test("arrays") do
   expect([1, 2, 3]).to include(2)
 end
 
+test("URLs") do
+  expect("about:blank").to start_with("about:")
+end
+
+test("downloads") do
+  expect("screenshot.png").to end_with(".png")
+end
+
 test("nil values") do
   expect(nil).to be_nil
 end
@@ -45,6 +53,12 @@ Block expectations use Ruby blocks:
 ```ruby
 test("raises an error") do
   expect { Integer("not a number") }.to raise_error(ArgumentError)
+end
+
+test("changes state") do
+  count = 0
+
+  expect { count += 1 }.to change { count }.from(0).to(1).by(1)
 end
 ```
 
