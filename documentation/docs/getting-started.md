@@ -54,7 +54,10 @@ Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
   require matcher_file
 end
 
-use_matcher PredicateMatcher
+around_suite do |suite|
+  use_matcher PredicateMatcher
+  suite.run
+end
 ```
 
 It also creates `smartest/example_test.rb`:
@@ -76,8 +79,11 @@ fixture or matcher file requires.
 
 `smartest/autorun` in the helper does two things:
 
-- makes the top-level `test`, `use_fixture`, and `use_matcher` DSL available
+- makes the top-level `test`, `around_suite`, and `around_test` DSL available
 - runs the registered tests when Ruby exits
+
+`use_fixture` and `use_matcher` are available inside `around_suite` and
+`around_test` blocks, not as top-level methods.
 
 ## Run the Test
 

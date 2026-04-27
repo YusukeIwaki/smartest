@@ -102,7 +102,8 @@ Responsibilities:
 
 - test registry
 - fixture class registry
-- hook registry, if hooks are implemented later
+- matcher registry
+- `around_suite` hook registry
 
 Example shape:
 
@@ -125,9 +126,13 @@ Required methods:
 
 ```ruby
 test(name, **metadata, &block)
-use_fixture(klass)
-use_matcher(matcher_module)
+around_suite(&block)
+around_test(&block)
 ```
+
+`use_fixture(klass)` and `use_matcher(matcher_module)` are not top-level DSL
+methods. They are available only from hook execution contexts: `around_suite`
+and `around_test`.
 
 Possible later methods:
 
@@ -263,7 +268,10 @@ Responsibilities:
 Example:
 
 ```ruby
-use_fixture AppFixture
+around_suite do |suite|
+  use_fixture AppFixture
+  suite.run
+end
 ```
 
 should register `AppFixture`.
@@ -314,6 +322,7 @@ Runs tests.
 Responsibilities:
 
 - iterate over registered test cases
+- run registered `around_suite` hooks around the suite body
 - create a lazy suite-scoped `FixtureSet`
 - create a fresh `ExecutionContext` per test
 - create a fresh `FixtureSet` per test
@@ -323,6 +332,11 @@ Responsibilities:
 - run suite fixture cleanup after all tests
 - produce `TestResult`
 - notify reporter
+
+`around_suite` hooks receive a run target and must call `suite.run` exactly once.
+Registered hooks compose in registration order, so the first hook is the
+outermost wrapper. If a hook raises or does not call `suite.run`, the runner
+reports a suite failure and exits with status `1`.
 
 Pseudo-code:
 
@@ -577,7 +591,7 @@ A practical approach:
 
 - `Smartest::Fixture`
 - `fixture :name do ... end`
-- `use_fixture`
+- `use_fixture` from a hook context
 - test block keyword fixture resolution
 
 ### Phase 3: Fixture dependencies
@@ -620,6 +634,21 @@ A practical approach:
 - generate a `smartest/test_helper.rb` that loads `smartest/fixtures/**/*.rb`
 - exit code 0 on success, 1 on failure
 
+### Phase 7: Suite hooks
+
+- `around_suite do |suite| ... end`
+- run hooks around the full suite body
+- include suite fixture cleanup inside the wrapped body
+- report hook failures as suite failures
+
+### Phase 8: Test hooks
+
+- `around_test do |test| ... end`
+- snapshot file-local hooks when each test is registered
+- run hooks around fixture setup, test body, and fixture cleanup
+- expose `use_fixture` and `use_matcher` only inside hook contexts
+- make `around_test` registered from `around_suite` suite-wide
+
 ## MVP API rules
 
 Supported:
@@ -646,6 +675,18 @@ end
 
 ```ruby
 cleanup { ... }
+```
+
+```ruby
+around_suite do |suite|
+  suite.run
+end
+```
+
+```ruby
+around_test do |test|
+  test.run
+end
 ```
 
 Not supported in MVP:

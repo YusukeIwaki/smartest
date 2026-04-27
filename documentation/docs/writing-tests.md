@@ -93,7 +93,8 @@ smartest/
 
 Fixture files under `smartest/fixtures/` and matcher files under
 `smartest/matchers/` are loaded by the generated `smartest/test_helper.rb`.
-Register fixture classes from the helper with `use_fixture`.
+Register fixture classes from an `around_suite` or `around_test` block with
+`use_fixture`.
 
 Example:
 

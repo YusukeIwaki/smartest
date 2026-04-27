@@ -48,7 +48,9 @@ Smartest currently focuses on the MVP runner:
 - fixture dependencies through keyword arguments
 - fixture cleanup
 - suite-scoped fixtures through `suite_fixture`
+- suite hooks through `around_suite`
+- test hooks through `around_test`
 - console reporting
 - a CLI runner
 
-Nested `describe` blocks, watch mode, parallel execution, hooks, and file-scoped fixtures are not part of the current MVP.
+Nested `describe` blocks, watch mode, parallel execution, and file-scoped fixtures are not part of the current MVP.

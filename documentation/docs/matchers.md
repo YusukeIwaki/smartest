@@ -55,7 +55,8 @@ instead of being treated as assertion failures.
 ## Generated Predicate Matcher
 
 `smartest --init` creates `smartest/matchers/predicate_matcher.rb` and registers
-it from `smartest/test_helper.rb` with `use_matcher PredicateMatcher`.
+it from `around_suite` in `smartest/test_helper.rb` with
+`use_matcher PredicateMatcher`.
 
 When enabled, `be_<predicate>` passes if `actual.<predicate>?` returns true:
 
@@ -78,7 +79,7 @@ expect(2).to be_between(1, 3) # calls 2.between?(1, 3)
 
 The predicate matcher is generated as a normal custom matcher module, so projects
 that do not want this metaprogramming hook can remove the file and the
-`use_matcher PredicateMatcher` line.
+`use_matcher PredicateMatcher` line from the generated `around_suite` block.
 
 ## Custom Matchers
 
@@ -119,9 +120,9 @@ end
 
 The generated `smartest/test_helper.rb` loads every Ruby file under
 `smartest/matchers/` in sorted order. Register the matcher modules you want to
-use with `use_matcher`:
+use from `around_suite` with `use_matcher`:
 
-```ruby title="smartest/test_helper.rb" {12}
+```ruby title="smartest/test_helper.rb" {12-16}
 require "smartest/autorun"
 
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
@@ -132,8 +133,11 @@ Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
   require matcher_file
 end
 
-use_matcher PredicateMatcher
-use_matcher HaveStatusMatcher
+around_suite do |suite|
+  use_matcher PredicateMatcher
+  use_matcher HaveStatusMatcher
+  suite.run
+end
 ```
 
 Registered matcher methods are available in every test that requires the helper:

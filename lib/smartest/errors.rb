@@ -48,5 +48,21 @@ module Smartest
 
   class InvalidFixtureParameterError < Error; end
 
+  class AroundSuiteRunError < Error; end
+
+  class AroundTestFixtureScopeError < Error
+    def initialize(fixture_class, fixture_names)
+      class_name = fixture_class.name || fixture_class.inspect
+      names = fixture_names.map { |fixture_name| ":#{fixture_name}" }.join(", ")
+
+      super(
+        "#{class_name} cannot be registered from around_test because it defines suite-scoped fixtures: #{names}. " \
+        "Register fixture classes with suite_fixture from around_suite instead."
+      )
+    end
+  end
+
+  class AroundTestRunError < Error; end
+
   class AssertionFailed < Error; end
 end

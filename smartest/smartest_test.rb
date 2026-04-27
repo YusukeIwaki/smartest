@@ -48,7 +48,10 @@ class SelfTestRegisteredFixture < Smartest::Fixture
   end
 end
 
-use_fixture SelfTestRegisteredFixture
+around_suite do |suite|
+  use_fixture SelfTestRegisteredFixture
+  suite.run
+end
 
 test("registers fixture classes with use_fixture") do |registered_user_name:|
   expect(registered_user_name).to eq("Alice")
@@ -326,6 +329,298 @@ test("suite fixture setup failures are cached and cleaned up once") do
   expect(output.scan("RuntimeError: server setup failed").length).to eq(2)
 end
 
+test("around_suite wraps tests and suite fixture cleanup") do
+  events = []
+
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :server do
+      events << :server_setup
+      cleanup { events << :server_cleanup }
+      :server
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.around_suite_hooks << proc do |suite_run|
+    events << :around_before
+    suite_run.run
+    events << :around_after
+  end
+  suite.tests.add(SmartestSelfTest.test_case("uses server", proc { |server:| events << :test; expect(server).to eq(:server) }))
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq(%i[around_before server_setup test server_cleanup around_after])
+end
+
+test("around_suite hooks run in registration order") do
+  events = []
+  suite = Smartest::Suite.new
+
+  suite.around_suite_hooks << proc do |suite_run|
+    events << :outer_before
+    suite_run.run
+    events << :outer_after
+  end
+  suite.around_suite_hooks << proc do |suite_run|
+    events << :inner_before
+    suite_run.run
+    events << :inner_after
+  end
+  suite.tests.add(SmartestSelfTest.test_case("passes", proc { events << :test }))
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq(%i[outer_before inner_before test inner_after outer_after])
+end
+
+test("around_suite can register fixtures before running tests") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :user_name do
+      "Alice"
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.around_suite_hooks << proc do |suite_run|
+    use_fixture fixture_class
+    suite_run.run
+  end
+  suite.tests.add(SmartestSelfTest.test_case("uses runtime fixture", proc { |user_name:| expect(user_name).to eq("Alice") }))
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+end
+
+test("around_suite can register suite-wide around_test hooks") do
+  events = []
+  suite = Smartest::Suite.new
+
+  suite.around_suite_hooks << proc do |suite_run|
+    around_test do |test_run|
+      events << :around_test_before
+      test_run.run
+      events << :around_test_after
+    end
+
+    suite_run.run
+  end
+  suite.tests.add(SmartestSelfTest.test_case("passes", proc { events << :test }))
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq(%i[around_test_before test around_test_after])
+end
+
+test("around_test wraps fixture setup, test body, and cleanup") do
+  events = []
+
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :resource do
+      events << :fixture_setup
+      cleanup { events << :fixture_cleanup }
+      :resource
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "uses resource",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          events << :around_test_before
+          test_run.run
+          events << :around_test_after
+        end
+      ],
+      block: proc { |resource:| events << :test; expect(resource).to eq(:resource) }
+    )
+  )
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(events).to eq(%i[around_test_before fixture_setup test fixture_cleanup around_test_after])
+end
+
+test("around_test can register fixtures for one test run") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :local_value do
+      "local"
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "uses local fixture",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          use_fixture fixture_class
+          test_run.run
+        end
+      ],
+      block: proc { |local_value:| expect(local_value).to eq("local") }
+    )
+  )
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+end
+
+test("around_test rejects fixture classes with suite fixtures") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :server do
+      :server
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "rejects local suite fixture",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          use_fixture fixture_class
+          test_run.run
+        end
+      ],
+      block: proc { |server:| expect(server).to eq(:server) }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("Smartest::AroundTestFixtureScopeError")
+  expect(output).to include("cannot be registered from around_test")
+  expect(output).to include("suite-scoped fixtures: :server")
+  expect(output).to include("Register fixture classes with suite_fixture from around_suite instead.")
+end
+
+test("around_test can register matchers for one test run") do
+  matcher_module = Module.new do
+    define_method(:equal_local) do |expected|
+      Class.new do
+        define_method(:initialize) { |value| @expected = value }
+        define_method(:matches?) { |actual| actual == @expected }
+        define_method(:failure_message) { "expected value to match" }
+        define_method(:negated_failure_message) { "expected value not to match" }
+      end.new(expected)
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "uses local matcher",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [
+        proc do |test_run|
+          use_matcher matcher_module
+          test_run.run
+        end
+      ],
+      block: proc { expect("local").to equal_local("local") }
+    )
+  )
+
+  status, = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+end
+
+test("around_test must call test.run") do
+  suite = Smartest::Suite.new
+  suite.tests.add(
+    Smartest::TestCase.new(
+      name: "not reached",
+      metadata: {},
+      location: caller_locations(1, 1).first,
+      around_test_hooks: [proc { |_test_run| nil }],
+      block: proc { expect(true).to eq(false) }
+    )
+  )
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("Smartest::AroundTestRunError: around_test hook did not call test.run")
+end
+
+test("use_fixture and use_matcher are only available inside hooks") do
+  {
+    "use_fixture Object" => "use_fixture",
+    "use_matcher Module.new" => "use_matcher"
+  }.each do |registration, method_name|
+    Dir.mktmpdir do |dir|
+      smartest_dir = File.join(dir, "smartest")
+      FileUtils.mkdir_p(smartest_dir)
+      File.write(File.join(smartest_dir, "sample_test.rb"), <<~RUBY)
+        require "smartest/autorun"
+
+        #{registration}
+
+        test("not reached") do
+          expect(true).to eq(true)
+        end
+      RUBY
+
+      _stdout, stderr, status = Open3.capture3(
+        { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+        "ruby",
+        File.expand_path("../exe/smartest", __dir__),
+        "smartest/sample_test.rb",
+        chdir: dir
+      )
+
+      expect(status.success?).to eq(false)
+      expect(stderr).to include("Error loading tests:")
+      expect(stderr).to include("NoMethodError")
+      expect(stderr).to include(method_name)
+    end
+  end
+end
+
+test("around_suite failures fail the run") do
+  suite = Smartest::Suite.new
+  suite.around_suite_hooks << proc { |_suite_run| raise "suite wrapper failed" }
+  suite.tests.add(SmartestSelfTest.test_case("not reached", proc { expect(true).to eq(false) }))
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("Suite failures:")
+  expect(output).to include("RuntimeError: suite wrapper failed")
+  expect(output).to include("0 tests, 0 passed, 0 failed, 1 suite failure")
+end
+
+test("around_suite must call suite.run") do
+  suite = Smartest::Suite.new
+  suite.around_suite_hooks << proc { |_suite_run| nil }
+  suite.tests.add(SmartestSelfTest.test_case("not reached", proc { expect(true).to eq(false) }))
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("Smartest::AroundSuiteRunError: around_suite hook did not call suite.run")
+end
+
 test("suite cleanup failures fail the run") do
   fixture_class = Class.new(Smartest::Fixture) do
     suite_fixture :browser do
@@ -541,7 +836,10 @@ test("cli loads matcher files registered in test helper") do
         require matcher_file
       end
 
-      use_matcher HaveStatusMatcher
+      around_suite do |suite|
+        use_matcher HaveStatusMatcher
+        suite.run
+      end
     RUBY
     File.write(File.join(matchers_dir, "have_status_matcher.rb"), <<~RUBY)
       module HaveStatusMatcher
@@ -771,6 +1069,7 @@ test("cli initializes a runnable test scaffold") do
     expect(helper_contents).to include('require "smartest/autorun"')
     expect(helper_contents).to include('Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each')
     expect(helper_contents).to include('Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each')
+    expect(helper_contents).to include("around_suite do |suite|")
     expect(helper_contents).to include("use_matcher PredicateMatcher")
     predicate_matcher_contents = File.read(File.join(dir, "smartest/matchers/predicate_matcher.rb"))
     expect(predicate_matcher_contents).to include("module PredicateMatcher")
@@ -789,7 +1088,10 @@ test("cli initializes a runnable test scaffold") do
     File.write(File.join(dir, "smartest/auto_loaded_fixture_test.rb"), <<~RUBY)
       require "test_helper"
 
-      use_fixture AutoLoadedFixture
+      around_test do |test|
+        use_fixture AutoLoadedFixture
+        test.run
+      end
 
       test("auto-loaded fixture") do |auto_loaded_message:|
         expect(auto_loaded_message).to eq("loaded from smartest/fixtures")
@@ -828,7 +1130,10 @@ test("cli initializes a runnable test scaffold") do
     File.write(File.join(dir, "smartest/auto_loaded_matcher_test.rb"), <<~RUBY)
       require "test_helper"
 
-      use_matcher AutoLoadedMatcher
+      around_test do |test|
+        use_matcher AutoLoadedMatcher
+        test.run
+      end
 
       test("auto-loaded matcher") do
         expect("loaded from smartest/matchers").to auto_eq("loaded from smartest/matchers")

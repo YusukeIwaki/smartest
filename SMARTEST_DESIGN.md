@@ -50,7 +50,10 @@ class WebFixture < Smartest::Fixture
   end
 end
 
-use_fixture WebFixture
+around_suite do |suite|
+  use_fixture WebFixture
+  suite.run
+end
 ```
 
 The core decision is:
@@ -294,7 +297,9 @@ context.instance_exec(**fixtures, &block)
 
 This keeps the top-level DSL small.
 
-Only `test`, `fixture`, `use_fixture`, and `use_matcher` need to be globally available when using `smartest/autorun`.
+Only `test`, `around_suite`, and `around_test` should be globally available when
+using `smartest/autorun`. `use_fixture` and `use_matcher` are available only
+inside hook execution contexts.
 
 ## Core architecture
 
@@ -543,8 +548,11 @@ class AdminFixture < Smartest::Fixture
   end
 end
 
-use_fixture UserFixture
-use_fixture AdminFixture
+around_suite do |suite|
+  use_fixture UserFixture
+  use_fixture AdminFixture
+  suite.run
+end
 ```
 
 Error:
@@ -853,7 +861,70 @@ Useful metadata later:
 
 Hooks are separate from fixtures.
 
-Potential API:
+Supported suite API:
+
+```ruby
+around_suite do |suite|
+  Async do
+    suite.run
+  end
+end
+```
+
+`around_suite` wraps the full suite body, including all tests and suite fixture
+cleanup. The hook receives a run target and must call `suite.run` exactly once.
+Multiple hooks compose in registration order, with the first hook as the
+outermost wrapper.
+
+Supported per-test API:
+
+```ruby
+around_test do |test|
+  SomeAutoCloseResource.new do
+    test.run
+  end
+end
+```
+
+When `around_test` is written directly in a test file, Smartest treats it as
+file-scoped by snapshotting the file's current around-test hooks into each
+`TestCase` at test registration time. Hooks defined later in the file apply only
+to later tests.
+
+`around_test` can also be registered inside `around_suite`. In that case the hook
+is suite-wide and applies when `suite.run` executes:
+
+```ruby
+around_suite do |suite|
+  around_test do |test|
+    TestServer.run do
+      test.run
+    end
+  end
+
+  suite.run
+end
+```
+
+`use_fixture` and `use_matcher` are not top-level DSL methods. They are available
+inside `around_suite` and `around_test` contexts:
+
+```ruby
+around_test do |test|
+  use_fixture LocalFixture
+  use_matcher LocalMatcher
+  test.run
+end
+```
+
+For `around_test`, those registrations are test-run local and must happen before
+`test.run`.
+
+Fixture classes registered from `around_test` must not define `suite_fixture`.
+Suite-scoped fixtures need suite-level cache and cleanup ownership, so classes
+with suite-scoped fixtures must be registered from `around_suite`.
+
+Potential simpler per-test API:
 
 ```ruby
 before do
@@ -889,9 +960,28 @@ fixture cleanup
 
 This needs a final decision later.
 
-For MVP, hooks can be omitted.
-
 Fixture cleanup already handles resource-specific teardown.
+
+### Around-test parallelism note
+
+The file-scoped `around_test` design is intended to remain compatible with
+future parallel execution if it is hardened in these directions:
+
+- keep registration protected by a `Mutex` when tests may be loaded from
+  multiple threads
+- use copy-on-write arrays for `around_test` hooks by file
+- snapshot the current file-local hook stack into each `TestCase` at registration
+  time
+- treat `TestCase` as immutable after registration
+- expose `use_fixture` and `use_matcher` through a per-run `TestRun` object, not
+  by mutating the global suite registry during test execution
+- snapshot the suite's fixture classes and matcher modules before a test starts
+- keep test-run fixture and matcher additions local to that run
+
+That shape lets multiple tests execute concurrently by reading immutable
+`TestCase` state and using per-test fixture/matcher registries. The current
+implementation can be simpler, but it should not rely on refinements or global
+method rewriting for file-local behavior.
 
 ## Scoping
 
@@ -1073,6 +1163,11 @@ require "smartest/autorun"
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
+
+around_suite do |suite|
+  use_fixture AppFixture
+  suite.run
+end
 ```
 
 ```ruby
@@ -1098,8 +1193,6 @@ end
 # smartest/example_test.rb
 require "test_helper"
 
-use_fixture AppFixture
-
 test("GET /health") do |client:|
   expect(client.get("/health").status).to eq(200)
 end
@@ -1117,7 +1210,6 @@ Possible future features:
 - richer matchers
 - block expectations
 - `raise_error`
-- hooks
 - file-scoped fixtures
 - parallel execution
 - watch mode

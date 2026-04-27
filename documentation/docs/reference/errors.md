@@ -92,3 +92,43 @@ Use required keyword arguments:
 test("good") do |user:|
 end
 ```
+
+## `Smartest::AroundSuiteRunError`
+
+Raised when an `around_suite` hook does not call `suite.run`, or calls it more
+than once:
+
+```ruby
+around_suite do |_suite|
+  # Missing suite.run.
+end
+```
+
+Each `around_suite` hook must call `suite.run` exactly once.
+
+## `Smartest::AroundTestFixtureScopeError`
+
+Raised when `around_test` registers a fixture class that defines
+`suite_fixture`:
+
+```ruby
+around_test do |test|
+  use_fixture LocalFixtureWithSuiteFixture
+  test.run
+end
+```
+
+Register fixture classes with suite-scoped fixtures from `around_suite` instead.
+
+## `Smartest::AroundTestRunError`
+
+Raised when an `around_test` hook does not call `test.run`, calls it more than
+once, or tries to call `use_fixture` or `use_matcher` after `test.run`:
+
+```ruby
+around_test do |_test|
+  # Missing test.run.
+end
+```
+
+Each `around_test` hook must call `test.run` exactly once.

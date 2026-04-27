@@ -173,9 +173,9 @@ be_nil
 raise_error(ErrorClass)
 ```
 
-Custom matcher modules can be registered with `use_matcher`. The generated
-scaffold includes a `PredicateMatcher` custom matcher for `be_<predicate>` calls.
-See [Matchers](documentation/docs/matchers.md).
+Custom matcher modules can be registered from `around_suite` or `around_test`
+with `use_matcher`. The generated scaffold includes a `PredicateMatcher` custom
+matcher for `be_<predicate>` calls. See [Matchers](documentation/docs/matchers.md).
 
 ## Fixtures
 
@@ -192,10 +192,13 @@ class AppFixture < Smartest::Fixture
 end
 ```
 
-Register fixture classes from `smartest/test_helper.rb`:
+Register fixture classes from `around_suite` in `smartest/test_helper.rb`:
 
 ```ruby
-use_fixture AppFixture
+around_suite do |suite|
+  use_fixture AppFixture
+  suite.run
+end
 ```
 
 Tests request fixtures by keyword:
@@ -273,6 +276,100 @@ end
 Suite fixtures are lazy: setup runs the first time a test requests the fixture,
 and cleanup runs once after all tests finish. Test-scoped fixtures can depend on
 suite fixtures, but suite fixtures cannot depend on test-scoped fixtures.
+
+## Suite hooks
+
+Use `around_suite` when the full test run must execute inside another block:
+
+```ruby
+around_suite do |suite|
+  Async do
+    suite.run
+  end
+end
+```
+
+The hook receives a run target and must call `suite.run` exactly once. The block
+wraps every test, test-scoped fixture setup and cleanup, suite fixture setup, and
+suite fixture cleanup.
+
+Fixture and matcher registrations made before `suite.run` are applied to that
+run:
+
+```ruby
+around_suite do |suite|
+  use_fixture GlobalFixture
+  suite.run
+end
+```
+
+Multiple `around_suite` hooks run in registration order. The first hook is the
+outermost wrapper:
+
+```ruby
+around_suite do |suite|
+  with_outer_resource { suite.run }
+end
+
+around_suite do |suite|
+  with_inner_resource { suite.run }
+end
+```
+
+If an `around_suite` hook raises or does not call `suite.run`, Smartest reports a
+suite failure and exits with status `1`.
+
+## Test hooks
+
+Use `around_test` when each test needs to run inside another block:
+
+```ruby
+around_test do |test|
+  SomeAutoCloseResource.new do
+    test.run
+  end
+end
+```
+
+The hook receives a run target and must call `test.run` exactly once. It wraps
+fixture setup, the test body, and fixture cleanup.
+
+`around_test` is file-scoped when it is written directly in a test file. Smartest
+copies the current file's `around_test` hooks when each `test` is registered, so
+hooks apply to tests defined later in the same file.
+
+Define `around_test` inside `around_suite` when the hook should apply to the
+whole run:
+
+```ruby
+around_suite do |suite|
+  around_test do |test|
+    with_some_resource do
+      test.run
+    end
+  end
+
+  suite.run
+end
+```
+
+`around_test` can also register fixture classes or matcher modules for that test
+run:
+
+```ruby
+around_test do |test|
+  use_fixture LocalFixture
+  use_matcher LocalMatcher
+  test.run
+end
+```
+
+Fixture classes registered from `around_test` must define only test-scoped
+fixtures. If a class defines `suite_fixture`, register it from `around_suite`
+instead so its cache and cleanup belong to the suite lifecycle.
+
+`use_fixture` and `use_matcher` are only available inside `around_suite` or
+`around_test` blocks. They are not top-level DSL methods.
 
 ## Fixtures with teardown
 
@@ -355,7 +452,10 @@ end
 
 ```ruby
 # smartest/test_helper.rb
-use_fixture WebFixture
+around_suite do |suite|
+  use_fixture WebFixture
+  suite.run
+end
 ```
 
 ```ruby
@@ -391,41 +491,34 @@ server cleanup
 
 ## Registering fixture classes
 
-Use `use_fixture` from `smartest/test_helper.rb`:
+Use `use_fixture` inside `around_suite` from `smartest/test_helper.rb`:
 
 ```ruby
-use_fixture AppFixture
+around_suite do |suite|
+  use_fixture AppFixture
+  suite.run
+end
 ```
 
 Multiple fixture classes can be registered:
 
 ```ruby
-use_fixture UserFixture
-use_fixture WebFixture
-use_fixture ApiFixture
+around_suite do |suite|
+  use_fixture UserFixture
+  use_fixture WebFixture
+  use_fixture ApiFixture
+  suite.run
+end
 ```
 
 Fixture names must be unique across registered fixture classes.
 
 If two fixture classes define the same fixture name, Smartest raises an error.
 
-## Hooks
+## Suite hooks and fixture cleanup
 
-Smartest may support simple hooks:
-
-```ruby
-before do
-  DatabaseCleaner.start
-end
-
-after do
-  DatabaseCleaner.clean
-end
-```
-
-Hooks are separate from fixture cleanup.
-
-Use fixture cleanup for resource-specific teardown:
+Suite hooks are separate from fixture cleanup. Use fixture cleanup for
+resource-specific teardown:
 
 ```ruby
 fixture :server do
@@ -435,11 +528,11 @@ fixture :server do
 end
 ```
 
-Use hooks for broad test-level behavior:
+Use `around_suite` for broad suite-level execution context:
 
 ```ruby
-before do
-  reset_global_state
+around_suite do |suite|
+  Async { suite.run }
 end
 ```
 
@@ -469,13 +562,16 @@ Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
   require matcher_file
 end
 
-use_fixture WebFixture
-use_matcher PredicateMatcher
+around_suite do |suite|
+  use_fixture WebFixture
+  use_matcher PredicateMatcher
+  suite.run
+end
 ```
 
 The generated helper loads Ruby files under `smartest/fixtures/` and
-`smartest/matchers/` in sorted order. Register fixture classes and matcher
-modules from the helper with `use_fixture` and `use_matcher`.
+`smartest/matchers/` in sorted order. Register suite-wide fixture classes and
+matcher modules from `around_suite` with `use_fixture` and `use_matcher`.
 
 Example:
 
@@ -550,6 +646,8 @@ The intended MVP includes:
 - keyword-argument fixture injection
 - fixture dependencies through keyword arguments
 - fixture cleanup
+- suite hooks with `around_suite`
+- test hooks with `around_test`
 - `expect(...).to eq(...)`
 - console reporter
 - CLI runner

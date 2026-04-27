@@ -18,7 +18,10 @@ module Smartest
           require matcher_file
         end
 
-        use_matcher PredicateMatcher
+        around_suite do |suite|
+          use_matcher PredicateMatcher
+          suite.run
+        end
       RUBY
       "smartest/matchers/predicate_matcher.rb" => <<~RUBY,
         # frozen_string_literal: true

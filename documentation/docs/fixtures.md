@@ -18,16 +18,20 @@ class AppFixture < Smartest::Fixture
 end
 ```
 
-Register fixture classes from `smartest/test_helper.rb` with `use_fixture`:
+Register fixture classes from `around_suite` in `smartest/test_helper.rb` with
+`use_fixture`:
 
-```ruby title="smartest/test_helper.rb" {7}
+```ruby title="smartest/test_helper.rb" {7-10}
 require "smartest/autorun"
 
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
 
-use_fixture AppFixture
+around_suite do |suite|
+  use_fixture AppFixture
+  suite.run
+end
 ```
 
 Tests can then request fixtures by keyword:
@@ -50,7 +54,10 @@ Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
 
-use_fixture AppFixture
+around_suite do |suite|
+  use_fixture AppFixture
+  suite.run
+end
 ```
 
 Test files can require only the helper, then request the registered fixtures:
@@ -82,7 +89,10 @@ end
 Register the fixture class from `smartest/test_helper.rb`:
 
 ```ruby title="smartest/test_helper.rb"
-use_fixture WebFixture
+around_suite do |suite|
+  use_fixture WebFixture
+  suite.run
+end
 ```
 
 When a test requests `client`, Smartest resolves `server` first:
@@ -214,8 +224,11 @@ end
 Fixture names must be unique across registered fixture classes:
 
 ```ruby title="smartest/test_helper.rb"
-use_fixture UserFixture
-use_fixture AdminFixture
+around_suite do |suite|
+  use_fixture UserFixture
+  use_fixture AdminFixture
+  suite.run
+end
 ```
 
 If both classes define `fixture :user`, Smartest fails with a duplicate fixture error.

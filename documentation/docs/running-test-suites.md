@@ -86,6 +86,100 @@ Show the installed Smartest version:
 bundle exec smartest --version
 ```
 
+## Suite Hooks
+
+Use `around_suite` in `smartest/test_helper.rb` when the full run must happen
+inside another block:
+
+```ruby
+around_suite do |suite|
+  Async do
+    suite.run
+  end
+end
+```
+
+The hook receives a run target and must call `suite.run` exactly once. It wraps
+every test, test-scoped fixture setup and cleanup, suite fixture setup, and suite
+fixture cleanup.
+
+Fixture and matcher registrations made before `suite.run` are applied to that
+run:
+
+```ruby
+around_suite do |suite|
+  use_fixture GlobalFixture
+  suite.run
+end
+```
+
+Multiple `around_suite` hooks run in registration order. The first hook is the
+outermost wrapper:
+
+```ruby
+around_suite do |suite|
+  with_outer_resource { suite.run }
+end
+
+around_suite do |suite|
+  with_inner_resource { suite.run }
+end
+```
+
+If an `around_suite` hook raises or does not call `suite.run`, Smartest reports a
+suite failure and exits with status `1`.
+
+## Test Hooks
+
+Use `around_test` when each test needs to run inside another block:
+
+```ruby
+around_test do |test|
+  SomeAutoCloseResource.new do
+    test.run
+  end
+end
+```
+
+The hook receives a run target and must call `test.run` exactly once. It wraps
+fixture setup, the test body, and fixture cleanup.
+
+When `around_test` is written directly in a test file, it is file-scoped. Smartest
+copies the current file's `around_test` hooks when each `test` is registered, so
+hooks apply to tests defined later in the same file.
+
+Define `around_test` inside `around_suite` when the hook should apply to the
+whole run:
+
+```ruby
+around_suite do |suite|
+  around_test do |test|
+    with_some_resource do
+      test.run
+    end
+  end
+
+  suite.run
+end
+```
+
+`around_test` can register fixture classes and matcher modules for that test run:
+
+```ruby
+around_test do |test|
+  use_fixture LocalFixture
+  use_matcher LocalMatcher
+  test.run
+end
+```
+
+Fixture classes registered from `around_test` must define only test-scoped
+fixtures. If a class defines `suite_fixture`, register it from `around_suite`
+instead so its cache and cleanup belong to the suite lifecycle.
+
+`use_fixture` and `use_matcher` are only available inside `around_suite` or
+`around_test` blocks. They are not top-level DSL methods.
+
 ## Exit Status
 
 Smartest returns:
@@ -93,6 +187,8 @@ Smartest returns:
 - `0` when every test passes
 - `1` when any test fails
 - `1` when suite fixture cleanup fails
+- `1` when an `around_suite` hook fails
+- `1` when an `around_test` hook fails
 - `1` when a test file cannot be loaded
 
 This makes the CLI suitable for CI jobs:
@@ -138,7 +234,10 @@ Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
   require matcher_file
 end
 
-use_matcher PredicateMatcher
+around_suite do |suite|
+  use_matcher PredicateMatcher
+  suite.run
+end
 ```
 
 Test files require that helper:

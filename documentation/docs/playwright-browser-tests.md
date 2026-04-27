@@ -54,7 +54,7 @@ npx playwright install chromium
 
 Require Playwright from `smartest/test_helper.rb` before loading fixture files:
 
-```ruby {2} title="smartest/test_helper.rb"
+```ruby {2,8-11} title="smartest/test_helper.rb"
 require "smartest/autorun"
 require "playwright"
 
@@ -62,12 +62,15 @@ Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
 
-use_fixture PlaywrightFixture
+around_suite do |suite|
+  use_fixture PlaywrightFixture
+  suite.run
+end
 ```
 
 The generated helper already loads every file under `smartest/fixtures/`, so the
-Playwright fixture can live with the rest of the suite setup. Register it from
-the helper so every browser test can request `page:`.
+Playwright fixture can live with the rest of the suite setup. Register it from an
+`around_suite` block in the helper so every browser test can request `page:`.
 
 ## Define Playwright Fixtures
 

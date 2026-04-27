@@ -2,9 +2,9 @@
 
 module Smartest
   class TestCase
-    attr_reader :name, :metadata, :block, :location, :fixture_names
+    attr_reader :name, :metadata, :block, :location, :fixture_names, :around_test_hooks
 
-    def initialize(name:, metadata:, block:, location:)
+    def initialize(name:, metadata:, block:, location:, around_test_hooks: [])
       raise ArgumentError, "test name is required" if name.nil? || name.to_s.empty?
       raise ArgumentError, "test block is required" unless block
 
@@ -12,6 +12,7 @@ module Smartest
       @metadata = metadata
       @block = block
       @location = location
+      @around_test_hooks = around_test_hooks.dup.freeze
       @fixture_names = ParameterExtractor.required_keyword_names(block, usage: :test)
     end
 
