@@ -15,11 +15,6 @@ const sidebars = {
       label: 'Reference',
       items: ['reference/errors'],
     },
-    {
-      type: 'category',
-      label: 'Contributing',
-      items: ['contributing/ai-agent-rules', 'contributing/releasing'],
-    },
   ],
 };
 

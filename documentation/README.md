@@ -46,4 +46,4 @@ Deploy the site at the domain root. The Docusaurus config uses `baseUrl: "/"`.
 
 ## Documentation Maintenance
 
-When Smartest behavior changes, update the matching page under `docs/` in the same pull request. See `../AGENTS.md` and `docs/contributing/ai-agent-rules.md` for the rule used by AI coding agents.
+When Smartest behavior changes, update the matching page under `docs/` in the same pull request. See `../AGENTS.md` for the rule used by AI coding agents.

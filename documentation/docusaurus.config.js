@@ -99,10 +99,6 @@ const config = {
                 label: 'GitHub',
                 href: 'https://github.com/YusukeIwaki/smartest',
               },
-              {
-                label: 'AI Agent Rules',
-                to: '/docs/contributing/ai-agent-rules',
-              },
             ],
           },
         ],
