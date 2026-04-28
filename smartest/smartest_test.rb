@@ -1569,7 +1569,139 @@ test("cli prints help") do
   expect(stdout).to include("smartest [paths...]")
   expect(stdout).to include("smartest path/to/test_file.rb:line[-line]")
   expect(stdout).to include("smartest --init")
+  expect(stdout).to include("smartest --profile [N]")
   expect(stdout).to include("smartest/**/*_test.rb")
+end
+
+test("--profile prints the slowest tests with default count of 5") do
+  output = StringIO.new
+  reporter = Smartest::Reporter.new(output, profile_count: 5)
+
+  results = [
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("alpha", proc {}), duration: 0.10),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("bravo", proc {}), duration: 0.50),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("charlie", proc {}), duration: 0.30),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("delta", proc {}), duration: 0.20),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("echo", proc {}), duration: 0.40),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("foxtrot", proc {}), duration: 0.05)
+  ]
+
+  reporter.finish(results)
+  text = output.string
+
+  expect(text).to include("Top 5 slowest tests")
+  expect(text).to include("bravo")
+  expect(text).to include("echo")
+  expect(text).to include("charlie")
+  expect(text).to include("delta")
+  expect(text).to include("alpha")
+  expect(text).not_to include("foxtrot\n    0")
+
+  bravo_index = text.index("bravo")
+  echo_index = text.index("echo")
+  charlie_index = text.index("charlie")
+  delta_index = text.index("delta")
+  alpha_index = text.index("alpha")
+  expect(bravo_index < echo_index).to eq(true)
+  expect(echo_index < charlie_index).to eq(true)
+  expect(charlie_index < delta_index).to eq(true)
+  expect(delta_index < alpha_index).to eq(true)
+end
+
+test("--profile N shows top N slowest tests") do
+  output = StringIO.new
+  reporter = Smartest::Reporter.new(output, profile_count: 2)
+
+  results = [
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("alpha", proc {}), duration: 0.10),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("bravo", proc {}), duration: 0.50),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("charlie", proc {}), duration: 0.30)
+  ]
+
+  reporter.finish(results)
+  text = output.string
+
+  expect(text).to include("Top 2 slowest tests")
+  expect(text).to include("bravo")
+  expect(text).to include("charlie")
+  expect(text).not_to include("  alpha\n")
+end
+
+test("--profile does not error when fewer tests than the requested count") do
+  output = StringIO.new
+  reporter = Smartest::Reporter.new(output, profile_count: 5)
+
+  results = [
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("solo", proc {}), duration: 0.01),
+    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("duo", proc {}), duration: 0.02)
+  ]
+
+  reporter.finish(results)
+  text = output.string
+
+  expect(text).to include("Top 2 slowest tests")
+  expect(text).to include("solo")
+  expect(text).to include("duo")
+end
+
+test("--profile is not printed when profile_count is nil") do
+  output = StringIO.new
+  reporter = Smartest::Reporter.new(output)
+
+  reporter.finish([
+                    Smartest::TestResult.passed(test_case: SmartestSelfTest.test_case("alpha", proc {}), duration: 0.10)
+                  ])
+
+  expect(output.string).not_to include("slowest")
+end
+
+test("--profile is not printed when there are no results") do
+  output = StringIO.new
+  reporter = Smartest::Reporter.new(output, profile_count: 5)
+
+  reporter.finish([])
+
+  expect(output.string).not_to include("slowest")
+end
+
+test("CLIArguments parses --profile in various forms") do
+  expect(Smartest::CLIArguments.new(["--profile"]).profile_count).to eq(5)
+  expect(Smartest::CLIArguments.new(["--profile", "3"]).profile_count).to eq(3)
+  expect(Smartest::CLIArguments.new(["--profile=7"]).profile_count).to eq(7)
+  expect(Smartest::CLIArguments.new([]).profile_count).to eq(nil)
+  expect(Smartest::CLIArguments.new(["--profile", "smartest/foo_test.rb"]).profile_count).to eq(5)
+end
+
+test("cli runs with --profile and prints slowest tests") do
+  Dir.mktmpdir do |dir|
+    smartest_dir = File.join(dir, "smartest")
+    FileUtils.mkdir_p(smartest_dir)
+    File.write(File.join(smartest_dir, "sample_test.rb"), <<~RUBY)
+      require "smartest/autorun"
+
+      test("first") do
+        expect(1).to eq(1)
+      end
+
+      test("second") do
+        expect(1).to eq(1)
+      end
+    RUBY
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "--profile",
+      "1",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("Top 1 slowest test")
+    expect(stdout).to include("2 tests, 2 passed, 0 failed")
+  end
 end
 
 test("cli initializes a runnable test scaffold") do

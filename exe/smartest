@@ -9,11 +9,13 @@ usage = <<~USAGE
   Usage:
     smartest [paths...]
     smartest path/to/test_file.rb:line[-line]
+    smartest --profile [N]
     smartest --init
     smartest --version
     smartest --help
 
   When no paths are given, Smartest loads smartest/**/*_test.rb.
+  --profile prints the slowest tests after the run (default 5).
 USAGE
 
 command = :run
@@ -45,7 +47,8 @@ begin
     load File.expand_path(file)
   end
 
-  exit Smartest::Runner.new(tests: arguments.select_tests(Smartest.suite.tests)).run
+  reporter = Smartest::Reporter.new($stdout, profile_count: arguments.profile_count)
+  exit Smartest::Runner.new(tests: arguments.select_tests(Smartest.suite.tests), reporter: reporter).run
 rescue Exception => error
   raise if Smartest.fatal_exception?(error)
 

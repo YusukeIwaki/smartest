@@ -4,14 +4,18 @@ require "set"
 
 module Smartest
   class CLIArguments
-    attr_reader :files, :line_filters
+    DEFAULT_PROFILE_COUNT = 5
+
+    attr_reader :files, :line_filters, :profile_count
 
     def initialize(argv)
       @files = []
       @whole_files = Set.new
       @line_filters = Hash.new { |hash, key| hash[key] = Set.new }
+      @profile_count = nil
 
-      parse(argv.empty? ? ["smartest/**/*_test.rb"] : argv)
+      paths = extract_options(argv)
+      parse_paths(paths.empty? ? ["smartest/**/*_test.rb"] : paths)
     end
 
     def filter_tests?
@@ -32,8 +36,37 @@ module Smartest
 
     private
 
-    def parse(argv)
-      argv.each do |argument|
+    def extract_options(argv)
+      paths = []
+      index = 0
+
+      while index < argv.length
+        argument = argv[index]
+
+        case argument
+        when "--profile"
+          next_argument = argv[index + 1]
+          if next_argument && next_argument.match?(/\A\d+\z/)
+            @profile_count = next_argument.to_i
+            index += 2
+          else
+            @profile_count = DEFAULT_PROFILE_COUNT
+            index += 1
+          end
+        when /\A--profile=(\d+)\z/
+          @profile_count = Regexp.last_match(1).to_i
+          index += 1
+        else
+          paths << argument
+          index += 1
+        end
+      end
+
+      paths
+    end
+
+    def parse_paths(paths)
+      paths.each do |argument|
         pattern, line_filter = split_line_filter(argument)
         matches = Dir[pattern]
         files = matches.empty? ? [pattern] : matches

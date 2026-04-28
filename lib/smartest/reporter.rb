@@ -7,8 +7,9 @@ module Smartest
     SKIP_MARK = "-"
     PENDING_MARK = "*"
 
-    def initialize(io = $stdout)
+    def initialize(io = $stdout, profile_count: nil)
       @io = io
+      @profile_count = profile_count
     end
 
     def start(count)
@@ -28,6 +29,7 @@ module Smartest
       report_failures(failures) if failures.any?
       report_suite_errors(suite_errors) if suite_errors.any?
       report_suite_cleanup_errors(suite_cleanup_errors) if suite_cleanup_errors.any?
+      report_profile(results) if @profile_count && @profile_count.positive?
 
       @io.puts
       summary = "#{results.count} #{results.count == 1 ? 'test' : 'tests'}, #{results.count(&:passed?)} passed, #{failures.count} failed"
@@ -97,6 +99,37 @@ module Smartest
         report_cleanup_error(error)
         @io.puts
       end
+    end
+
+    def report_profile(results)
+      timed = results.select { |result| result.duration }
+      return if timed.empty?
+
+      count = [@profile_count, timed.length].min
+      slowest = timed.sort_by { |result| -result.duration }.first(count)
+      total_duration = timed.sum(&:duration)
+      slowest_duration = slowest.sum(&:duration)
+      percent = total_duration.positive? ? (slowest_duration / total_duration) * 100 : 0.0
+
+      @io.puts
+      @io.puts "Top #{count} slowest #{count == 1 ? 'test' : 'tests'} " \
+               "(#{format_duration(slowest_duration)} seconds, #{format('%.1f', percent)}% of total time):"
+
+      slowest.each do |result|
+        @io.puts "  #{result.test_case.name}"
+        location_suffix = profile_location_suffix(result.test_case.location)
+        @io.puts "    #{format_duration(result.duration)} seconds#{location_suffix}"
+      end
+    end
+
+    def profile_location_suffix(location)
+      return "" unless location
+
+      " #{location.path}:#{location.lineno}"
+    end
+
+    def format_duration(seconds)
+      format("%.5f", seconds)
     end
 
     def report_location(location)
