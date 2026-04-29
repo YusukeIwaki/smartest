@@ -98,6 +98,14 @@ bundle exec smartest smartest/user_test.rb:12
 bundle exec smartest smartest/user_test.rb:3-12
 ```
 
+Smartest prints the 5 slowest tests after each CLI run by default. Use
+`--profile N` to choose a different count:
+
+```bash
+bundle exec smartest --profile 10
+bundle exec smartest --profile 3 smartest/user_test.rb
+```
+
 CLI help and version output are available with:
 
 ```bash
@@ -105,12 +113,16 @@ bundle exec smartest --help
 bundle exec smartest --version
 ```
 
-Expected output:
+Output resembles:
 
 ```text
 Running 1 test
 
 ✓ example
+
+Top 1 slowest test (0.00001 seconds, 100.0% of total time):
+  example
+    0.00001 seconds .../smartest/example_test.rb:3
 
 1 test, 1 passed, 0 failed
 ```

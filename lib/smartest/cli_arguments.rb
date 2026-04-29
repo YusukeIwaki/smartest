@@ -12,7 +12,7 @@ module Smartest
       @files = []
       @whole_files = Set.new
       @line_filters = Hash.new { |hash, key| hash[key] = Set.new }
-      @profile_count = nil
+      @profile_count = DEFAULT_PROFILE_COUNT
 
       paths = extract_options(argv)
       parse_paths(paths.empty? ? ["smartest/**/*_test.rb"] : paths)
@@ -45,17 +45,13 @@ module Smartest
 
         case argument
         when "--profile"
-          next_argument = argv[index + 1]
-          if next_argument && next_argument.match?(/\A\d+\z/)
-            @profile_count = next_argument.to_i
+          if argv[index + 1]&.match?(/\A\d+\z/)
+            @profile_count = argv[index + 1].to_i
             index += 2
           else
-            @profile_count = DEFAULT_PROFILE_COUNT
+            paths << argument
             index += 1
           end
-        when /\A--profile=(\d+)\z/
-          @profile_count = Regexp.last_match(1).to_i
-          index += 1
         else
           paths << argument
           index += 1

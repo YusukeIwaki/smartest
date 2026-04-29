@@ -90,12 +90,16 @@ fixture or matcher file requires.
 bundle exec smartest
 ```
 
-Expected output:
+Output resembles:
 
 ```text
 Running 1 test
 
 ✓ example
+
+Top 1 slowest test (0.00001 seconds, 100.0% of total time):
+  example
+    0.00001 seconds .../smartest/example_test.rb:3
 
 1 test, 1 passed, 0 failed
 ```

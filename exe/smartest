@@ -7,15 +7,15 @@ require "smartest"
 
 usage = <<~USAGE
   Usage:
-    smartest [paths...]
-    smartest path/to/test_file.rb:line[-line]
-    smartest --profile [N]
+    smartest [--profile N] [paths...]
+    smartest [--profile N] path/to/test_file.rb:line[-line]
     smartest --init
     smartest --version
     smartest --help
 
   When no paths are given, Smartest loads smartest/**/*_test.rb.
-  --profile prints the slowest tests after the run (default 5).
+  Smartest prints the 5 slowest tests after the run by default.
+  Use --profile N to choose how many slowest tests are printed.
 USAGE
 
 command = :run

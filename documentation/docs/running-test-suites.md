@@ -73,6 +73,16 @@ bundle exec smartest smartest/user_test.rb:12
 bundle exec smartest smartest/user_test.rb:3-12
 ```
 
+## Profile Slow Tests
+
+The CLI prints the 5 slowest tests after each run by default. Use the separated
+`--profile N` form to choose a different count:
+
+```bash
+bundle exec smartest --profile 10
+bundle exec smartest --profile 3 smartest/user_test.rb
+```
+
 Show CLI help:
 
 ```bash
@@ -209,6 +219,10 @@ A passing run looks like this:
 Running 1 test
 
 ✓ factorial
+
+Top 1 slowest test (0.00001 seconds, 100.0% of total time):
+  factorial
+    0.00001 seconds .../smartest/factorial_test.rb:3
 
 1 test, 1 passed, 0 failed
 ```

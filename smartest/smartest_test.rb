@@ -1566,10 +1566,10 @@ test("cli prints help") do
   expect(status.success?).to eq(true)
   expect(stderr).to eq("")
   expect(stdout).to include("Usage:")
-  expect(stdout).to include("smartest [paths...]")
-  expect(stdout).to include("smartest path/to/test_file.rb:line[-line]")
+  expect(stdout).to include("smartest [--profile N] [paths...]")
+  expect(stdout).to include("smartest [--profile N] path/to/test_file.rb:line[-line]")
   expect(stdout).to include("smartest --init")
-  expect(stdout).to include("smartest --profile [N]")
+  expect(stdout).to include("Use --profile N")
   expect(stdout).to include("smartest/**/*_test.rb")
 end
 
@@ -1664,15 +1664,58 @@ test("--profile is not printed when there are no results") do
   expect(output.string).not_to include("slowest")
 end
 
-test("CLIArguments parses --profile in various forms") do
-  expect(Smartest::CLIArguments.new(["--profile"]).profile_count).to eq(5)
+test("CLIArguments defaults profile count and parses --profile N") do
+  arguments = Smartest::CLIArguments.new([])
+
+  expect(arguments.profile_count).to eq(5)
+  expect(arguments.files).to eq(Dir["smartest/**/*_test.rb"])
   expect(Smartest::CLIArguments.new(["--profile", "3"]).profile_count).to eq(3)
-  expect(Smartest::CLIArguments.new(["--profile=7"]).profile_count).to eq(7)
-  expect(Smartest::CLIArguments.new([]).profile_count).to eq(nil)
-  expect(Smartest::CLIArguments.new(["--profile", "smartest/foo_test.rb"]).profile_count).to eq(5)
 end
 
-test("cli runs with --profile and prints slowest tests") do
+test("CLIArguments leaves unsupported profile forms as paths") do
+  equals_form = Smartest::CLIArguments.new(["--profile=7"])
+  missing_count = Smartest::CLIArguments.new(["--profile"])
+  path_after_profile = Smartest::CLIArguments.new(["--profile", "smartest/foo_test.rb"])
+
+  expect(equals_form.profile_count).to eq(5)
+  expect(equals_form.files).to eq(["--profile=7"])
+  expect(missing_count.profile_count).to eq(5)
+  expect(missing_count.files).to eq(["--profile"])
+  expect(path_after_profile.profile_count).to eq(5)
+  expect(path_after_profile.files).to eq(["--profile", "smartest/foo_test.rb"])
+end
+
+test("cli runs without --profile N and prints default slowest tests") do
+  Dir.mktmpdir do |dir|
+    smartest_dir = File.join(dir, "smartest")
+    FileUtils.mkdir_p(smartest_dir)
+    File.write(File.join(smartest_dir, "sample_test.rb"), <<~RUBY)
+      require "smartest/autorun"
+
+      test("default first") do
+        expect(1).to eq(1)
+      end
+
+      test("default second") do
+        expect(1).to eq(1)
+      end
+    RUBY
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("Top 2 slowest tests")
+    expect(stdout).to include("2 tests, 2 passed, 0 failed")
+  end
+end
+
+test("cli runs with --profile N and prints requested slowest tests") do
   Dir.mktmpdir do |dir|
     smartest_dir = File.join(dir, "smartest")
     FileUtils.mkdir_p(smartest_dir)
