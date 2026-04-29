@@ -864,6 +864,5 @@ Do not implement these in the first version:
 - RSpec-compatible matcher ecosystem
 - snapshot testing
 - watch mode
-- browser automation integration
 
 These can be added after the core fixture model is stable.

@@ -5,90 +5,104 @@ description: Drive Playwright browser tests from Smartest fixtures.
 
 # Browser Tests With Playwright
 
-Smartest does not need a separate browser-test API. Browser resources can be
-plain fixtures, and each test can request the Playwright `page` it needs with a
-keyword argument.
-
-This page assumes you understand the fixture model from [Fixtures](./fixtures.md):
-
-- use `suite_fixture` for expensive resources shared by the whole suite
-- use `fixture` for values that should be fresh for each test
-- use `cleanup` to release the resource owned by that fixture
-
-That maps naturally to Playwright:
+Smartest can generate a Playwright-focused browser-test scaffold. It keeps
+browser resources as ordinary Smartest fixtures:
 
 - the Playwright runtime is shared for the suite
 - the browser process is shared for the suite
 - each test gets a fresh browser context and page
 
-## Install Dependencies
+## Install
 
-Add Smartest and the Playwright Ruby client to the Gemfile:
-
-```ruby {4} title="Gemfile"
-source "https://rubygems.org"
-
-gem "smartest"
-gem "playwright-ruby-client"
-```
-
-Add Playwright to `package.json` so the local Playwright CLI is available:
-
-```json title="package.json"
-{
-  "dependencies": {
-    "playwright": "^1.59.1"
-  }
-}
-```
-
-Install the dependencies and download Chromium:
+Initialize the browser-test scaffold:
 
 ```bash
-bundle install
-npm install
-npx playwright install chromium
+bundle exec smartest --init-browser
 ```
 
-## Load Playwright
+The init command runs the normal `smartest --init` scaffold, then:
 
-Require Playwright from `smartest/test_helper.rb` before loading fixture files:
+- creates `smartest/fixtures/playwright_fixture.rb`
+- creates `smartest/matchers/playwright_matcher.rb`
+- creates `smartest/example_spec.rb`
+- registers `PlaywrightFixture` and `PlaywrightMatcher`
+- adds `gem "playwright-ruby-client", group: :test` to the Gemfile
+- runs `bundle install`
+- runs `npm install playwright --save-dev`
+- runs `./node_modules/.bin/playwright install`
 
-```ruby {2,8-11} title="smartest/test_helper.rb"
+## Generated Helper
+
+The generated helper loads fixture and matcher files, then registers the
+Playwright fixture and matcher:
+
+```ruby {13-14} title="smartest/test_helper.rb"
 require "smartest/autorun"
-require "playwright"
 
 Dir[File.join(__dir__, "fixtures", "**", "*.rb")].sort.each do |fixture_file|
   require fixture_file
 end
 
+Dir[File.join(__dir__, "matchers", "**", "*.rb")].sort.each do |matcher_file|
+  require matcher_file
+end
+
 around_suite do |suite|
+  use_matcher PredicateMatcher
   use_fixture PlaywrightFixture
+  use_matcher PlaywrightMatcher
   suite.run
 end
 ```
 
-The generated helper already loads every file under `smartest/fixtures/`, so the
-Playwright fixture can live with the rest of the suite setup. Register it from an
-`around_suite` block in the helper so every browser test can request `page:`.
+`smartest --init-browser` generates the matcher module under
+`smartest/matchers/`:
 
-## Define Playwright Fixtures
+```ruby title="smartest/matchers/playwright_matcher.rb"
+require "playwright"
+require "playwright/test"
 
-Put the browser lifecycle in a fixture class:
+module PlaywrightMatcher
+  include Playwright::Test::Matchers
+end
+```
+
+`PlaywrightMatcher` includes `Playwright::Test::Matchers`, so Smartest
+expectations can use Playwright assertions such as `have_url` and `have_text`.
+
+## Generated Fixtures
+
+The generated fixture class owns the browser lifecycle:
 
 ```ruby title="smartest/fixtures/playwright_fixture.rb"
+require "playwright"
+
 class PlaywrightFixture < Smartest::Fixture
   suite_fixture :playwright do
     runtime = Playwright.create(
       playwright_cli_executable_path: "./node_modules/.bin/playwright",
     )
-
     cleanup { runtime.stop }
     runtime.playwright
   end
 
   suite_fixture :browser do |playwright:|
-    browser = playwright.chromium.launch(headless: true)
+    browser_type = case ENV["BROWSER"]
+    when "firefox"
+      :firefox
+    when "webkit"
+      :webkit
+    else
+      :chromium
+    end
+
+    launch_options = {}
+    launch_options[:headless] = !%w[0 false].include?(ENV["HEADLESS"])
+    if (slow_mo = ENV["SLOW_MO"].to_i) > 0
+      launch_options[:slowMo] = slow_mo
+    end
+
+    browser = playwright.send(browser_type).launch(**launch_options)
     cleanup { browser.close }
     browser
   end
@@ -101,58 +115,32 @@ class PlaywrightFixture < Smartest::Fixture
 end
 ```
 
-The dependency chain is expressed with keyword arguments:
+Set `BROWSER=firefox` or `BROWSER=webkit` to use another browser type. Set
+`HEADLESS=0` or `HEADLESS=false` to show the browser, and set `SLOW_MO=250` to
+slow Playwright actions by 250 milliseconds.
 
-- `browser` depends on `playwright:`
-- `page` depends on `browser:`
-- tests depend on `page:`
+## Generated Test
 
-Smartest resolves that chain automatically. When a test asks for `page:`, it
-resolves `page`, then `browser`, then `playwright`.
+`smartest --init-browser` creates a spec-style browser test:
 
-The two suite fixtures make browser startup cheap across the suite. The
-test-scoped `page` fixture creates a new browser context for each test, so
-cookies, local storage, and session state do not leak between tests.
-
-Cleanup follows the same scopes. Each test closes its browser context after the
-test finishes. After the full suite finishes, Smartest closes the browser and
-stops the Playwright runtime.
-
-## Write a Browser Test
-
-Request `page:` from the test file:
-
-```ruby title="smartest/rubygems_search_test.rb"
+```ruby title="smartest/example_spec.rb"
 require "test_helper"
 
 test("finds the smartest gem on RubyGems") do |page:|
   page.goto("https://rubygems.org/")
-  page.locator("input[name='query']").first.fill("smartest")
+  page.locator("input[name='query']").fill("smartest")
   page.keyboard.press("Enter")
-  page.wait_for_url(%r{/search})
 
-  page.locator("a[href='/gems/smartest']").first.click
-  page.wait_for_url("https://rubygems.org/gems/smartest")
-
-  owner_href = page.locator("a[href^='/profiles/']").first.get_attribute("href")
-  expect(owner_href).to eq("/profiles/YusukeIwaki")
+  page.locator("a[href='/gems/smartest']").click
+  expect(page).to have_url("https://rubygems.org/gems/smartest")
+  expect(page.locator(".versions")).to have_text("0.3.0.alpha1")
 end
 ```
 
-The test body receives an ordinary Playwright `Page` object. All navigation,
-locator, keyboard, and assertion setup can use the Playwright Ruby client API
-directly.
-
-## Run the Suite
-
-Run browser tests the same way as any other Smartest suite:
+Run the generated spec by passing its path to the Smartest CLI:
 
 ```bash
-bundle exec smartest
+bundle exec smartest smartest/example_spec.rb
 ```
-
-Because the test file requires `test_helper`, Smartest loads the Playwright
-fixture file, registers `PlaywrightFixture` from the helper, resolves `page:`,
-and runs the test.
 
 ![Playwright browser test running from Smartest](/img/playwright-browser-tests.gif)

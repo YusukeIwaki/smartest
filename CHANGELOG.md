@@ -16,3 +16,4 @@
 - Use `smartest/**/*_test.rb` as the default CLI glob so Smartest can coexist with Minitest files under `test/`.
 - Add gem packaging metadata and release tasks.
 - Add Docusaurus documentation.
+- Add `smartest --init-browser` with a Playwright init scaffold, fixture setup, matcher generation, and dependency installation.
