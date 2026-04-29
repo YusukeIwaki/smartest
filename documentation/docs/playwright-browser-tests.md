@@ -5,37 +5,101 @@ description: Drive Playwright browser tests from Smartest fixtures.
 
 # Browser Tests With Playwright
 
-Smartest can generate a Playwright-focused browser-test scaffold. It keeps
-browser resources as ordinary Smartest fixtures:
+Smartest can scaffold a Playwright-powered browser-test setup. Once it is in
+place, you can write browser tests that look and feel like ordinary Smartest
+tests — just receive a `page:` fixture and drive it with the Playwright API.
 
-- the Playwright runtime is shared for the suite
-- the browser process is shared for the suite
-- each test gets a fresh browser context and page
+## Quick Start
 
-## Install
-
-Initialize the browser-test scaffold:
+### 1. Initialize the scaffold
 
 ```bash
 bundle exec smartest --init-browser
 ```
 
-The init command runs the normal `smartest --init` scaffold, then:
+This sets up everything needed to run Playwright browser tests: the
+`playwright-ruby-client` gem, the Playwright Node.js package and browsers, and
+example fixture / matcher / test files under `smartest/`.
+
+### 2. Run the generated example test
+
+```bash
+bundle exec smartest smartest/example_browser_test.rb
+```
+
+![Playwright browser test running from Smartest](/img/playwright-browser-tests.gif)
+
+### 3. Write your own browser test
+
+Inside any test file under `smartest/`, declare a test that takes the `page:`
+fixture. `page` is a Playwright `Page`, so the full Playwright Ruby API is
+available. Smartest expectations support Playwright matchers like `have_url`
+and `have_text`.
+
+```ruby title="smartest/example_browser_test.rb"
+require "test_helper"
+
+test("finds the smartest gem on RubyGems") do |page:|
+  page.goto("https://rubygems.org/")
+  page.locator("input[name='query']").fill("smartest")
+  page.keyboard.press("Enter")
+
+  page.locator("a[href='/gems/smartest']").click
+  expect(page).to have_url("https://rubygems.org/gems/smartest")
+  expect(page.locator(".versions")).to have_text("0.3.0.alpha1")
+end
+```
+
+Each test gets a fresh browser context and page; the Playwright runtime and
+browser process are shared across the suite.
+
+### 4. Control the browser via environment variables
+
+The scaffold reads three environment variables at launch time:
+
+| Variable   | Values                      | Effect                                                     |
+| ---------- | --------------------------- | ---------------------------------------------------------- |
+| `BROWSER`  | `chromium` (default), `firefox`, `webkit` | Which browser type to launch.                  |
+| `HEADLESS` | `1` / `true` (default), `0` / `false`     | Set to `0` or `false` to show the browser window. |
+| `SLOW_MO`  | integer (milliseconds)      | Slow each Playwright action by N ms. `0` (default) disables it. |
+
+Examples:
+
+```bash
+# Run with Firefox
+BROWSER=firefox bundle exec smartest smartest/example_browser_test.rb
+
+# Show the browser and slow it down so you can watch the test
+HEADLESS=0 SLOW_MO=250 bundle exec smartest smartest/example_browser_test.rb
+```
+
+That's everything you need to start writing browser tests. The rest of this
+page is for when you want to change how the scaffold behaves.
+
+---
+
+## Customization Points
+
+`smartest --init-browser` generates three Ruby files. They are ordinary
+Smartest fixtures and matchers — edit them freely to tune behavior.
+
+### What `--init-browser` generates
+
+On top of the normal `smartest --init` scaffold, the command:
 
 - creates `smartest/fixtures/playwright_fixture.rb`
 - creates `smartest/matchers/playwright_matcher.rb`
 - creates `smartest/example_browser_test.rb`
-- registers `PlaywrightFixture` and `PlaywrightMatcher`
-- adds `gem "playwright-ruby-client", group: :test` to the Gemfile
-- runs `bundle install`
+- registers `PlaywrightFixture` and `PlaywrightMatcher` in `test_helper.rb`
+- adds `gem "playwright-ruby-client", group: :test` to the Gemfile and runs `bundle install`
 - runs `npm init --yes` when no `package.json` exists yet
 - runs `npm install playwright --save-dev`
 - runs `./node_modules/.bin/playwright install`
 
-## Generated Helper
+### Test helper
 
 The generated helper loads fixture and matcher files, then registers the
-Playwright fixture and matcher:
+Playwright fixture and matcher for the suite:
 
 ```ruby {13-14} title="smartest/test_helper.rb"
 require "smartest/autorun"
@@ -56,24 +120,16 @@ around_suite do |suite|
 end
 ```
 
-`smartest --init-browser` generates the matcher module under
-`smartest/matchers/`:
+Add your own fixtures or matchers here, or replace `PlaywrightFixture` /
+`PlaywrightMatcher` with subclasses of your own.
 
-```ruby title="smartest/matchers/playwright_matcher.rb"
-require "playwright"
-require "playwright/test"
+### Browser lifecycle fixture
 
-module PlaywrightMatcher
-  include Playwright::Test::Matchers
-end
-```
-
-`PlaywrightMatcher` includes `Playwright::Test::Matchers`, so Smartest
-expectations can use Playwright assertions such as `have_url` and `have_text`.
-
-## Generated Fixtures
-
-The generated fixture class owns the browser lifecycle:
+The fixture class owns the Playwright runtime, the browser process, and the
+per-test page. This is where the `BROWSER` / `HEADLESS` / `SLOW_MO`
+environment variables are read — change this file to add launch options
+(viewport size, locale, custom args, …) or to change the per-test context
+(authentication state, recorded videos, …).
 
 ```ruby title="smartest/fixtures/playwright_fixture.rb"
 require "playwright"
@@ -116,32 +172,25 @@ class PlaywrightFixture < Smartest::Fixture
 end
 ```
 
-Set `BROWSER=firefox` or `BROWSER=webkit` to use another browser type. Set
-`HEADLESS=0` or `HEADLESS=false` to show the browser, and set `SLOW_MO=250` to
-slow Playwright actions by 250 milliseconds.
+Lifecycle summary:
 
-## Generated Test
+- `:playwright` and `:browser` are `suite_fixture`s — created once and reused.
+- `:page` is a regular `fixture` — created fresh for each test, with its own
+  `BrowserContext` so cookies and storage are isolated.
 
-`smartest --init-browser` creates a browser test:
+### Playwright matcher
 
-```ruby title="smartest/example_browser_test.rb"
-require "test_helper"
+The matcher module exposes Playwright's web-first assertions (`have_url`,
+`have_text`, `be_visible`, …) to Smartest's `expect(...).to ...` syntax:
 
-test("finds the smartest gem on RubyGems") do |page:|
-  page.goto("https://rubygems.org/")
-  page.locator("input[name='query']").fill("smartest")
-  page.keyboard.press("Enter")
+```ruby title="smartest/matchers/playwright_matcher.rb"
+require "playwright"
+require "playwright/test"
 
-  page.locator("a[href='/gems/smartest']").click
-  expect(page).to have_url("https://rubygems.org/gems/smartest")
-  expect(page.locator(".versions")).to have_text("0.3.0.alpha1")
+module PlaywrightMatcher
+  include Playwright::Test::Matchers
 end
 ```
 
-Run the generated test by passing its path to the Smartest CLI:
-
-```bash
-bundle exec smartest smartest/example_browser_test.rb
-```
-
-![Playwright browser test running from Smartest](/img/playwright-browser-tests.gif)
+Add your own matcher methods to this module if you want project-specific
+assertions on Playwright objects.
