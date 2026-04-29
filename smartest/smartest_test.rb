@@ -268,6 +268,24 @@ test("rejects negated matcher composition") do
   expect(error.message).to eq("not_to does not support matcher composition with .and or .or")
 end
 
+test("not_to supports RSpec-style failure_message_when_negated") do
+  matcher = Class.new do
+    def matches?(_actual)
+      true
+    end
+
+    def failure_message_when_negated
+      "expected negated failure message"
+    end
+  end
+
+  error = SmartestSelfTest.capture_error(Smartest::AssertionFailed) do
+    expect("value").not_to matcher.new
+  end
+
+  expect(error.message).to eq("expected negated failure message")
+end
+
 test("short-circuits or matcher composition") do
   right_matcher = Class.new(Smartest::Matcher) do
     def matches?(_actual)
@@ -1641,6 +1659,7 @@ test("cli prints help") do
   expect(stdout).to include("smartest [--profile N] [paths...]")
   expect(stdout).to include("smartest [--profile N] path/to/test_file.rb:line[-line]")
   expect(stdout).to include("smartest --init")
+  expect(stdout).to include("smartest --init-browser")
   expect(stdout).to include("Use --profile N")
   expect(stdout).to include("smartest/**/*_test.rb")
 end
@@ -1980,5 +1999,58 @@ test("cli init does not overwrite existing scaffold files") do
     expect(File.read(example_path)).to eq("# custom test\n")
     expect(File.read(fixture_path)).to eq("# custom fixture\n")
     expect(File.read(matcher_path)).to eq("# custom matcher\n")
+  end
+end
+
+test("cli browser init generator creates Playwright scaffold and installation commands") do
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "smartest"
+    RUBY
+
+    commands = []
+    output = StringIO.new
+    generator = Smartest::InitBrowserGenerator.new(
+      root: dir,
+      output: output,
+      command_runner: ->(command, chdir:) {
+        commands << [command, chdir]
+        true
+      }
+    )
+
+    status = generator.run
+
+    expect(status).to eq(0)
+    expect(File.exist?(File.join(dir, "smartest/example_test.rb"))).to eq(false)
+    expect(File.read(File.join(dir, "smartest/example_spec.rb"))).to include("finds the smartest gem on RubyGems")
+    expect(File.read(File.join(dir, "smartest/example_spec.rb"))).to include('expect(page).to have_url("https://rubygems.org/gems/smartest")')
+    expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include("class PlaywrightFixture < Smartest::Fixture")
+    expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include('require "playwright"')
+    expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include('playwright_cli_executable_path: "./node_modules/.bin/playwright"')
+    expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include("launch_options[:slowMo] = slow_mo")
+    expect(File.read(File.join(dir, "smartest/matchers/playwright_matcher.rb"))).to include("module PlaywrightMatcher")
+    expect(File.read(File.join(dir, "smartest/matchers/playwright_matcher.rb"))).to include("include Playwright::Test::Matchers")
+
+    helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
+    expect(helper_contents).to include('require "smartest/autorun"')
+    expect(helper_contents).not_to include("smartest-playwright")
+    expect(helper_contents).to include("use_matcher PredicateMatcher\n  use_fixture PlaywrightFixture\n  use_matcher PlaywrightMatcher\n  suite.run")
+
+    gemfile_contents = File.read(File.join(dir, "Gemfile"))
+    expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
+    expect(commands).to eq(
+      [
+        [["bundle", "install"], dir],
+        [["npm", "install", "playwright", "--save-dev"], dir],
+        [["./node_modules/.bin/playwright", "install"], dir]
+      ]
+    )
+    expect(output.string).to include("run     bundle install")
+    expect(output.string).to include("run     npm install playwright --save-dev")
+    expect(output.string).to include("run     ./node_modules/.bin/playwright install")
+    expect(output.string).to include("Run your browser test suite with: bundle exec smartest smartest/example_spec.rb")
   end
 end
