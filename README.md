@@ -146,8 +146,9 @@ smartest/example_spec.rb
 
 It also registers `PlaywrightFixture` and `PlaywrightMatcher`, adds
 `playwright-ruby-client` to the Gemfile test group, runs `bundle install`, runs
+`npm init --yes` when no `package.json` exists yet, runs
 `npm install playwright --save-dev`, and downloads Chromium with
-`npx playwright install chromium`.
+`./node_modules/.bin/playwright install`.
 
 Run the generated browser example with:
 

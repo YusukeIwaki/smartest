@@ -28,6 +28,7 @@ The init command runs the normal `smartest --init` scaffold, then:
 - registers `PlaywrightFixture` and `PlaywrightMatcher`
 - adds `gem "playwright-ruby-client", group: :test` to the Gemfile
 - runs `bundle install`
+- runs `npm init --yes` when no `package.json` exists yet
 - runs `npm install playwright --save-dev`
 - runs `./node_modules/.bin/playwright install`
 

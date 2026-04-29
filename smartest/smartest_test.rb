@@ -2044,13 +2044,49 @@ test("cli browser init generator creates Playwright scaffold and installation co
     expect(commands).to eq(
       [
         [["bundle", "install"], dir],
+        [["npm", "init", "--yes"], dir],
         [["npm", "install", "playwright", "--save-dev"], dir],
         [["./node_modules/.bin/playwright", "install"], dir]
       ]
     )
     expect(output.string).to include("run     bundle install")
+    expect(output.string).to include("run     npm init --yes")
     expect(output.string).to include("run     npm install playwright --save-dev")
     expect(output.string).to include("run     ./node_modules/.bin/playwright install")
     expect(output.string).to include("Run your browser test suite with: bundle exec smartest smartest/example_spec.rb")
+  end
+end
+
+test("cli browser init generator skips npm init when package.json already exists") do
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "smartest"
+    RUBY
+    File.write(File.join(dir, "package.json"), "{\n  \"name\": \"existing\"\n}\n")
+
+    commands = []
+    output = StringIO.new
+    generator = Smartest::InitBrowserGenerator.new(
+      root: dir,
+      output: output,
+      command_runner: ->(command, chdir:) {
+        commands << [command, chdir]
+        true
+      }
+    )
+
+    status = generator.run
+
+    expect(status).to eq(0)
+    expect(commands).to eq(
+      [
+        [["bundle", "install"], dir],
+        [["npm", "install", "playwright", "--save-dev"], dir],
+        [["./node_modules/.bin/playwright", "install"], dir]
+      ]
+    )
+    expect(output.string).not_to include("npm init --yes")
   end
 end

@@ -74,12 +74,6 @@ module Smartest
       end
     RUBY
 
-    INSTALL_COMMANDS = [
-      ["bundle", "install"],
-      ["npm", "install", "playwright", "--save-dev"],
-      ["./node_modules/.bin/playwright", "install"]
-    ].freeze
-
     def initialize(root: Dir.pwd, output: $stdout, command_runner: nil)
       @root = root
       @output = output
@@ -170,12 +164,20 @@ module Smartest
     end
 
     def install_dependencies
-      INSTALL_COMMANDS.each do |command|
+      install_commands.each do |command|
         @output.puts "run     #{command.join(" ")}"
         next if @command_runner.call(command, chdir: @root)
 
         raise "command failed: #{command.join(" ")}"
       end
+    end
+
+    def install_commands
+      commands = [["bundle", "install"]]
+      commands << ["npm", "init", "--yes"] unless File.exist?(File.join(@root, "package.json"))
+      commands << ["npm", "install", "playwright", "--save-dev"]
+      commands << ["./node_modules/.bin/playwright", "install"]
+      commands
     end
 
     def run_system_command(command, chdir:)
