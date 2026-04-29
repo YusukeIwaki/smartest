@@ -41,3 +41,4 @@ jobs:
           RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
 
       - run: gem push "pkg/smartest-${RELEASE_TAG}.gem"
+      - run: gem push "pkg/smartest-playwright-${RELEASE_TAG}.gem"

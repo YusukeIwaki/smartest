@@ -32,12 +32,13 @@ Gem::Specification.new do |spec|
         "README.md",
         "Rakefile",
         "SMARTEST_DESIGN.md",
-        "exe/*",
-        "lib/**/*.rb",
+        "exe/smartest",
+        "lib/smartest.rb",
+        "lib/smartest/**/*.rb",
         "smartest.gemspec",
         "smartest/**/*.rb"
       ]
-    )
+    ).reject { |path| path == "lib/smartest/playwright.rb" || path.start_with?("lib/smartest/playwright/") }
   end
 
   spec.bindir = "exe"

@@ -2,4 +2,5 @@
 
 source "https://rubygems.org"
 
-gemspec
+gemspec name: "smartest"
+gemspec name: "smartest-playwright"

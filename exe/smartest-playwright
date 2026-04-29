@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "smartest-playwright"
+
+usage = <<~USAGE
+  Usage:
+    smartest-playwright --init
+    smartest-playwright --version
+    smartest-playwright --help
+
+  Initializes a Smartest browser-test scaffold with Playwright fixtures and matchers.
+USAGE
+
+begin
+  if ARGV.include?("--help") || ARGV.include?("-h")
+    puts usage
+    exit 0
+  end
+
+  if ARGV.include?("--version") || ARGV.include?("-v")
+    puts Smartest::Playwright::VERSION
+    exit 0
+  end
+
+  if ARGV.include?("--init")
+    exit Smartest::Playwright::InitGenerator.new.run
+  end
+
+  warn usage
+  exit 1
+rescue Exception => error
+  raise if Smartest.fatal_exception?(error)
+
+  warn "Error initializing Smartest Playwright:"
+  warn "#{error.class}: #{error.message}"
+  warn error.backtrace&.first
+  exit 1
+end

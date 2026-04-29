@@ -228,7 +228,7 @@ and implements:
 
 - `matches?(actual)`
 - `failure_message`
-- `negated_failure_message`
+- `negated_failure_message` or the RSpec-style `failure_message_when_negated`
 
 Plain objects that implement those methods still work with `expect(...).to`, but
 subclassing `Smartest::Matcher` gives custom matchers `.and` and `.or`

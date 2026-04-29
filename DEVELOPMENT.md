@@ -843,15 +843,16 @@ Example commands:
 rake test
 rake build
 gem install ./pkg/smartest-0.1.0.gem
+gem install ./pkg/smartest-playwright-0.1.0.gem
 git tag 0.1.0
 git push origin 0.1.0
 ```
 
-`rake build` is provided by Bundler's gem tasks. Pushing a tag that matches
-`Smartest::VERSION`, such as `0.1.0` or `0.1.0.alpha1`, triggers the Deploy
-GitHub Actions workflow. The workflow runs `rake verify`, builds the gem, and
-publishes `pkg/smartest-$VERSION.gem` to RubyGems using the `RUBYGEMS_API_KEY`
-repository secret.
+`rake build` builds both `smartest` and `smartest-playwright` into `pkg/`.
+Pushing a tag that matches `Smartest::VERSION`, such as `0.1.0` or
+`0.1.0.alpha1`, triggers the Deploy GitHub Actions workflow. The workflow runs
+`rake verify`, builds the gems, and publishes them to RubyGems using the
+`RUBYGEMS_API_KEY` repository secret.
 
 ## Non-goals for the MVP
 
@@ -864,6 +865,5 @@ Do not implement these in the first version:
 - RSpec-compatible matcher ecosystem
 - snapshot testing
 - watch mode
-- browser automation integration
 
 These can be added after the core fixture model is stable.

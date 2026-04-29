@@ -3,6 +3,7 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "smartest/autorun"
+require "smartest-playwright"
 require "fileutils"
 require "stringio"
 require "open3"
@@ -266,6 +267,24 @@ test("rejects negated matcher composition") do
   end
 
   expect(error.message).to eq("not_to does not support matcher composition with .and or .or")
+end
+
+test("not_to supports RSpec-style failure_message_when_negated") do
+  matcher = Class.new do
+    def matches?(_actual)
+      true
+    end
+
+    def failure_message_when_negated
+      "expected negated failure message"
+    end
+  end
+
+  error = SmartestSelfTest.capture_error(Smartest::AssertionFailed) do
+    expect("value").not_to matcher.new
+  end
+
+  expect(error.message).to eq("expected negated failure message")
 end
 
 test("short-circuits or matcher composition") do
@@ -1981,4 +2000,84 @@ test("cli init does not overwrite existing scaffold files") do
     expect(File.read(fixture_path)).to eq("# custom fixture\n")
     expect(File.read(matcher_path)).to eq("# custom matcher\n")
   end
+end
+
+test("smartest-playwright init generates browser scaffold and installation commands") do
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "smartest-playwright", group: :test
+    RUBY
+
+    commands = []
+    output = StringIO.new
+    generator = Smartest::Playwright::InitGenerator.new(
+      root: dir,
+      output: output,
+      command_runner: ->(command, chdir:) {
+        commands << [command, chdir]
+        true
+      }
+    )
+
+    status = generator.run
+
+    expect(status).to eq(0)
+    expect(File.exist?(File.join(dir, "smartest/example_test.rb"))).to eq(false)
+    expect(File.read(File.join(dir, "smartest/example_spec.rb"))).to include("finds the smartest gem on RubyGems")
+    expect(File.read(File.join(dir, "smartest/example_spec.rb"))).to include('expect(page).to have_url("https://rubygems.org/gems/smartest")')
+    expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include("class PlaywrightFixture < Smartest::Fixture")
+    expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include('playwright_cli_executable_path: "./node_modules/.bin/playwright"')
+    expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include("launch_options[:slowMo] = slow_mo")
+
+    helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
+    expect(helper_contents).to include('require "smartest/autorun"')
+    expect(helper_contents).to include('require "smartest-playwright"')
+    expect(helper_contents).to include("use_matcher PredicateMatcher\n  use_fixture PlaywrightFixture\n  use_matcher PlaywrightMatcher\n  suite.run")
+
+    gemfile_contents = File.read(File.join(dir, "Gemfile"))
+    expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
+    expect(commands).to eq(
+      [
+        [["bundle", "install"], dir],
+        [["npm", "install", "playwright", "--save-dev"], dir],
+        [["npx", "playwright", "install", "chromium"], dir]
+      ]
+    )
+    expect(output.string).to include("run     bundle install")
+    expect(output.string).to include("run     npm install playwright --save-dev")
+    expect(output.string).to include("run     npx playwright install chromium")
+    expect(output.string).to include("Run your browser test suite with: bundle exec smartest smartest/example_spec.rb")
+  end
+end
+
+test("smartest-playwright executable prints help and version") do
+  stdout, stderr, status = Open3.capture3(
+    { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+    "ruby",
+    File.expand_path("../exe/smartest-playwright", __dir__),
+    "--help"
+  )
+
+  expect(status.success?).to eq(true)
+  expect(stderr).to eq("")
+  expect(stdout).to include("smartest-playwright --init")
+
+  stdout, stderr, status = Open3.capture3(
+    { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+    "ruby",
+    File.expand_path("../exe/smartest-playwright", __dir__),
+    "--version"
+  )
+
+  expect(status.success?).to eq(true)
+  expect(stderr).to eq("")
+  expect(stdout).to eq("#{Smartest::Playwright::VERSION}\n")
+end
+
+test("smartest-playwright defines PlaywrightMatcher") do
+  expect(PlaywrightMatcher).to be_a(Module)
+  expect(PlaywrightMatcher.instance_methods).to include(:have_url)
+  expect(PlaywrightMatcher.instance_methods).to include(:have_text)
 end

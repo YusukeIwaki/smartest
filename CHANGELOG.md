@@ -16,3 +16,4 @@
 - Use `smartest/**/*_test.rb` as the default CLI glob so Smartest can coexist with Minitest files under `test/`.
 - Add gem packaging metadata and release tasks.
 - Add Docusaurus documentation.
+- Add the `smartest-playwright` gem with a Playwright init scaffold, fixture setup, matcher registration, and `smartest-playwright` CLI.
