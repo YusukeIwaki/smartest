@@ -23,6 +23,15 @@ The init command creates `smartest/test_helper.rb`, `smartest/fixtures/`,
 `smartest/matchers/`, `smartest/matchers/predicate_matcher.rb`, and
 `smartest/example_test.rb`. It does not overwrite existing files.
 
+For a Playwright browser-test scaffold, use:
+
+```bash
+bundle exec smartest --init-browser
+```
+
+That command creates the normal Smartest scaffold plus Playwright fixture,
+matcher, and example files.
+
 Generated tests require the helper by name:
 
 ```ruby
@@ -50,8 +59,8 @@ If no paths are passed, the CLI looks for:
 smartest/**/*_test.rb
 ```
 
-Smartest does not load `test/**/*_test.rb` by default, so a project can keep
-Minitest files under `test/` while using Smartest files under `smartest/`.
+Smartest does not load files from `test/` by default, so a project can keep
+Minitest files there while using Smartest files under `smartest/`.
 
 You can pass a single file:
 
