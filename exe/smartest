@@ -10,6 +10,7 @@ usage = <<~USAGE
     smartest [--profile N] [paths...]
     smartest [--profile N] path/to/test_file.rb:line[-line]
     smartest --init
+    smartest --init-browser
     smartest --version
     smartest --help
 
@@ -36,6 +37,11 @@ begin
     exit Smartest::InitGenerator.new.run
   end
 
+  if ARGV.include?("--init-browser")
+    command = :init_browser
+    exit Smartest::InitBrowserGenerator.new.run
+  end
+
   Smartest.disable_autorun!
   Kernel.prepend Smartest::DSL
   test_load_path = File.expand_path("smartest", Dir.pwd)
@@ -52,7 +58,16 @@ begin
 rescue Exception => error
   raise if Smartest.fatal_exception?(error)
 
-  warn(command == :init ? "Error initializing Smartest:" : "Error loading tests:")
+  warn(
+    case command
+    when :init
+      "Error initializing Smartest:"
+    when :init_browser
+      "Error initializing Smartest browser scaffold:"
+    else
+      "Error loading tests:"
+    end
+  )
   warn "#{error.class}: #{error.message}"
   warn error.backtrace&.first
   exit 1

@@ -127,6 +127,35 @@ Top 1 slowest test (0.00001 seconds, 100.0% of total time):
 1 test, 1 passed, 0 failed
 ```
 
+## Playwright quick start
+
+Initialize a browser-test scaffold:
+
+```bash
+bundle exec smartest --init-browser
+```
+
+The Playwright init command creates the normal Smartest helper, fixtures, and
+predicate matcher, then adds:
+
+```text
+smartest/fixtures/playwright_fixture.rb
+smartest/matchers/playwright_matcher.rb
+smartest/example_browser_test.rb
+```
+
+It also registers `PlaywrightFixture` and `PlaywrightMatcher`, adds
+`playwright-ruby-client` to the Gemfile test group, runs `bundle install`, runs
+`npm init --yes` when no `package.json` exists yet, runs
+`npm install playwright --save-dev`, and downloads Chromium with
+`./node_modules/.bin/playwright install`.
+
+Run the generated browser example with:
+
+```bash
+bundle exec smartest smartest/example_browser_test.rb
+```
+
 ## Defining tests
 
 Use `test` at the top level:
