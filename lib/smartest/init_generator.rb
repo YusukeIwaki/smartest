@@ -88,19 +88,23 @@ module Smartest
       RUBY
     }.freeze
 
-    def initialize(root: Dir.pwd, output: $stdout)
+    def initialize(root: Dir.pwd, output: $stdout, files: FILES, final_message: "Run your test suite with: bundle exec smartest")
       @root = root
       @output = output
+      @files = files
+      @final_message = final_message
     end
 
     def run
       create_directory("smartest")
       create_directory("smartest/fixtures")
       create_directory("smartest/matchers")
-      FILES.each { |path, contents| create_file(path, contents) }
+      @files.each { |path, contents| create_file(path, contents) }
 
-      @output.puts
-      @output.puts "Run your test suite with: bundle exec smartest"
+      if @final_message
+        @output.puts
+        @output.puts @final_message
+      end
 
       0
     end
