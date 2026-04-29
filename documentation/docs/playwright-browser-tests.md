@@ -24,7 +24,7 @@ The init command runs the normal `smartest --init` scaffold, then:
 
 - creates `smartest/fixtures/playwright_fixture.rb`
 - creates `smartest/matchers/playwright_matcher.rb`
-- creates `smartest/example_spec.rb`
+- creates `smartest/example_browser_test.rb`
 - registers `PlaywrightFixture` and `PlaywrightMatcher`
 - adds `gem "playwright-ruby-client", group: :test` to the Gemfile
 - runs `bundle install`
@@ -122,9 +122,9 @@ slow Playwright actions by 250 milliseconds.
 
 ## Generated Test
 
-`smartest --init-browser` creates a spec-style browser test:
+`smartest --init-browser` creates a browser test:
 
-```ruby title="smartest/example_spec.rb"
+```ruby title="smartest/example_browser_test.rb"
 require "test_helper"
 
 test("finds the smartest gem on RubyGems") do |page:|
@@ -138,10 +138,10 @@ test("finds the smartest gem on RubyGems") do |page:|
 end
 ```
 
-Run the generated spec by passing its path to the Smartest CLI:
+Run the generated test by passing its path to the Smartest CLI:
 
 ```bash
-bundle exec smartest smartest/example_spec.rb
+bundle exec smartest smartest/example_browser_test.rb
 ```
 
 ![Playwright browser test running from Smartest](/img/playwright-browser-tests.gif)

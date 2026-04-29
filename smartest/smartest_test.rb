@@ -2024,9 +2024,8 @@ test("cli browser init generator creates Playwright scaffold and installation co
     status = generator.run
 
     expect(status).to eq(0)
-    expect(File.exist?(File.join(dir, "smartest/example_test.rb"))).to eq(false)
-    expect(File.read(File.join(dir, "smartest/example_spec.rb"))).to include("finds the smartest gem on RubyGems")
-    expect(File.read(File.join(dir, "smartest/example_spec.rb"))).to include('expect(page).to have_url("https://rubygems.org/gems/smartest")')
+    expect(File.read(File.join(dir, "smartest/example_browser_test.rb"))).to include("finds the smartest gem on RubyGems")
+    expect(File.read(File.join(dir, "smartest/example_browser_test.rb"))).to include('expect(page).to have_url("https://rubygems.org/gems/smartest")')
     expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include("class PlaywrightFixture < Smartest::Fixture")
     expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include('require "playwright"')
     expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include('playwright_cli_executable_path: "./node_modules/.bin/playwright"')
@@ -2053,7 +2052,7 @@ test("cli browser init generator creates Playwright scaffold and installation co
     expect(output.string).to include("run     npm init --yes")
     expect(output.string).to include("run     npm install playwright --save-dev")
     expect(output.string).to include("run     ./node_modules/.bin/playwright install")
-    expect(output.string).to include("Run your browser test suite with: bundle exec smartest smartest/example_spec.rb")
+    expect(output.string).to include("Run your browser test suite with: bundle exec smartest smartest/example_browser_test.rb")
   end
 end
 

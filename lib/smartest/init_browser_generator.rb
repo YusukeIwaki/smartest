@@ -58,7 +58,7 @@ module Smartest
       end
     RUBY
 
-    EXAMPLE_SPEC = <<~RUBY
+    EXAMPLE_BROWSER_TEST = <<~RUBY
       # frozen_string_literal: true
 
       require "test_helper"
@@ -93,7 +93,7 @@ module Smartest
       update_gemfile
       install_dependencies
       @output.puts
-      @output.puts "Run your browser test suite with: bundle exec smartest smartest/example_spec.rb"
+      @output.puts "Run your browser test suite with: bundle exec smartest smartest/example_browser_test.rb"
 
       0
     end
@@ -101,11 +101,7 @@ module Smartest
     private
 
     def smartest_files
-      Smartest::InitGenerator::FILES.each_with_object({}) do |(path, contents), files|
-        next if path == "smartest/example_test.rb"
-
-        files[path] = contents
-      end.merge("smartest/example_spec.rb" => EXAMPLE_SPEC)
+      Smartest::InitGenerator::FILES.merge("smartest/example_browser_test.rb" => EXAMPLE_BROWSER_TEST)
     end
 
     def create_file(path, contents)

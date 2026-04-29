@@ -141,7 +141,7 @@ predicate matcher, then adds:
 ```text
 smartest/fixtures/playwright_fixture.rb
 smartest/matchers/playwright_matcher.rb
-smartest/example_spec.rb
+smartest/example_browser_test.rb
 ```
 
 It also registers `PlaywrightFixture` and `PlaywrightMatcher`, adds
@@ -153,7 +153,7 @@ It also registers `PlaywrightFixture` and `PlaywrightMatcher`, adds
 Run the generated browser example with:
 
 ```bash
-bundle exec smartest smartest/example_spec.rb
+bundle exec smartest smartest/example_browser_test.rb
 ```
 
 ## Defining tests
