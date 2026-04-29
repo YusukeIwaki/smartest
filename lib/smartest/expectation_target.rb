@@ -13,6 +13,10 @@ module Smartest
     end
 
     def not_to(matcher)
+      if matcher.respond_to?(:supports_negated_expectation?) && !matcher.supports_negated_expectation?
+        raise ArgumentError, matcher.negated_expectation_error
+      end
+
       if matcher.respond_to?(:does_not_match?)
         return self if matcher.does_not_match?(@actual)
 

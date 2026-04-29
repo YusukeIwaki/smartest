@@ -38,7 +38,7 @@ module Smartest
             name.to_s.match?(/\\Abe_.+\\z/) || super
           end
 
-          class Matcher
+          class Matcher < Smartest::Matcher
             def initialize(predicate_name, arguments, block)
               @predicate_name = predicate_name
               @predicate = "\#{predicate_name}?"
@@ -63,13 +63,13 @@ module Smartest
               "expected \#{@actual.inspect} not to be \#{description}"
             end
 
-            private
-
             def description
               return @predicate_name if @arguments.empty?
 
               "\#{@predicate_name} \#{argument_description}"
             end
+
+            private
 
             def argument_description
               @arguments.map(&:inspect).join(", ")

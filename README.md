@@ -194,6 +194,8 @@ expect { action }.to raise_error(ErrorClass)
 expect { action }.to raise_error(/message/)
 expect { action }.to raise_error(ErrorClass, /message/)
 expect { action }.to change { value }
+expect(actual).to matcher.or(other_matcher)
+expect(actual).to matcher.and(other_matcher)
 ```
 
 Examples:
@@ -260,6 +262,28 @@ specific order, preserve duplicate counts, and can use matcher objects such as
 
 `change` is only supported with `expect { ... }` block expectations and must be
 written with a value block.
+
+Matchers can be composed with `.or` and `.and`:
+
+```ruby
+expect(result).to include("NetworkError").or include("Failed to fetch")
+expect(response.status).to eq(200).or(eq(304))
+expect("report.txt").to start_with("report").and end_with(".txt")
+```
+
+`.or` passes when any matcher matches and short-circuits the right-hand matcher
+when the left-hand matcher passes. `.and` passes only when every matcher matches.
+`not_to` does not support composed matchers and raises `ArgumentError` when used
+with `.and` or `.or`.
+
+Composed `change` matchers observe one action block execution:
+
+```ruby
+expect {
+  count += 1
+  total += 1
+}.to change { count }.by(1).and change { total }.by(1)
+```
 
 Custom matcher modules can be registered from `around_suite` or `around_test`
 with `use_matcher`. The generated scaffold includes a `PredicateMatcher` custom

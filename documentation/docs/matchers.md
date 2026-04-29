@@ -152,6 +152,44 @@ constrain the before value, after value, and numeric difference.
 Smartest does not support RSpec's object-and-method form such as
 `change(object, :method)`.
 
+## Matcher Composition
+
+Matchers that inherit from `Smartest::Matcher` support `.or(other_matcher)` and
+`.and(other_matcher)`.
+
+```ruby
+expect(result).to include("NetworkError").or include("Failed to fetch")
+expect(response.status).to eq(200).or(eq(304))
+expect("report.txt").to start_with("report").and end_with(".txt")
+```
+
+`.or` passes when any matcher matches the same actual value. The right-hand
+matcher is not evaluated when the left-hand matcher already passes, and chained
+alternatives are supported:
+
+```ruby
+expect(response.status).to eq(200).or(eq(201)).or(eq(204))
+```
+
+`.and` passes only when every matcher matches. Composed `change` matchers observe
+one action block execution:
+
+```ruby
+count = 0
+total = 10
+
+expect {
+  count += 1
+  total += 1
+}.to change { count }.by(1).and change { total }.by(1)
+```
+
+`not_to` does not support composed matchers. Smartest raises `ArgumentError` for
+`expect(actual).not_to matcher.and(other_matcher)` and
+`expect(actual).not_to matcher.or(other_matcher)`.
+
+Split negated checks into separate expectations instead.
+
 ## Generated Predicate Matcher
 
 `smartest --init` creates `smartest/matchers/predicate_matcher.rb` and registers
@@ -185,15 +223,20 @@ that do not want this metaprogramming hook can remove the file and the
 
 Define matcher methods in a module under `smartest/matchers/`.
 
-Matcher methods should return an object that responds to:
+Matcher methods should return an object that inherits from `Smartest::Matcher`
+and implements:
 
 - `matches?(actual)`
 - `failure_message`
 - `negated_failure_message`
 
+Plain objects that implement those methods still work with `expect(...).to`, but
+subclassing `Smartest::Matcher` gives custom matchers `.and` and `.or`
+composition.
+
 ```ruby title="smartest/matchers/have_status_matcher.rb"
 module HaveStatusMatcher
-  class MatcherImpl
+  class MatcherImpl < Smartest::Matcher
     def initialize(expected)
       @expected = expected
     end
@@ -209,6 +252,10 @@ module HaveStatusMatcher
 
     def negated_failure_message
       "expected #{@actual.inspect} not to have status #{@expected.inspect}"
+    end
+
+    def description
+      "have status #{@expected.inspect}"
     end
   end
 

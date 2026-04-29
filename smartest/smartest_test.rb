@@ -218,6 +218,74 @@ test("supports basic matchers") do
   expect(status).to eq(0)
 end
 
+test("supports matcher composition with and and or") do
+  action_calls = 0
+  first_value = 0
+  second_value = 10
+
+  expect("NetworkError").to include("Network").or include("Failed to fetch")
+  expect(304).to eq(200).or(eq(201)).or(eq(304))
+  expect("report.txt").to start_with("report").and end_with(".txt")
+  expect {
+    action_calls += 1
+    first_value += 1
+    second_value += 1
+  }.to change { first_value }.by(1).and change { second_value }.by(1)
+
+  expect(action_calls).to eq(1)
+end
+
+test("reports matcher composition failures") do
+  error = SmartestSelfTest.capture_error(Smartest::AssertionFailed) do
+    expect("permission denied").to include("NetworkError").or include("Failed to fetch")
+  end
+
+  expect(error.message).to include(
+    'expected "permission denied" to match any of include "NetworkError" or include "Failed to fetch"'
+  )
+  expect(error.message).to include('expected "permission denied" to include "NetworkError"')
+  expect(error.message).to include('expected "permission denied" to include "Failed to fetch"')
+
+  error = SmartestSelfTest.capture_error(Smartest::AssertionFailed) do
+    expect("error.log").to start_with("error").and end_with(".txt")
+  end
+
+  expect(error.message).to include('expected "error.log" to match all of start with "error" and end with ".txt"')
+  expect(error.message).to include('expected "error.log" to end with ".txt"')
+end
+
+test("rejects negated matcher composition") do
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    expect("public token").not_to include("password").or include("secret")
+  end
+
+  expect(error.message).to eq("not_to does not support matcher composition with .and or .or")
+
+  error = SmartestSelfTest.capture_error(ArgumentError) do
+    expect("report.log").not_to start_with("report").and end_with(".txt")
+  end
+
+  expect(error.message).to eq("not_to does not support matcher composition with .and or .or")
+end
+
+test("short-circuits or matcher composition") do
+  right_matcher = Class.new(Smartest::Matcher) do
+    def matches?(_actual)
+      raise "right matcher should not be evaluated"
+    end
+
+    def failure_message
+      "right matcher failed"
+    end
+
+    def negated_failure_message
+      "right matcher matched"
+    end
+  end.new
+
+  expect("ok").to eq("ok").or(right_matcher)
+end
+
 test("reports be_a and match matcher failures") do
   suite = Smartest::Suite.new
   suite.tests.add(
@@ -1368,7 +1436,7 @@ test("cli loads matcher files registered in test helper") do
     RUBY
     File.write(File.join(matchers_dir, "have_status_matcher.rb"), <<~RUBY)
       module HaveStatusMatcher
-        class MatcherImpl
+        class MatcherImpl < Smartest::Matcher
           def initialize(expected)
             @expected = expected
           end
@@ -1384,6 +1452,10 @@ test("cli loads matcher files registered in test helper") do
 
           def negated_failure_message
             "expected \#{@actual.inspect} not to have status \#{@expected.inspect}"
+          end
+
+          def description
+            "have status \#{@expected.inspect}"
           end
         end
 
@@ -1773,6 +1845,7 @@ test("cli initializes a runnable test scaffold") do
     expect(helper_contents).to include("use_matcher PredicateMatcher")
     predicate_matcher_contents = File.read(File.join(dir, "smartest/matchers/predicate_matcher.rb"))
     expect(predicate_matcher_contents).to include("module PredicateMatcher")
+    expect(predicate_matcher_contents).to include("class Matcher < Smartest::Matcher")
     expect(File.read(File.join(dir, "smartest/example_test.rb"))).to include('require "test_helper"')
 
     nested_fixtures_dir = File.join(dir, "smartest/fixtures/nested")
@@ -1802,7 +1875,7 @@ test("cli initializes a runnable test scaffold") do
     FileUtils.mkdir_p(nested_matchers_dir)
     File.write(File.join(nested_matchers_dir, "auto_loaded_matcher.rb"), <<~RUBY)
       module AutoLoadedMatcher
-        class Matcher
+        class Matcher < Smartest::Matcher
           def initialize(expected)
             @expected = expected
           end
@@ -1818,6 +1891,10 @@ test("cli initializes a runnable test scaffold") do
 
           def negated_failure_message
             "expected \#{@actual.inspect} not to auto-eq \#{@expected.inspect}"
+          end
+
+          def description
+            "auto-eq \#{@expected.inspect}"
           end
         end
 
@@ -1846,6 +1923,7 @@ test("cli initializes a runnable test scaffold") do
       test("generated predicate matcher") do
         expect("").to be_empty
         expect(2).to be_between(1, 3)
+        expect(2).to be_odd.or be_even
       end
     RUBY
 

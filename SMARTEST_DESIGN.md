@@ -718,9 +718,11 @@ MVP expectation API:
 expect(actual).to eq(expected)
 expect(actual).not_to eq(expected)
 expect { action }.to change { value }
+expect(actual).to matcher.or(other_matcher)
+expect(actual).to matcher.and(other_matcher)
 ```
 
-Current built-in matchers include:
+Current built-in matchers and composition helpers include:
 
 ```ruby
 eq(expected)
@@ -737,6 +739,8 @@ raise_error(ErrorClass)
 raise_error(/message/)
 raise_error(ErrorClass, /message/)
 change { value }
+matcher.or(other_matcher)
+matcher.and(other_matcher)
 ```
 
 Internal model:
@@ -748,8 +752,17 @@ expect(actual)
 eq(expected)
   => EqMatcher
 
+EqMatcher
+  < Smartest::Matcher
+
+Smartest::Matcher#or(other_matcher)
+  => OrMatcher
+
+Smartest::Matcher#and(other_matcher)
+  => AndMatcher
+
 ExpectationTarget#to(matcher)
-  => matcher.match!(actual)
+  => matcher.matches?(actual)
 ```
 
 Example:
@@ -761,16 +774,35 @@ class Smartest::ExpectationTarget
   end
 
   def to(matcher)
-    matcher.match!(@actual)
+    return self if matcher.matches?(@actual)
+
+    raise AssertionFailed, matcher.failure_message
   end
 
   def not_to(matcher)
-    matcher.not_match!(@actual)
+    if matcher.respond_to?(:supports_negated_expectation?) && !matcher.supports_negated_expectation?
+      raise ArgumentError, matcher.negated_expectation_error
+    end
+
+    if matcher.respond_to?(:does_not_match?)
+      return self if matcher.does_not_match?(@actual)
+
+      raise AssertionFailed, matcher.negated_failure_message
+    end
+
+    return self unless matcher.matches?(@actual)
+
+    raise AssertionFailed, matcher.negated_failure_message
   end
 end
 ```
 
 Assertion failures should raise `Smartest::AssertionFailed`.
+
+Matcher composition is logical composition over the same actual value. `or`
+passes when any matcher matches and should short-circuit later matchers after a
+match. `and` passes only when every matcher matches. `not_to` with composed
+matchers is intentionally unsupported and raises `ArgumentError`.
 
 ## Reporter
 

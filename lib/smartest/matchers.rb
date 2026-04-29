@@ -54,7 +54,162 @@ module Smartest
     end
   end
 
-  class EqMatcher
+  class Matcher
+    def and(other_matcher)
+      AndMatcher.new(self, other_matcher)
+    end
+
+    def or(other_matcher)
+      OrMatcher.new(self, other_matcher)
+    end
+
+    def description
+      self.class.name || "matcher"
+    end
+  end
+
+  class CompoundMatcher < Matcher
+    attr_reader :matchers
+
+    NEGATED_EXPECTATION_ERROR = "not_to does not support matcher composition with .and or .or"
+
+    def initialize(*matchers)
+      @matchers = matchers.flat_map do |matcher|
+        matcher.is_a?(self.class) ? matcher.matchers : matcher
+      end
+      reset_result
+    end
+
+    def supports_negated_expectation?
+      false
+    end
+
+    def negated_expectation_error
+      NEGATED_EXPECTATION_ERROR
+    end
+
+    private
+
+    def reset_result
+      @actual = nil
+      @failed_matchers = []
+      @matched_matchers = []
+    end
+
+    def actual_description
+      @actual.respond_to?(:call) ? "block" : @actual.inspect
+    end
+
+    def matcher_description(matcher)
+      description = if matcher.respond_to?(:description)
+                      matcher.description
+                    else
+                      matcher.inspect
+                    end
+
+      matcher.is_a?(CompoundMatcher) ? "(#{description})" : description
+    end
+
+    def joined_description(separator)
+      @matchers.map { |matcher| matcher_description(matcher) }.join(separator)
+    end
+
+    def failure_messages
+      @failed_matchers.filter_map do |matcher|
+        matcher.failure_message if matcher.respond_to?(:failure_message)
+      end
+    end
+
+    def composed_block_expectation?(actual)
+      actual.respond_to?(:call) &&
+        @matchers.all? { |matcher| matcher.respond_to?(:composable_block_expectation?) } &&
+        @matchers.all?(&:composable_block_expectation?)
+    end
+
+    def run_composed_block_expectation(actual)
+      @matchers.each(&:prepare_composed_block_expectation)
+      actual.call
+      @matchers.each(&:finish_composed_block_expectation)
+      @matchers.each do |matcher|
+        if matcher.composed_block_matches?
+          @matched_matchers << matcher
+        else
+          @failed_matchers << matcher
+        end
+      end
+    end
+  end
+
+  class AndMatcher < CompoundMatcher
+    def matches?(actual)
+      reset_result
+      @actual = actual
+
+      if composed_block_expectation?(actual)
+        run_composed_block_expectation(actual)
+        return @failed_matchers.empty?
+      end
+
+      @matchers.each do |matcher|
+        if matcher.matches?(actual)
+          @matched_matchers << matcher
+        else
+          @failed_matchers << matcher
+          return false
+        end
+      end
+
+      true
+    end
+
+    def failure_message
+      message = "expected #{actual_description} to match all of #{description}"
+      details = failure_messages
+      details.empty? ? message : "#{message}; #{details.join('; ')}"
+    end
+
+    def negated_failure_message
+      "expected #{actual_description} not to match all of #{description}"
+    end
+
+    def description
+      joined_description(" and ")
+    end
+  end
+
+  class OrMatcher < CompoundMatcher
+    def matches?(actual)
+      reset_result
+      @actual = actual
+
+      @matchers.each do |matcher|
+        if matcher.matches?(actual)
+          @matched_matchers << matcher
+          return true
+        end
+
+        @failed_matchers << matcher
+      end
+
+      false
+    end
+
+    def failure_message
+      message = "expected #{actual_description} to match any of #{description}"
+      details = failure_messages
+      details.empty? ? message : "#{message}; #{details.join('; ')}"
+    end
+
+    def negated_failure_message
+      "expected #{actual_description} not to match any of #{description}"
+    end
+
+    def description
+      joined_description(" or ")
+    end
+  end
+
+  class EqMatcher < Matcher
     def initialize(expected)
       @expected = expected
     end
@@ -77,7 +232,7 @@ module Smartest
     end
   end
 
-  class IncludeMatcher
+  class IncludeMatcher < Matcher
     def initialize(expected)
       @expected = expected
     end
@@ -102,7 +257,7 @@ module Smartest
     end
   end
 
-  class StartWithMatcher
+  class StartWithMatcher < Matcher
     def initialize(*prefixes)
       @prefixes = prefixes
     end
@@ -135,7 +290,7 @@ module Smartest
     end
   end
 
-  class EndWithMatcher
+  class EndWithMatcher < Matcher
     def initialize(*suffixes)
       @suffixes = suffixes
     end
@@ -168,7 +323,7 @@ module Smartest
     end
   end
 
-  class BeAKindOfMatcher
+  class BeAKindOfMatcher < Matcher
     def initialize(expected_class)
       @expected_class = expected_class
     end
@@ -203,7 +358,7 @@ module Smartest
     end
   end
 
-  class BeNilMatcher
+  class BeNilMatcher < Matcher
     def matches?(actual)
       @actual = actual
       actual.nil?
@@ -222,7 +377,7 @@ module Smartest
     end
   end
 
-  class MatchMatcher
+  class MatchMatcher < Matcher
     def initialize(regexp)
       @regexp = regexp
     end
@@ -247,7 +402,7 @@ module Smartest
     end
   end
 
-  class ContainExactlyMatcher
+  class ContainExactlyMatcher < Matcher
     def initialize(expected_items, matcher_name:)
       @expected_items = expected_items
       @matcher_name = matcher_name
@@ -369,7 +524,7 @@ module Smartest
     end
   end
 
-  class RaiseErrorMatcher
+  class RaiseErrorMatcher < Matcher
     def initialize(*expected_error)
       @expected_type = expected_type_for(expected_error)
       @expected_error_class = expected_error.find { |item| error_class?(item) }
@@ -401,6 +556,10 @@ module Smartest
 
     def negated_failure_message
       "expected block not to raise #{expected_description}, but raised #{actual_error_description}"
+    end
+
+    def description
+      "raise #{expected_description}"
     end
 
     private
@@ -446,7 +605,7 @@ module Smartest
     end
   end
 
-  class ChangeMatcher
+  class ChangeMatcher < Matcher
     UNSET = Object.new
 
     def initialize(value_block)
@@ -496,6 +655,31 @@ module Smartest
       return "expected a block not to change value" unless @callable
 
       "expected value not to change, but #{observed_description}"
+    end
+
+    def description
+      expected_description
+    end
+
+    def composable_block_expectation?
+      true
+    end
+
+    def prepare_composed_block_expectation
+      reset_result
+      @callable = true
+      @before_value = @value_block.call
+    end
+
+    def finish_composed_block_expectation
+      @after_value = @value_block.call
+      calculate_delta if delta_expected?
+    end
+
+    def composed_block_matches?
+      return false unless @callable
+
+      positive_failures.empty?
     end
 
     private
