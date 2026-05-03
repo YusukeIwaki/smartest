@@ -14,6 +14,21 @@ const sidebars = {
     'playwright-browser-tests',
     {
       type: 'category',
+      label: 'Comparisons',
+      link: {
+        type: 'generated-index',
+        title: 'Comparisons',
+        description:
+          'Compare Smartest with pytest-style fixtures, RSpec, and Minitest.',
+      },
+      items: [
+        'pytest-style-fixtures-for-ruby',
+        'smartest-vs-rspec',
+        'smartest-vs-minitest',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Reference',
       items: ['reference/errors'],
     },
