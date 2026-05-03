@@ -70,7 +70,7 @@ module Smartest
 
         page.locator("a[href='/gems/smartest']").click
         expect(page).to have_url("https://rubygems.org/gems/smartest")
-        expect(page.locator(".versions")).to have_text("0.3.0.alpha1")
+        expect(page.locator("h1")).to have_text("smartest")
       end
     RUBY
 

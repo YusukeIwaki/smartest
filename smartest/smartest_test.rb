@@ -2024,8 +2024,11 @@ test("cli browser init generator creates Playwright scaffold and installation co
     status = generator.run
 
     expect(status).to eq(0)
-    expect(File.read(File.join(dir, "smartest/example_browser_test.rb"))).to include("finds the smartest gem on RubyGems")
-    expect(File.read(File.join(dir, "smartest/example_browser_test.rb"))).to include('expect(page).to have_url("https://rubygems.org/gems/smartest")')
+    example_browser_test = File.read(File.join(dir, "smartest/example_browser_test.rb"))
+    expect(example_browser_test).to include("finds the smartest gem on RubyGems")
+    expect(example_browser_test).to include('expect(page).to have_url("https://rubygems.org/gems/smartest")')
+    expect(example_browser_test).to include('expect(page.locator("h1")).to have_text("smartest")')
+    expect(example_browser_test).not_to include("0.3.0.alpha1")
     expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include("class PlaywrightFixture < Smartest::Fixture")
     expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include('require "playwright"')
     expect(File.read(File.join(dir, "smartest/fixtures/playwright_fixture.rb"))).to include('playwright_cli_executable_path: "./node_modules/.bin/playwright"')

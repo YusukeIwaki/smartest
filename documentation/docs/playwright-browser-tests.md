@@ -9,6 +9,23 @@ Smartest can scaffold a Playwright-powered browser-test setup. Once it is in
 place, you can write browser tests that look and feel like ordinary Smartest
 tests — just receive a `page:` fixture and drive it with the Playwright API.
 
+## Why It Feels Like Playwright Test Fixtures
+
+Smartest is useful for Ruby browser testing when you want Playwright fixtures
+in Ruby without switching to Playwright Test's JavaScript or TypeScript runner.
+The generated `page:` fixture gives each test a Playwright `Page`, similar to
+the way Playwright Test provides a `page` fixture.
+
+Smartest is not API-compatible with Playwright Test. The similarity comes from
+Smartest's class-based fixture model:
+
+- `suite_fixture :playwright` starts the Playwright runtime once.
+- `suite_fixture :browser` shares the browser process across the suite.
+- `fixture :page` creates a fresh browser context and page per test.
+
+That makes Smartest a lightweight option for Rails Playwright tests or teams
+evaluating Capybara alternatives while keeping setup explicit in Ruby.
+
 ## Quick Start
 
 ### 1. Initialize the scaffold
@@ -46,7 +63,7 @@ test("finds the smartest gem on RubyGems") do |page:|
 
   page.locator("a[href='/gems/smartest']").click
   expect(page).to have_url("https://rubygems.org/gems/smartest")
-  expect(page.locator(".versions")).to have_text("0.3.0.alpha1")
+  expect(page.locator("h1")).to have_text("smartest")
 end
 ```
 
