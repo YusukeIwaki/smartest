@@ -1,0 +1,76 @@
+# Smartest
+
+Smartest is a small Ruby test runner that brings Pytest-style fixtures for Ruby:
+keyword-argument fixture injection, explicit fixture dependencies, fixture
+cleanup, and a focused CLI runner.
+
+Use this page as an LLM-friendly entry point. For canonical human-readable
+documentation, prefer the project README and the public docs linked below.
+
+## Canonical Links
+
+- README: https://github.com/YusukeIwaki/smartest#readme
+- Documentation home: https://smartest-rb.vercel.app/docs/intro
+- Getting started: https://smartest-rb.vercel.app/docs/getting-started
+- Fixtures: https://smartest-rb.vercel.app/docs/fixtures
+- Running test suites: https://smartest-rb.vercel.app/docs/running-test-suites
+- Matchers: https://smartest-rb.vercel.app/docs/matchers
+- Playwright browser tests: https://smartest-rb.vercel.app/docs/playwright-browser-tests
+
+## Core Concepts
+
+- Tests are declared with the top-level `test` method.
+- Assertions use `expect(actual).to matcher`, `expect(actual).not_to matcher`,
+  and block expectations such as `expect { action }.to raise_error(...)`.
+- Fixture classes inherit from `Smartest::Fixture`.
+- `fixture :name` defines a test-scoped fixture.
+- `suite_fixture :name` defines a lazy suite-scoped fixture shared across the
+  full suite.
+- Tests and fixtures request dependencies with required Ruby keyword arguments.
+- `use_fixture` registers fixture classes from `around_suite` or `around_test`.
+- `cleanup` registers teardown for resources owned by a fixture. Test-scoped
+  fixture cleanup runs after the test; suite fixture cleanup runs after the
+  suite.
+- Fixture values are cached within one test. Regular fixtures get a fresh cache
+  for each test.
+- Duplicate fixture names across registered fixture classes and circular fixture
+  dependencies are reported as errors.
+- The CLI runs `smartest/**/*_test.rb` by default and also accepts explicit file,
+  glob, line, and line-range arguments.
+
+## Example
+
+```ruby
+class WebFixture < Smartest::Fixture
+  fixture :server do
+    server = TestServer.start
+    cleanup { server.stop }
+    server
+  end
+
+  fixture :client do |server:|
+    Client.new(base_url: server.url)
+  end
+end
+
+around_suite do |suite|
+  use_fixture WebFixture
+  suite.run
+end
+
+test("GET /health") do |client:|
+  response = client.get("/health")
+
+  expect(response.status).to eq(200)
+end
+```
+
+## Current Scope
+
+Smartest currently focuses on a small runner API: `test`, `expect`, fixtures,
+suite fixtures, fixture cleanup, `around_suite`, `around_test`, `skip`,
+`pending`, helper and matcher registration, console reporting, and the CLI
+runner.
+
+Nested `describe` blocks, watch mode, parallel execution, and file-scoped
+fixtures are not part of the current MVP.
