@@ -7,7 +7,7 @@ const siteUrl = process.env.SITE_URL || (vercelUrl ? `https://${vercelUrl}` : 'h
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Smartest - Pytest-style fixtures for Ruby',
+  title: 'Smartest',
   tagline: 'Pytest-style fixtures for Ruby',
   favicon: 'img/smartest-mark.svg',
 
@@ -51,7 +51,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      image: 'img/smartest-mark.svg',
+      image: 'img/smartest-ogp.png',
       navbar: {
         title: 'Smartest',
         logo: {

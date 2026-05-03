@@ -1,4 +1,5 @@
 import React from 'react';
+import Head from '@docusaurus/Head';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import CodeBlock from '@theme/CodeBlock';
@@ -6,8 +7,10 @@ import CodeBlock from '@theme/CodeBlock';
 export default function Home() {
   return (
     <Layout
-      title="Pytest-style fixtures for Ruby"
       description="Smartest is a Ruby test runner with pytest-style fixture injection, explicit fixture dependencies, and cleanup.">
+      <Head>
+        <title>Smartest: Pytest-style fixtures for Ruby</title>
+      </Head>
       <header className="hero hero--smartest">
         <div className="container text--center">
           <h1 className="hero__title">Smartest</h1>
