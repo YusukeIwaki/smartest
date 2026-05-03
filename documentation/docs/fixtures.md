@@ -1,6 +1,6 @@
 ---
-title: Fixtures
-description: Define class-based Smartest fixtures with keyword dependencies and cleanup.
+title: Pytest-style Fixtures in Ruby
+description: Define class-based Smartest fixtures with keyword dependency injection and cleanup.
 ---
 
 # Fixtures

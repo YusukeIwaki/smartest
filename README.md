@@ -1,20 +1,31 @@
-# Smartest
+# Smartest introduces Pytest-style fixtures for Ruby
 
-Smartest is a small Ruby test runner with a keyword-fixture-first design.
+Smartest is a small Ruby test runner that brings pytest-style fixture
+injection, explicit fixture dependencies, and fixture cleanup to Ruby tests.
 
-It lets you write tests like this:
+Tests request fixtures with Ruby keyword arguments. Fixtures define their own
+dependencies the same way:
 
 ```ruby
-test("factorial") do
-  expect(1 * 2 * 3).to eq(6)
+class WebFixture < Smartest::Fixture
+  fixture :server do
+    server = TestServer.start
+    cleanup { server.stop }
+    server
+  end
+
+  fixture :client do |server:|
+    Client.new(base_url: server.url)
+  end
 end
-```
 
-and fixture-driven tests like this:
+around_suite do |suite|
+  use_fixture WebFixture
+  suite.run
+end
 
-```ruby
-test("GET /me") do |logged_in_client:|
-  response = logged_in_client.get("/me")
+test("GET /health") do |client:|
+  response = client.get("/health")
 
   expect(response.status).to eq(200)
 end
@@ -25,6 +36,32 @@ Smartest is designed around three ideas:
 1. Tests should be readable at the top level.
 2. Fixture dependencies should be explicit.
 3. Teardown should be written only when it is needed.
+
+## Why Smartest?
+
+Ruby already has excellent testing tools, but Smartest focuses on a specific
+idea: tests should explicitly declare their dependencies.
+
+RSpec `let` is useful when examples need lazy helper methods. Minitest `setup`
+is simple for xUnit-style setup. Rails fixtures and FactoryBot are great for
+test data. Smartest is aimed at tests where setup resources, dependency graphs,
+and cleanup should be visible in the test signature and fixture definitions.
+
+```ruby
+test("GET /me") do |logged_in_client:|
+  response = logged_in_client.get("/me")
+
+  expect(response.status).to eq(200)
+end
+```
+
+| Tool | Style | Difference from Smartest |
+| --- | --- | --- |
+| RSpec `let` | Lazy helper method | Tests pull dependencies from inside the example. |
+| Minitest `setup` | xUnit setup method | Dependencies often become implicit instance state. |
+| Rails fixtures | Database records | Not resource setup or fixture dependency injection. |
+| FactoryBot | Test data factories | Not fixture lifecycle management. |
+| Smartest | Keyword fixture injection | Tests declare dependencies explicitly. |
 
 ## Installation
 
@@ -776,22 +813,24 @@ end
 
 The dependency declaration and usage are in one place.
 
-## Status
+## Current scope
 
-Smartest is currently a design-stage test runner.
-
-The intended MVP includes:
+Smartest currently focuses on a small runner API:
 
 - top-level `test`
 - class-based fixtures
 - keyword-argument fixture injection
 - fixture dependencies through keyword arguments
 - fixture cleanup
+- suite-scoped fixtures through `suite_fixture`
 - suite hooks with `around_suite`
 - test hooks with `around_test`
 - skipped and pending tests through `skip` and `pending`
-- `expect(...).to eq(...)`
+- expectation matchers through `expect`
 - console reporter
 - CLI runner
 - circular fixture dependency detection
 - duplicate fixture detection
+
+Nested `describe` blocks, watch mode, parallel execution, and file-scoped
+fixtures are not part of the current MVP.

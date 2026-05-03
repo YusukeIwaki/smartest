@@ -1,11 +1,14 @@
 ---
-title: Overview
-description: Smartest is a small Ruby test runner built around explicit keyword fixtures.
+title: Pytest-style fixtures for Ruby
+description: Smartest is a Ruby test runner with pytest-style fixture injection, explicit fixture dependencies, and cleanup.
 ---
 
 # Smartest
 
-Smartest is a small Ruby test runner with a keyword-fixture-first design.
+introduces **Pytest-style fixtures for Ruby.**
+
+Smartest is a small Ruby test runner that brings pytest-style fixture
+injection, explicit fixture dependencies, and fixture cleanup to Ruby tests.
 
 It is designed around three ideas:
 
@@ -14,16 +17,28 @@ It is designed around three ideas:
 - Teardown should be written only for fixtures that actually need it.
 
 ```ruby
-test("factorial") do
-  expect(1 * 2 * 3).to eq(6)
+# smartest/fixtures/web_fixture.rb
+class WebFixture < Smartest::Fixture
+  fixture :server do
+    server = TestServer.start
+    cleanup { server.stop }
+    server
+  end
+
+  fixture :client do |server:|
+    Client.new(base_url: server.url)
+  end
 end
-```
 
-Fixture-driven tests use required Ruby keyword arguments:
+# smartest/test_helper.rb
+around_suite do |suite|
+  use_fixture WebFixture
+  suite.run
+end
 
-```ruby
-test("GET /me") do |logged_in_client:|
-  response = logged_in_client.get("/me")
+# smartest/web_test.rb
+test("GET /health") do |client:|
+  response = client.get("/health")
 
   expect(response.status).to eq(200)
 end
@@ -41,7 +56,7 @@ end
 
 ## Current Scope
 
-Smartest currently focuses on the MVP runner:
+Smartest currently focuses on a small runner API:
 
 - top-level `test`
 - class-based fixtures
@@ -52,6 +67,7 @@ Smartest currently focuses on the MVP runner:
 - suite hooks through `around_suite`
 - test hooks through `around_test`
 - skipped and pending tests through `skip` and `pending`
+- expectation matchers through `expect`
 - console reporting
 - a CLI runner
 

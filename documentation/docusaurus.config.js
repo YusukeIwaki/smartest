@@ -7,8 +7,8 @@ const siteUrl = process.env.SITE_URL || (vercelUrl ? `https://${vercelUrl}` : 'h
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Smartest',
-  tagline: 'A small Ruby test runner with keyword-first fixtures',
+  title: 'Smartest - Pytest-style fixtures for Ruby',
+  tagline: 'Pytest-style fixtures for Ruby',
   favicon: 'img/smartest-mark.svg',
 
   url: siteUrl,

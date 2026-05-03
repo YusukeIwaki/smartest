@@ -7,19 +7,20 @@ Gem::Specification.new do |spec|
   spec.version = Smartest::VERSION
   spec.authors = ["Yusuke Iwaki"]
 
-  spec.summary = "A small Ruby test runner with keyword-first fixtures."
-  spec.description = "Smartest is a small Ruby test runner focused on readable top-level tests, explicit keyword-argument fixture dependencies, and optional fixture cleanup."
-  spec.homepage = "https://github.com/YusukeIwaki/smartest"
+  spec.summary = "Pytest-style fixtures for Ruby."
+  spec.description = "Smartest is a Ruby test runner with pytest-style fixture injection. Tests request fixtures using keyword arguments, fixtures can depend on other fixtures, and cleanup is registered only when needed."
+  spec.homepage = "https://smartest-rb.vercel.app"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1"
 
   spec.metadata = {
     "allowed_push_host" => "https://rubygems.org",
     "bug_tracker_uri" => "https://github.com/YusukeIwaki/smartest/issues",
-    "documentation_uri" => "https://smartest-rb.vercel.app/",
+    "changelog_uri" => "https://github.com/YusukeIwaki/smartest/blob/main/CHANGELOG.md",
+    "documentation_uri" => "https://smartest-rb.vercel.app/docs/fixtures",
     "homepage_uri" => spec.homepage,
     "rubygems_mfa_required" => "true",
-    "source_code_uri" => "https://github.com/YusukeIwaki/smartest/tree/main"
+    "source_code_uri" => "https://github.com/YusukeIwaki/smartest"
   }
 
   spec.files = Dir.chdir(__dir__) do
