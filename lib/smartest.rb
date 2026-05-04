@@ -57,11 +57,26 @@ module Smartest
       end
     end
 
+    def install_dsl!
+      if kernel_prepend_effective?
+        Kernel.prepend DSL
+      else
+        Object.include DSL
+      end
+    end
+
     def fatal_exception?(error)
       error.is_a?(SystemExit) ||
         error.is_a?(Interrupt) ||
         error.is_a?(SignalException) ||
         error.is_a?(NoMemoryError)
+    end
+
+    private
+
+    def kernel_prepend_effective?
+      # Ruby 2.7 does not support Kernel.prepend for defining top-level method.
+      Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.0")
     end
   end
 end

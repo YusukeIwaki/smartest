@@ -9,7 +9,7 @@ This guide creates a small test scaffold and runs it with Smartest.
 
 ## Requirements
 
-Smartest is a Ruby test runner. The current development version is tested with Ruby 3.3.
+Smartest is a Ruby test runner for Ruby 2.7 and newer.
 
 ## Installation
 
