@@ -613,6 +613,18 @@ class PaymentFixture < Smartest::Fixture
 end
 ```
 
+Register the fixture class from `around_suite` before tests request the fixture:
+
+```ruby
+around_suite do |suite|
+  use_fixture PaymentFixture
+  suite.run
+end
+```
+
+`use_fixture` is available inside `around_suite` or `around_test` blocks, not as
+a top-level method in a test file.
+
 The stub affects existing instances and new instances of the target class in
 the current Fiber until it is reset. Other Fibers and Threads continue to see
 the original method unless they apply their own stub. Tests can request the
