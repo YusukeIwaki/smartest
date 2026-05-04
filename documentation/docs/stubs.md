@@ -101,28 +101,45 @@ end
 
 ## Constant Stubs
 
-Use `simple_stub_const` for constants:
+Use `simple_stub_const` with a block for constants. It is available in test
+bodies, `around_test`, and `around_suite`, not in fixture blocks.
 
 ```ruby
-class PaymentFixture < Smartest::Fixture
-  fixture :fake_payment_provider do
-    simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake")
+test("uses fake payment provider") do
+  simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+    expect(Checkout.call).to eq(:paid)
   end
 end
 ```
 
+If you are coming from RSpec, use Smartest's `around_test` where you would often
+think of an around example hook:
+
 ```ruby
-test("uses fake payment provider") do |fake_payment_provider:|
-  expect(AppConfig::PAYMENT_PROVIDER).to eq(fake_payment_provider)
+around_test do |test|
+  simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+    test.run
+  end
+end
+```
+
+Use `around_suite` when the constant should stay replaced for the whole suite
+run:
+
+```ruby
+around_suite do |suite|
+  simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+    suite.run
+  end
 end
 ```
 
 Constant stubs are process-global. Avoid concurrent tests that stub the same
 constant.
 
-## How Cleanup Works
+## How Method Stub Cleanup Works
 
-You do not need to call `reset!` manually when using stub helpers inside
+You do not need to call `reset!` manually when using method stub helpers inside
 fixtures. The helper internally:
 
 1. creates the stub state
@@ -143,16 +160,44 @@ stub.apply!
 cleanup { stub.reset }
 ```
 
-For constants, Smartest records the previous constant value, replaces it, and
-restores or removes it during cleanup.
-
 Cleanup is tied to the fixture lifecycle:
 
-- `fixture` stubs reset after each test.
-- `suite_fixture` stubs reset after the suite fixture scope ends.
+- `fixture` method stubs reset after each test.
+- `suite_fixture` method stubs reset after the suite fixture scope ends.
 
 In most cases, prefer the fixture helpers so stub lifetime is automatically tied
 to the fixture lifecycle.
+
+## How Constant Stub Blocks Work
+
+`simple_stub_const` records the previous constant value, replaces it, yields to
+the block, and restores or removes the constant with `ensure`.
+
+Conceptually, this:
+
+```ruby
+simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+  call_api
+end
+```
+
+behaves like:
+
+```ruby
+old_value = AppConfig.const_get(:PAYMENT_PROVIDER, false)
+AppConfig.__send__(:remove_const, :PAYMENT_PROVIDER)
+AppConfig.const_set(:PAYMENT_PROVIDER, "fake")
+
+begin
+  call_api
+ensure
+  AppConfig.__send__(:remove_const, :PAYMENT_PROVIDER)
+  AppConfig.const_set(:PAYMENT_PROVIDER, old_value)
+end
+```
+
+The real implementation uses `remove_const` and `const_set` so it can also
+restore constants that did not exist before the block.
 
 ## API
 
@@ -170,18 +215,23 @@ For class methods, pass the class object:
 simple_stub(Time, :now) { fixed_time }
 ```
 
-`simple_stub_const(constant_path, value)` stubs a constant. The path may be a
-String or Symbol:
+`simple_stub_const(constant_path, value) { ... }` stubs a constant for the
+duration of the block. The path may be a String or Symbol:
 
 ```ruby
-simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake")
+simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+  call_api
+end
 ```
 
 `simple_stub_any_instance_of` and `simple_stub` return the
-`Smartest::SimpleStub` object. `simple_stub_const` returns the stubbed value.
-All three helpers are available inside `Smartest::Fixture` fixture blocks,
-including `fixture` and `suite_fixture`, because they need `cleanup` to keep the
-stub lifetime tied to the fixture scope.
+`Smartest::SimpleStub` object. `simple_stub_const` returns the block result.
+
+`simple_stub_any_instance_of` and `simple_stub` are available inside
+`Smartest::Fixture` fixture blocks, including `fixture` and `suite_fixture`,
+because they need `cleanup` to keep the stub lifetime tied to the fixture scope.
+`simple_stub_const` is available in test bodies, `around_test`, and
+`around_suite`.
 
 ## What Stubs Are Not
 

@@ -35,9 +35,10 @@ documentation, prefer the project README and the public docs linked below.
 - `simple_stub_any_instance_of(Klass, :method) { ... }` and
   `simple_stub(object, :method) { ... }` are fixture helpers that apply a
   Fiber-local stub and register cleanup automatically.
-- `simple_stub_const("Namespace::CONST", value)` is a fixture helper that
-  replaces a constant and restores or removes it during cleanup. Constant stubs
-  are process-global; avoid concurrent tests that stub the same constant.
+- `simple_stub_const("Namespace::CONST", value) { ... }` is a block-scoped
+  helper available in test bodies, `around_test`, and `around_suite`. It
+  replaces a constant and restores or removes it with ensure. Constant stubs are
+  process-global; avoid concurrent tests that stub the same constant.
 - `Smartest::SimpleStub.new(Klass, :method) { ... }` is the low-level API for
   manually applying and resetting a Fiber-local stub.
 - Fixture values are cached within one test. Regular fixtures get a fresh cache

@@ -65,7 +65,7 @@ Smartest currently focuses on a small runner API:
 - fixture dependencies through keyword arguments
 - fixture cleanup
 - suite-scoped fixtures through `suite_fixture`
-- fixture-scoped method and constant stubs
+- fixture-scoped method stubs and block-scoped constant stubs
 - suite hooks through `around_suite`
 - test hooks through `around_test`
 - skipped and pending tests through `skip` and `pending`

@@ -2,6 +2,8 @@
 
 module Smartest
   class AroundSuiteContext
+    include ConstantStubHelpers
+
     def initialize(suite)
       @suite = suite
     end
@@ -30,6 +32,8 @@ module Smartest
   end
 
   class AroundTestContext
+    include ConstantStubHelpers
+
     def initialize(test_run, run_state:)
       @test_run = test_run
       @run_state = run_state

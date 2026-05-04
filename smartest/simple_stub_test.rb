@@ -158,64 +158,101 @@ test("simple_stub applies and resets singleton methods from fixture cleanup") do
   expect(status).to eq(0)
 end
 
-test("simple_stub_const applies and resets existing constants from fixture cleanup") do
-  fixture_class = Class.new(Smartest::Fixture) do
-    fixture :stubbed_provider do
-      simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider)
-    end
+test("simple_stub_const applies and resets existing constants in test body blocks") do
+  result = simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
+    expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
+    :block_result
   end
 
-  suite = Smartest::Suite.new
-  suite.fixture_classes.add(fixture_class)
-  suite.tests.add(
-    SimpleStubSelfTest.test_case(
-      "uses constant stub fixture",
-      proc do |stubbed_provider:|
-        expect(stubbed_provider).to eq(:stubbed_provider)
-        expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
-      end
-    )
-  )
-  suite.tests.add(
-    SimpleStubSelfTest.test_case(
-      "sees restored constant",
-      proc { expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider) }
-    )
-  )
-
-  status, = SimpleStubSelfTest.run_suite(suite)
-
-  expect(status).to eq(0)
+  expect(result).to eq(:block_result)
+  expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
 end
 
-test("simple_stub_const removes newly defined constants from fixture cleanup") do
-  fixture_class = Class.new(Smartest::Fixture) do
-    fixture :stubbed_missing_provider do
-      simple_stub_const("SimpleStubSelfTestConfig::MISSING_PROVIDER", :stubbed_missing_provider)
+test("simple_stub_const removes newly defined constants after test body blocks") do
+  simple_stub_const("SimpleStubSelfTestConfig::MISSING_PROVIDER", :stubbed_missing_provider) do
+    expect(SimpleStubSelfTestConfig::MISSING_PROVIDER).to eq(:stubbed_missing_provider)
+  end
+
+  expect(SimpleStubSelfTestConfig.const_defined?(:MISSING_PROVIDER, false)).to eq(false)
+end
+
+test("simple_stub_const restores constants when the block raises") do
+  error = SimpleStubSelfTest.capture_error(RuntimeError) do
+    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
+      expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
+      raise "stubbed block failed"
     end
   end
 
+  expect(error.message).to eq("stubbed block failed")
+  expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
+end
+
+test("simple_stub_const requires a block") do
+  error = SimpleStubSelfTest.capture_error(ArgumentError) do
+    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider)
+  end
+
+  expect(error.message).to eq("simple_stub_const block is required")
+end
+
+test("simple_stub_const wraps around_test hooks") do
   suite = Smartest::Suite.new
-  suite.fixture_classes.add(fixture_class)
+  suite.around_test_hooks << proc do |test_run|
+    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :around_test_provider) do
+      test_run.run
+    end
+  end
   suite.tests.add(
     SimpleStubSelfTest.test_case(
-      "uses new constant stub fixture",
-      proc do |stubbed_missing_provider:|
-        expect(stubbed_missing_provider).to eq(:stubbed_missing_provider)
-        expect(SimpleStubSelfTestConfig::MISSING_PROVIDER).to eq(:stubbed_missing_provider)
-      end
-    )
-  )
-  suite.tests.add(
-    SimpleStubSelfTest.test_case(
-      "sees removed constant",
-      proc { expect(SimpleStubSelfTestConfig.const_defined?(:MISSING_PROVIDER, false)).to eq(false) }
+      "uses around_test constant stub",
+      proc { expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:around_test_provider) }
     )
   )
 
   status, = SimpleStubSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
+  expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
+end
+
+test("simple_stub_const wraps around_suite hooks") do
+  suite = Smartest::Suite.new
+  suite.around_suite_hooks << proc do |suite_run|
+    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :around_suite_provider) do
+      suite_run.run
+    end
+  end
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "uses around_suite constant stub",
+      proc { expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:around_suite_provider) }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
+end
+
+test("simple_stub_const is not available inside fixture blocks") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :bad_constant_stub do
+      simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :fixture_provider) { :fixture_provider }
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(SimpleStubSelfTest.test_case("uses bad fixture", proc { |bad_constant_stub:| bad_constant_stub }))
+
+  status, output = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("NoMethodError")
+  expect(output).to include("simple_stub_const")
+  expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
 end
 
 test("simple stub preserves receiver self and method blocks") do
