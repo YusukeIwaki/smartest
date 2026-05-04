@@ -65,6 +65,8 @@ end
 
 ## Installation
 
+Smartest requires Ruby 2.7 or newer.
+
 Add this line to your application's Gemfile:
 
 ```ruby

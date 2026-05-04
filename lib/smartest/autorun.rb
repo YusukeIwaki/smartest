@@ -3,6 +3,6 @@
 require "English"
 require_relative "../smartest"
 
-Kernel.prepend Smartest::DSL
+Smartest.install_dsl!
 
 Smartest.register_autorun!
