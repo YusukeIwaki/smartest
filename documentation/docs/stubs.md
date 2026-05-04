@@ -55,12 +55,9 @@ see the original method unless they apply their own stub.
 A Rails authentication fixture might look like this:
 
 ```ruby
-require "securerandom"
-
 class EdgeCaseFixture < Smartest::Fixture
   fixture :suspended_user do
-    user = User.create!(name: "suspended-#{SecureRandom.hex(24)}")
-    user.tap(&:suspend!)
+    create(:user, :suspended)
   end
 
   fixture :suspended_user_logged_in do |suspended_user:|
