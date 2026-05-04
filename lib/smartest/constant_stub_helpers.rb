@@ -4,10 +4,10 @@ module Smartest
   module ConstantStubHelpers
     private
 
-    def simple_stub_const(constant_path, value)
-      raise ArgumentError, "simple_stub_const block is required" unless block_given?
+    def with_stub_const(constant_path, value)
+      raise ArgumentError, "with_stub_const block is required" unless block_given?
 
-      owner, constant_name = resolve_simple_stub_constant(constant_path)
+      owner, constant_name = resolve_with_stub_constant(constant_path)
       original_defined = owner.const_defined?(constant_name, false)
       original_value = owner.const_get(constant_name, false) if original_defined
 
@@ -22,7 +22,7 @@ module Smartest
       end
     end
 
-    def resolve_simple_stub_constant(constant_path)
+    def resolve_with_stub_constant(constant_path)
       unless constant_path.is_a?(String) || constant_path.is_a?(Symbol)
         raise ArgumentError, "constant path must be a String or Symbol"
       end

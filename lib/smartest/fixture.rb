@@ -2,7 +2,7 @@
 
 module Smartest
   class Fixture
-    RESERVED_CONTEXT_METHODS = %i[skip pending simple_stub_const].freeze
+    RESERVED_CONTEXT_METHODS = %i[skip pending with_stub_const].freeze
 
     class << self
       def fixture(name, scope: :test, &block)

@@ -639,13 +639,13 @@ end
 Use `simple_stub(Time, :now) { fixed_time }` for singleton methods such as class
 methods.
 
-Use `simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") { ... }` for
+Use `with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") { ... }` for
 constants in test bodies, `around_test`, or `around_suite`. Constant stubs are
 process-global; avoid concurrent tests that stub the same constant.
 
 The method stub helpers call `Smartest::SimpleStub` internally, apply the stub,
 register `cleanup { stub.reset }`, and return the stub object.
-`simple_stub_const` records the previous constant value, replaces it, yields to
+`with_stub_const` records the previous constant value, replaces it, yields to
 the block, and restores or removes the constant with `ensure`.
 
 `Smartest::SimpleStub#apply` and `#reset` are idempotent in the current Fiber.

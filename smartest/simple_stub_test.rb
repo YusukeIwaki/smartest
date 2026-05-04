@@ -158,8 +158,8 @@ test("simple_stub applies and resets singleton methods from fixture cleanup") do
   expect(status).to eq(0)
 end
 
-test("simple_stub_const applies and resets existing constants in test body blocks") do
-  result = simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
+test("with_stub_const applies and resets existing constants in test body blocks") do
+  result = with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
     expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
     :block_result
   end
@@ -168,17 +168,17 @@ test("simple_stub_const applies and resets existing constants in test body block
   expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
 end
 
-test("simple_stub_const removes newly defined constants after test body blocks") do
-  simple_stub_const("SimpleStubSelfTestConfig::MISSING_PROVIDER", :stubbed_missing_provider) do
+test("with_stub_const removes newly defined constants after test body blocks") do
+  with_stub_const("SimpleStubSelfTestConfig::MISSING_PROVIDER", :stubbed_missing_provider) do
     expect(SimpleStubSelfTestConfig::MISSING_PROVIDER).to eq(:stubbed_missing_provider)
   end
 
   expect(SimpleStubSelfTestConfig.const_defined?(:MISSING_PROVIDER, false)).to eq(false)
 end
 
-test("simple_stub_const restores constants when the block raises") do
+test("with_stub_const restores constants when the block raises") do
   error = SimpleStubSelfTest.capture_error(RuntimeError) do
-    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
+    with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
       expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
       raise "stubbed block failed"
     end
@@ -188,18 +188,18 @@ test("simple_stub_const restores constants when the block raises") do
   expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
 end
 
-test("simple_stub_const requires a block") do
+test("with_stub_const requires a block") do
   error = SimpleStubSelfTest.capture_error(ArgumentError) do
-    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider)
+    with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider)
   end
 
-  expect(error.message).to eq("simple_stub_const block is required")
+  expect(error.message).to eq("with_stub_const block is required")
 end
 
-test("simple_stub_const wraps around_test hooks") do
+test("with_stub_const wraps around_test hooks") do
   suite = Smartest::Suite.new
   suite.around_test_hooks << proc do |test_run|
-    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :around_test_provider) do
+    with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :around_test_provider) do
       test_run.run
     end
   end
@@ -216,10 +216,10 @@ test("simple_stub_const wraps around_test hooks") do
   expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
 end
 
-test("simple_stub_const wraps around_suite hooks") do
+test("with_stub_const wraps around_suite hooks") do
   suite = Smartest::Suite.new
   suite.around_suite_hooks << proc do |suite_run|
-    simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :around_suite_provider) do
+    with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :around_suite_provider) do
       suite_run.run
     end
   end
@@ -236,10 +236,10 @@ test("simple_stub_const wraps around_suite hooks") do
   expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
 end
 
-test("simple_stub_const is not available inside fixture blocks") do
+test("with_stub_const is not available inside fixture blocks") do
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :bad_constant_stub do
-      simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :fixture_provider) { :fixture_provider }
+      with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :fixture_provider) { :fixture_provider }
     end
   end
 
@@ -251,7 +251,7 @@ test("simple_stub_const is not available inside fixture blocks") do
 
   expect(status).to eq(1)
   expect(output).to include("NoMethodError")
-  expect(output).to include("simple_stub_const")
+  expect(output).to include("with_stub_const")
   expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider)
 end
 

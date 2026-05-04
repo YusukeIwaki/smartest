@@ -101,12 +101,12 @@ end
 
 ## Constant Stubs
 
-Use `simple_stub_const` with a block for constants. It is available in test
+Use `with_stub_const` with a block for constants. It is available in test
 bodies, `around_test`, and `around_suite`, not in fixture blocks.
 
 ```ruby
 test("uses fake payment provider") do
-  simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+  with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
     expect(Checkout.call).to eq(:paid)
   end
 end
@@ -117,7 +117,7 @@ think of an around example hook:
 
 ```ruby
 around_test do |test|
-  simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+  with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
     test.run
   end
 end
@@ -128,7 +128,7 @@ run:
 
 ```ruby
 around_suite do |suite|
-  simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+  with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
     suite.run
   end
 end
@@ -170,13 +170,13 @@ to the fixture lifecycle.
 
 ## How Constant Stub Blocks Work
 
-`simple_stub_const` records the previous constant value, replaces it, yields to
-the block, and restores or removes the constant with `ensure`.
+`with_stub_const` records the previous constant value, replaces it,
+yields to the block, and restores or removes the constant with `ensure`.
 
 Conceptually, this:
 
 ```ruby
-simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
   call_api
 end
 ```
@@ -215,22 +215,22 @@ For class methods, pass the class object:
 simple_stub(Time, :now) { fixed_time }
 ```
 
-`simple_stub_const(constant_path, value) { ... }` stubs a constant for the
+`with_stub_const(constant_path, value) { ... }` stubs a constant for the
 duration of the block. The path may be a String or Symbol:
 
 ```ruby
-simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
   call_api
 end
 ```
 
 `simple_stub_any_instance_of` and `simple_stub` return the
-`Smartest::SimpleStub` object. `simple_stub_const` returns the block result.
+`Smartest::SimpleStub` object. `with_stub_const` returns the block result.
 
 `simple_stub_any_instance_of` and `simple_stub` are available inside
 `Smartest::Fixture` fixture blocks, including `fixture` and `suite_fixture`,
 because they need `cleanup` to keep the stub lifetime tied to the fixture scope.
-`simple_stub_const` is available in test bodies, `around_test`, and
+`with_stub_const` is available in test bodies, `around_test`, and
 `around_suite`.
 
 ## What Stubs Are Not
@@ -305,6 +305,6 @@ the same time. Cleanup still matters, so prefer the fixture helpers when the
 stub belongs to test setup.
 
 Constant stubs are different: Ruby constant lookup does not provide a Fiber-local
-hook, so `simple_stub_const` replaces the constant on the owner module. That
+hook, so `with_stub_const` replaces the constant on the owner module. That
 change is process-global until cleanup runs. Avoid concurrent tests that stub
 the same constant.
