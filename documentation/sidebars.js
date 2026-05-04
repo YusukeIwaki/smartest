@@ -9,6 +9,7 @@ const sidebars = {
     'running-test-suites',
     'skipping-tests',
     'fixtures',
+    'stubs',
     'matchers',
     'helpers',
     'playwright-browser-tests',

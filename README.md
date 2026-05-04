@@ -600,6 +600,43 @@ end
 
 Register cleanup immediately after acquiring the resource, before later setup steps that may fail.
 
+## Stubs
+
+Use simple stub helpers when a fixture needs to temporarily replace a Ruby
+method and reset it during cleanup:
+
+```ruby
+class PaymentFixture < Smartest::Fixture
+  fixture :payment_gateway_stub do
+    simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
+  end
+end
+```
+
+The stub affects existing instances and new instances of the target class in
+the current Fiber until it is reset. Other Fibers and Threads continue to see
+the original method unless they apply their own stub. Tests can request the
+fixture to make the side effect explicit:
+
+```ruby
+test("checkout succeeds") do |payment_gateway_stub:|
+  expect(Checkout.call).to eq(:paid)
+end
+```
+
+Use `simple_stub(Time, :now) { fixed_time }` for singleton methods such as class
+methods. Both helpers call `Smartest::SimpleStub` internally, apply the stub,
+register `cleanup { stub.reset }`, and return the stub object. They are
+available inside `Smartest::Fixture` fixture blocks because they need cleanup to
+tie the stub lifetime to the fixture scope.
+
+`Smartest::SimpleStub#apply` and `#reset` are idempotent in the current Fiber.
+`apply!` raises
+`Smartest::SimpleStub::AlreadyAppliedError` when the stub is already active in
+the current Fiber, and `reset!` raises
+`Smartest::SimpleStub::NotAppliedError` when it is not active there. See
+[Stubs](documentation/docs/stubs.md).
+
 ## Logged-in client example
 
 ```ruby
@@ -825,6 +862,7 @@ Smartest currently focuses on a small runner API:
 - fixture dependencies through keyword arguments
 - fixture cleanup
 - suite-scoped fixtures through `suite_fixture`
+- fixture-scoped method stubs through `simple_stub_any_instance_of` and `simple_stub`
 - suite hooks with `around_suite`
 - test hooks with `around_test`
 - skipped and pending tests through `skip` and `pending`

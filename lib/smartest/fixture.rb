@@ -65,6 +65,20 @@ module Smartest
       @fixture_set.add_cleanup(&block)
     end
 
+    def simple_stub_any_instance_of(klass, method_name, &block)
+      apply_simple_stub(SimpleStub.new(klass, method_name, &block))
+    end
+
+    def simple_stub(object, method_name, &block)
+      apply_simple_stub(SimpleStub.new(object.singleton_class, method_name, &block))
+    end
+
+    def apply_simple_stub(stub)
+      stub.apply!
+      cleanup { stub.reset }
+      stub
+    end
+
     def method_missing(method_name, *args, &block)
       return super if RESERVED_CONTEXT_METHODS.include?(method_name)
 
