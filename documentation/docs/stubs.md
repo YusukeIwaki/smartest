@@ -99,13 +99,34 @@ test("uses fixed time") do |fixed_time:|
 end
 ```
 
+## Constant Stubs
+
+Use `simple_stub_const` for constants:
+
+```ruby
+class PaymentFixture < Smartest::Fixture
+  fixture :fake_payment_provider do
+    simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake")
+  end
+end
+```
+
+```ruby
+test("uses fake payment provider") do |fake_payment_provider:|
+  expect(AppConfig::PAYMENT_PROVIDER).to eq(fake_payment_provider)
+end
+```
+
+Constant stubs are process-global. Avoid concurrent tests that stub the same
+constant.
+
 ## How Cleanup Works
 
 You do not need to call `reset!` manually when using stub helpers inside
 fixtures. The helper internally:
 
-1. creates a `Smartest::SimpleStub`
-2. applies it
+1. creates the stub state
+2. applies the replacement
 3. registers cleanup to reset it
 
 Conceptually, this:
@@ -121,6 +142,9 @@ stub = Smartest::SimpleStub.new(ApplicationController, :current_user) { user }
 stub.apply!
 cleanup { stub.reset }
 ```
+
+For constants, Smartest records the previous constant value, replaces it, and
+restores or removes it during cleanup.
 
 Cleanup is tied to the fixture lifecycle:
 
@@ -146,9 +170,18 @@ For class methods, pass the class object:
 simple_stub(Time, :now) { fixed_time }
 ```
 
-Both helpers return the `Smartest::SimpleStub` object. They are available inside
-`Smartest::Fixture` fixture blocks, including `fixture` and `suite_fixture`,
-because they need `cleanup` to keep the stub lifetime tied to the fixture scope.
+`simple_stub_const(constant_path, value)` stubs a constant. The path may be a
+String or Symbol:
+
+```ruby
+simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake")
+```
+
+`simple_stub_any_instance_of` and `simple_stub` return the
+`Smartest::SimpleStub` object. `simple_stub_const` returns the stubbed value.
+All three helpers are available inside `Smartest::Fixture` fixture blocks,
+including `fixture` and `suite_fixture`, because they need `cleanup` to keep the
+stub lifetime tied to the fixture scope.
 
 ## What Stubs Are Not
 
@@ -196,7 +229,7 @@ Smartest::SimpleStub.new(User, :name) { "Test User" }.apply
 Smartest::SimpleStub.new(User, :name).reset
 ```
 
-## Fiber and Thread Scope
+## Scope and Concurrency
 
 `Smartest::SimpleStub` installs a process-wide dispatcher method, but the active
 stub implementation is looked up from Fiber-local storage. Applying a stub in
@@ -220,3 +253,8 @@ stub.reset!
 Different Threads can apply different stubs for the same class and method at
 the same time. Cleanup still matters, so prefer the fixture helpers when the
 stub belongs to test setup.
+
+Constant stubs are different: Ruby constant lookup does not provide a Fiber-local
+hook, so `simple_stub_const` replaces the constant on the owner module. That
+change is process-global until cleanup runs. Avoid concurrent tests that stub
+the same constant.

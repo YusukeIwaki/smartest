@@ -637,10 +637,16 @@ end
 ```
 
 Use `simple_stub(Time, :now) { fixed_time }` for singleton methods such as class
-methods. Both helpers call `Smartest::SimpleStub` internally, apply the stub,
-register `cleanup { stub.reset }`, and return the stub object. They are
-available inside `Smartest::Fixture` fixture blocks because they need cleanup to
-tie the stub lifetime to the fixture scope.
+methods. Use `simple_stub_const("AppConfig::PAYMENT_PROVIDER", "fake")` for
+constants. Constant stubs are process-global; avoid concurrent tests that stub
+the same constant.
+
+The method stub helpers call `Smartest::SimpleStub` internally, apply the stub,
+register `cleanup { stub.reset }`, and return the stub object.
+`simple_stub_const` records the previous constant value, replaces it, and
+restores or removes it during cleanup. These helpers are available inside
+`Smartest::Fixture` fixture blocks because they need cleanup to tie the stub
+lifetime to the fixture scope.
 
 `Smartest::SimpleStub#apply` and `#reset` are idempotent in the current Fiber.
 `apply!` raises
@@ -874,7 +880,7 @@ Smartest currently focuses on a small runner API:
 - fixture dependencies through keyword arguments
 - fixture cleanup
 - suite-scoped fixtures through `suite_fixture`
-- fixture-scoped method stubs through `simple_stub_any_instance_of` and `simple_stub`
+- fixture-scoped method and constant stubs
 - suite hooks with `around_suite`
 - test hooks with `around_test`
 - skipped and pending tests through `skip` and `pending`

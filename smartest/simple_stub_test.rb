@@ -63,6 +63,10 @@ class SimpleStubSelfTestClock
   end
 end
 
+module SimpleStubSelfTestConfig
+  PROVIDER = :original_provider
+end
+
 test("simple stub stubs instance methods until reset") do
   existing = SimpleStubSelfTestSubject.new("Alice")
   stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "stubbed" }
@@ -146,6 +150,66 @@ test("simple_stub applies and resets singleton methods from fixture cleanup") do
     SimpleStubSelfTest.test_case(
       "sees reset singleton method",
       proc { expect(SimpleStubSelfTestClock.now).to eq(:original_now) }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+end
+
+test("simple_stub_const applies and resets existing constants from fixture cleanup") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :stubbed_provider do
+      simple_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider)
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "uses constant stub fixture",
+      proc do |stubbed_provider:|
+        expect(stubbed_provider).to eq(:stubbed_provider)
+        expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
+      end
+    )
+  )
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "sees restored constant",
+      proc { expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:original_provider) }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+end
+
+test("simple_stub_const removes newly defined constants from fixture cleanup") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :stubbed_missing_provider do
+      simple_stub_const("SimpleStubSelfTestConfig::MISSING_PROVIDER", :stubbed_missing_provider)
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "uses new constant stub fixture",
+      proc do |stubbed_missing_provider:|
+        expect(stubbed_missing_provider).to eq(:stubbed_missing_provider)
+        expect(SimpleStubSelfTestConfig::MISSING_PROVIDER).to eq(:stubbed_missing_provider)
+      end
+    )
+  )
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "sees removed constant",
+      proc { expect(SimpleStubSelfTestConfig.const_defined?(:MISSING_PROVIDER, false)).to eq(false) }
     )
   )
 
