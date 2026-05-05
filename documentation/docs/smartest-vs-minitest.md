@@ -94,6 +94,76 @@ end
 The first test does not create `repository`. The second test creates
 `repository` and its `database` dependency.
 
+## Method Stubs
+
+Minitest's built-in `stub` is block-scoped:
+
+```ruby title="Minitest"
+class CheckoutTest < Minitest::Test
+  def test_uses_fixed_time
+    fixed_now = Time.utc(2026, 1, 1, 0, 0, 0)
+
+    Time.stub(:now, fixed_now) do
+      assert_equal fixed_now, Checkout.call.created_at
+    end
+  end
+end
+```
+
+In Smartest, method stubs usually belong in fixtures so tests can request the
+stubbed dependency by keyword:
+
+```ruby title="Smartest"
+class TimeFixture < Smartest::Fixture
+  fixture :fixed_now do
+    fixed_now = Time.utc(2026, 1, 1, 0, 0, 0)
+    simple_stub(Time, :now) { fixed_now }
+    fixed_now
+  end
+end
+
+around_suite do |suite|
+  use_fixture TimeFixture
+  suite.run
+end
+
+test("uses fixed time") do |fixed_now:|
+  expect(Checkout.call.created_at).to eq(fixed_now)
+end
+```
+
+If a Minitest suite uses RSpec mocks or Mocha-style any-instance stubs, move that
+setup into a fixture with `simple_stub_any_instance_of`:
+
+```ruby title="Smartest"
+class AuthFixture < Smartest::Fixture
+  fixture :user1 do
+    create(:user)
+  end
+
+  fixture :logged_in_as_user1 do |user1:|
+    simple_stub_any_instance_of(ApplicationController, :current_user) { user1 }
+    user1
+  end
+end
+
+test("uses the current user") do |logged_in_as_user1:|
+  expect(call_api.user).to eq(logged_in_as_user1)
+end
+```
+
+For constants, use `with_stub_const` as a block-scoped helper in the test body,
+`around_test`, or `around_suite`. Constant stubs are process-global, so avoid
+concurrent tests that stub the same constant:
+
+```ruby title="Smartest"
+test("uses fake payment provider") do
+  with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+    expect(Checkout.call).to eq(:paid)
+  end
+end
+```
+
 ## Coexisting With Minitest
 
 Smartest looks for this glob when no paths are passed:

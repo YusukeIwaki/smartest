@@ -2,6 +2,8 @@
 
 require_relative "smartest/version"
 require_relative "smartest/errors"
+require_relative "smartest/simple_stub"
+require_relative "smartest/constant_stub_helpers"
 require_relative "smartest/parameter_extractor"
 require_relative "smartest/test_case"
 require_relative "smartest/test_registry"

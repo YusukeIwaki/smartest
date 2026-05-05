@@ -4,6 +4,7 @@ module Smartest
   class ExecutionContext
     include Expectations
     include Matchers
+    include ConstantStubHelpers
 
     def initialize(run_state: TestRunState.new)
       @run_state = run_state

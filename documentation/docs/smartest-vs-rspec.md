@@ -87,6 +87,88 @@ end
 This keeps lifecycle ownership local. The fixture that starts `server` also
 registers the cleanup for `server`.
 
+## Method Stubs
+
+RSpec method stubs often live in `before` hooks:
+
+```ruby title="RSpec"
+RSpec.describe Checkout do
+  let(:fixed_now) { Time.utc(2026, 1, 1, 0, 0, 0) }
+
+  before do
+    allow(Time).to receive(:now).and_return(fixed_now)
+  end
+
+  it "uses the fixed time" do
+    expect(Checkout.call.created_at).to eq(fixed_now)
+  end
+end
+```
+
+In Smartest, put the stub in a fixture and request that fixture from tests that
+depend on it:
+
+```ruby title="Smartest"
+class TimeFixture < Smartest::Fixture
+  fixture :fixed_now do
+    fixed_now = Time.utc(2026, 1, 1, 0, 0, 0)
+    simple_stub(Time, :now) { fixed_now }
+    fixed_now
+  end
+end
+
+around_suite do |suite|
+  use_fixture TimeFixture
+  suite.run
+end
+
+test("uses the fixed time") do |fixed_now:|
+  expect(Checkout.call.created_at).to eq(fixed_now)
+end
+```
+
+The fixture signature makes the stubbed dependency explicit, and Smartest resets
+the method stub from fixture cleanup.
+
+For `allow_any_instance_of`, use `simple_stub_any_instance_of`:
+
+```ruby title="RSpec"
+before do
+  allow_any_instance_of(ApplicationController)
+    .to receive(:current_user)
+    .and_return(user1)
+end
+```
+
+```ruby title="Smartest"
+class AuthFixture < Smartest::Fixture
+  fixture :user1 do
+    create(:user)
+  end
+
+  fixture :logged_in_as_user1 do |user1:|
+    simple_stub_any_instance_of(ApplicationController, :current_user) { user1 }
+    user1
+  end
+end
+
+test("uses the current user") do |logged_in_as_user1:|
+  expect(call_api.user).to eq(logged_in_as_user1)
+end
+```
+
+Constant stubs are different from method stubs. Use `with_stub_const` with a
+block in a test body, `around_test`, or `around_suite`; it is intentionally not
+a fixture helper because Ruby constants are process-global:
+
+```ruby title="Smartest"
+test("uses fake payment provider") do
+  with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") do
+    expect(Checkout.call).to eq(:paid)
+  end
+end
+```
+
 ## When Smartest Is a Good Fit
 
 Smartest is worth considering when:

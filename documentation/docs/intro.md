@@ -51,6 +51,7 @@ end
 - [Skipping Tests](./skipping-tests.md) covers skipped tests and expected failures.
 - [Running Test Suites](./running-test-suites.md) covers autorun and the CLI.
 - [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and cleanup.
+- [Stubs](./stubs.md) shows method stubs that reset from fixture cleanup.
 - [Helpers](./helpers.md) explains registering helper modules from `around_test`.
 - [Browser Tests With Playwright](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
 
@@ -64,6 +65,7 @@ Smartest currently focuses on a small runner API:
 - fixture dependencies through keyword arguments
 - fixture cleanup
 - suite-scoped fixtures through `suite_fixture`
+- fixture-scoped method stubs and block-scoped constant stubs
 - suite hooks through `around_suite`
 - test hooks through `around_test`
 - skipped and pending tests through `skip` and `pending`

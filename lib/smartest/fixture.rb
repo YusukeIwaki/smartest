@@ -2,7 +2,7 @@
 
 module Smartest
   class Fixture
-    RESERVED_CONTEXT_METHODS = %i[skip pending].freeze
+    RESERVED_CONTEXT_METHODS = %i[skip pending with_stub_const].freeze
 
     class << self
       def fixture(name, scope: :test, &block)
@@ -63,6 +63,20 @@ module Smartest
       raise ArgumentError, "cleanup block is required" unless block
 
       @fixture_set.add_cleanup(&block)
+    end
+
+    def simple_stub_any_instance_of(klass, method_name, &block)
+      apply_simple_stub(SimpleStub.new(klass, method_name, &block))
+    end
+
+    def simple_stub(object, method_name, &block)
+      apply_simple_stub(SimpleStub.new(object.singleton_class, method_name, &block))
+    end
+
+    def apply_simple_stub(stub)
+      stub.apply!
+      cleanup { stub.reset }
+      stub
     end
 
     def method_missing(method_name, *args, &block)

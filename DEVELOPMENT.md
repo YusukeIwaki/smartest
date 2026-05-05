@@ -45,6 +45,8 @@ smartest/
       expectations.rb
       expectation_target.rb
       matchers.rb
+      simple_stub.rb
+      constant_stub_helpers.rb
 
       runner.rb
       test_result.rb

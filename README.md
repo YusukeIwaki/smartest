@@ -600,6 +600,61 @@ end
 
 Register cleanup immediately after acquiring the resource, before later setup steps that may fail.
 
+## Stubs
+
+Use simple stub helpers when a fixture needs to temporarily replace a Ruby
+method and reset it during cleanup:
+
+```ruby
+class PaymentFixture < Smartest::Fixture
+  fixture :payment_gateway_stub do
+    simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
+  end
+end
+```
+
+Register the fixture class from `around_suite` before tests request the fixture:
+
+```ruby
+around_suite do |suite|
+  use_fixture PaymentFixture
+  suite.run
+end
+```
+
+`use_fixture` is available inside `around_suite` or `around_test` blocks, not as
+a top-level method in a test file.
+
+The stub affects existing instances and new instances of the target class in
+the current Fiber until it is reset. Other Fibers and Threads continue to see
+the original method unless they apply their own stub. Tests can request the
+fixture to make the side effect explicit:
+
+```ruby
+test("checkout succeeds") do |payment_gateway_stub:|
+  expect(Checkout.call).to eq(:paid)
+end
+```
+
+Use `simple_stub(Time, :now) { fixed_time }` for singleton methods such as class
+methods.
+
+Use `with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") { ... }` for
+constants in test bodies, `around_test`, or `around_suite`. Constant stubs are
+process-global; avoid concurrent tests that stub the same constant.
+
+The method stub helpers call `Smartest::SimpleStub` internally, apply the stub,
+register `cleanup { stub.reset }`, and return the stub object.
+`with_stub_const` records the previous constant value, replaces it, yields to
+the block, and restores or removes the constant with `ensure`.
+
+`Smartest::SimpleStub#apply` and `#reset` are idempotent in the current Fiber.
+`apply!` raises
+`Smartest::SimpleStub::AlreadyAppliedError` when the stub is already active in
+the current Fiber, and `reset!` raises
+`Smartest::SimpleStub::NotAppliedError` when it is not active there. See
+[Stubs](documentation/docs/stubs.md).
+
 ## Logged-in client example
 
 ```ruby
@@ -825,6 +880,7 @@ Smartest currently focuses on a small runner API:
 - fixture dependencies through keyword arguments
 - fixture cleanup
 - suite-scoped fixtures through `suite_fixture`
+- fixture-scoped method stubs and block-scoped constant stubs
 - suite hooks with `around_suite`
 - test hooks with `around_test`
 - skipped and pending tests through `skip` and `pending`
