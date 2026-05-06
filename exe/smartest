@@ -7,17 +7,50 @@ require "smartest"
 
 usage = <<~USAGE
   Usage:
-    smartest [--profile N] [paths...]
-    smartest [--profile N] path/to/test_file.rb:line[-line]
-    smartest --init
-    smartest --init-browser
-    smartest --version
-    smartest --help
+    bundle exec smartest [options] [paths...]
 
-  When no paths are given, Smartest loads smartest/**/*_test.rb.
-  Smartest prints the 5 slowest tests after the run by default.
-  Use --profile N to choose how many slowest tests are printed.
+  Common commands:
+    bundle exec smartest
+        Run tests under smartest/**/*_test.rb
+
+    bundle exec smartest smartest/suite1/
+        Run test files matching smartest/suite1/**/*_test.rb
+
+    bundle exec smartest smartest/user_test.rb
+        Run one test file
+
+    bundle exec smartest smartest/user_test.rb:12
+        Run tests around line 12
+
+    bundle exec smartest --init
+        Generate a basic Smartest scaffold
+
+    bundle exec smartest --init-browser
+        Generate a Playwright browser-test scaffold
+
+  Options:
+    --profile N
+        Print the N slowest tests. Defaults to 5.
+
+    --version, -v
+        Print the installed Smartest version.
+
+    --help, -h
+        Print this help.
 USAGE
+
+missing_smartest_directory_message = <<~MESSAGE
+  No smartest/ directory found.
+
+  To create a Smartest test scaffold:
+    bundle exec smartest --init
+
+  For browser tests:
+    bundle exec smartest --init-browser
+
+  See all commands:
+    bundle exec smartest --help
+MESSAGE
 
 command = :run
 
@@ -45,9 +78,15 @@ begin
   Smartest.disable_autorun!
   Smartest.install_dsl!
   test_load_path = File.expand_path("smartest", Dir.pwd)
-  $LOAD_PATH.unshift(test_load_path) if Dir.exist?(test_load_path) && !$LOAD_PATH.include?(test_load_path)
 
   arguments = Smartest::CLIArguments.new(ARGV)
+
+  if arguments.default_paths? && !Dir.exist?(test_load_path)
+    puts missing_smartest_directory_message
+    exit 1
+  end
+
+  $LOAD_PATH.unshift(test_load_path) if Dir.exist?(test_load_path) && !$LOAD_PATH.include?(test_load_path)
 
   arguments.files.each do |file|
     load File.expand_path(file)

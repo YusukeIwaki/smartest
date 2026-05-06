@@ -1435,6 +1435,44 @@ test("cli loads files and returns failure status") do
   end
 end
 
+test("cli expands directory paths to tests under that directory") do
+  Dir.mktmpdir do |dir|
+    smartest_dir = File.join(dir, "smartest")
+    FileUtils.mkdir_p(File.join(smartest_dir, "nested"))
+    File.write(File.join(smartest_dir, "test_helper.rb"), <<~RUBY)
+      require "smartest/autorun"
+    RUBY
+    File.write(File.join(smartest_dir, "root_test.rb"), <<~RUBY)
+      require "test_helper"
+
+      test("root directory test") do
+        expect(1).to eq(1)
+      end
+    RUBY
+    File.write(File.join(smartest_dir, "nested", "nested_test.rb"), <<~RUBY)
+      require "test_helper"
+
+      test("nested directory test") do
+        expect(2).to eq(2)
+      end
+    RUBY
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "smartest/",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("root directory test")
+    expect(stdout).to include("nested directory test")
+    expect(stdout).to include("2 tests, 2 passed, 0 failed")
+  end
+end
+
 test("cli loads matcher files registered in test helper") do
   Dir.mktmpdir do |dir|
     smartest_dir = File.join(dir, "smartest")
@@ -1656,12 +1694,59 @@ test("cli prints help") do
   expect(status.success?).to eq(true)
   expect(stderr).to eq("")
   expect(stdout).to include("Usage:")
-  expect(stdout).to include("smartest [--profile N] [paths...]")
-  expect(stdout).to include("smartest [--profile N] path/to/test_file.rb:line[-line]")
-  expect(stdout).to include("smartest --init")
-  expect(stdout).to include("smartest --init-browser")
-  expect(stdout).to include("Use --profile N")
+  expect(stdout).to include("bundle exec smartest [options] [paths...]")
+  expect(stdout).to include("Common commands:")
+  expect(stdout).to include("bundle exec smartest smartest/suite1/")
+  expect(stdout).to include("Run test files matching smartest/suite1/**/*_test.rb")
+  expect(stdout).to include("bundle exec smartest smartest/user_test.rb")
+  expect(stdout).to include("bundle exec smartest smartest/user_test.rb:12")
+  expect(stdout).not_to include("bundle exec smartest smartest/example_browser_test.rb")
+  expect(stdout).not_to include("Run a browser test file")
+  expect(stdout).to include("bundle exec smartest --init")
+  expect(stdout).to include("bundle exec smartest --init-browser")
+  expect(stdout).to include("--profile N")
   expect(stdout).to include("smartest/**/*_test.rb")
+end
+
+test("cli explains how to initialize when default smartest directory is missing") do
+  Dir.mktmpdir do |dir|
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(false)
+    expect(stderr).to eq("")
+    expect(stdout).to include("No smartest/ directory found.")
+    expect(stdout).to include("bundle exec smartest --init")
+    expect(stdout).to include("bundle exec smartest --init-browser")
+    expect(stdout).to include("bundle exec smartest --help")
+  end
+end
+
+test("cli still runs explicit paths when default smartest directory is missing") do
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "sample_test.rb"), <<~RUBY)
+      test("explicit path") do
+        expect(1).to eq(1)
+      end
+    RUBY
+
+    stdout, stderr, status = Open3.capture3(
+      { "RUBYLIB" => File.expand_path("../lib", __dir__) },
+      "ruby",
+      File.expand_path("../exe/smartest", __dir__),
+      "sample_test.rb",
+      chdir: dir
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to include("explicit path")
+    expect(stdout).to include("1 test, 1 passed, 0 failed")
+  end
 end
 
 test("--profile prints the slowest tests with default count of 5") do
@@ -1760,7 +1845,9 @@ test("CLIArguments defaults profile count and parses --profile N") do
 
   expect(arguments.profile_count).to eq(5)
   expect(arguments.files).to eq(Dir["smartest/**/*_test.rb"])
+  expect(arguments.default_paths?).to eq(true)
   expect(Smartest::CLIArguments.new(["--profile", "3"]).profile_count).to eq(3)
+  expect(Smartest::CLIArguments.new(["smartest/foo_test.rb"]).default_paths?).to eq(false)
 end
 
 test("CLIArguments leaves unsupported profile forms as paths") do

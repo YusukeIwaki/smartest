@@ -856,7 +856,24 @@ If no paths are given:
 bundle exec smartest
 ```
 
-should default to:
+should default to `smartest/**/*_test.rb` when `smartest/` exists. If the
+directory does not exist, the CLI should print scaffold guidance and exit with
+status `1`:
+
+```text
+No smartest/ directory found.
+
+To create a Smartest test scaffold:
+  bundle exec smartest --init
+
+For browser tests:
+  bundle exec smartest --init-browser
+
+See all commands:
+  bundle exec smartest --help
+```
+
+Default paths:
 
 ```text
 smartest/**/*_test.rb
@@ -877,8 +894,8 @@ arguments.files.each { |file| load File.expand_path(file) }
 exit Smartest::Runner.new(tests: arguments.select_tests(Smartest.suite.tests)).run
 ```
 
-`Smartest::CLIArguments` should support file paths, shell globs, `path:line`,
-and `path:start-end` filters.
+`Smartest::CLIArguments` should support file paths, directory paths, shell
+globs, `path:line`, and `path:start-end` filters.
 
 `smartest/autorun` should use `at_exit`.
 

@@ -123,11 +123,33 @@ bundle exec smartest
 By default, Smartest loads `smartest/**/*_test.rb`, so a separate `test/`
 directory can remain available for Minitest.
 
+If `smartest/` does not exist yet and no explicit paths are passed, Smartest
+prints scaffold commands instead of attempting a default test run:
+
+```text
+No smartest/ directory found.
+
+To create a Smartest test scaffold:
+  bundle exec smartest --init
+
+For browser tests:
+  bundle exec smartest --init-browser
+
+See all commands:
+  bundle exec smartest --help
+```
+
 You can also pass explicit paths:
 
 ```bash
+bundle exec smartest smartest/suite1/
 bundle exec smartest smartest/**/*_test.rb
+bundle exec smartest smartest/user_test.rb
 ```
+
+A directory path is expanded to `**/*_test.rb` under that directory, so
+`bundle exec smartest smartest/suite1/` is equivalent to
+`bundle exec smartest smartest/suite1/**/*_test.rb`.
 
 To run tests by line number, append `:line` or `:start-end` to the file path.
 Smartest runs tests whose `test` blocks contain or intersect the selected lines:
@@ -150,6 +172,18 @@ CLI help and version output are available with:
 ```bash
 bundle exec smartest --help
 bundle exec smartest --version
+```
+
+The help output lists common commands, including default runs, directory runs,
+single-file runs, line-filtered runs, and scaffold generation:
+
+```bash
+bundle exec smartest
+bundle exec smartest smartest/suite1/
+bundle exec smartest smartest/user_test.rb
+bundle exec smartest smartest/user_test.rb:12
+bundle exec smartest --init
+bundle exec smartest --init-browser
 ```
 
 Output resembles:

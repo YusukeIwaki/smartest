@@ -62,10 +62,39 @@ smartest/**/*_test.rb
 Smartest does not load files from `test/` by default, so a project can keep
 Minitest files there while using Smartest files under `smartest/`.
 
+If `smartest/` does not exist yet and you do not pass explicit paths, Smartest
+prints scaffold commands and exits with status `1`:
+
+```text
+No smartest/ directory found.
+
+To create a Smartest test scaffold:
+  bundle exec smartest --init
+
+For browser tests:
+  bundle exec smartest --init-browser
+
+See all commands:
+  bundle exec smartest --help
+```
+
 You can pass a single file:
 
 ```bash
 bundle exec smartest smartest/user_test.rb
+```
+
+Or a directory:
+
+```bash
+bundle exec smartest smartest/suite1/
+```
+
+A directory path is expanded to `**/*_test.rb` under that directory, so this is
+equivalent to:
+
+```bash
+bundle exec smartest smartest/suite1/**/*_test.rb
 ```
 
 Or a shell glob:
@@ -96,6 +125,32 @@ Show CLI help:
 
 ```bash
 bundle exec smartest --help
+```
+
+The help output is structured around common commands:
+
+```text
+Usage:
+  bundle exec smartest [options] [paths...]
+
+Common commands:
+  bundle exec smartest
+      Run tests under smartest/**/*_test.rb
+
+  bundle exec smartest smartest/suite1/
+      Run test files matching smartest/suite1/**/*_test.rb
+
+  bundle exec smartest smartest/user_test.rb
+      Run one test file
+
+  bundle exec smartest smartest/user_test.rb:12
+      Run tests around line 12
+
+  bundle exec smartest --init
+      Generate a basic Smartest scaffold
+
+  bundle exec smartest --init-browser
+      Generate a Playwright browser-test scaffold
 ```
 
 Show the installed Smartest version:

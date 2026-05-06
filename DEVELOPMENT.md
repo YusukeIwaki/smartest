@@ -648,6 +648,10 @@ A practical approach:
 - `exe/smartest`
 - load files from ARGV
 - default glob `smartest/**/*_test.rb`
+- print scaffold guidance and exit 1 when the default run is requested before
+  `smartest/` exists
+- expand directory path arguments such as `smartest/` to `**/*_test.rb` files
+  under that directory
 - support `path:line` and `path:start-end` filters that run tests whose `test`
   blocks contain or intersect the lines
 - add `smartest/` to the load path before loading tests

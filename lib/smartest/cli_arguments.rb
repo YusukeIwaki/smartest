@@ -5,6 +5,7 @@ require "set"
 module Smartest
   class CLIArguments
     DEFAULT_PROFILE_COUNT = 5
+    DEFAULT_PATHS = ["smartest/**/*_test.rb"].freeze
 
     attr_reader :files, :line_filters, :profile_count
 
@@ -13,13 +14,23 @@ module Smartest
       @whole_files = Set.new
       @line_filters = Hash.new { |hash, key| hash[key] = Set.new }
       @profile_count = DEFAULT_PROFILE_COUNT
+      @default_paths = false
 
       paths = extract_options(argv)
-      parse_paths(paths.empty? ? ["smartest/**/*_test.rb"] : paths)
+      if paths.empty?
+        @default_paths = true
+        paths = DEFAULT_PATHS
+      end
+
+      parse_paths(paths)
     end
 
     def filter_tests?
       @line_filters.any?
+    end
+
+    def default_paths?
+      @default_paths
     end
 
     def select_tests(tests)
@@ -64,8 +75,7 @@ module Smartest
     def parse_paths(paths)
       paths.each do |argument|
         pattern, line_filter = split_line_filter(argument)
-        matches = Dir[pattern]
-        files = matches.empty? ? [pattern] : matches
+        files = expand_path_pattern(pattern)
 
         files.each do |file|
           @files << file
@@ -80,6 +90,19 @@ module Smartest
       end
 
       @files.uniq!
+    end
+
+    def expand_path_pattern(pattern)
+      matches = Dir[pattern]
+      return [pattern] if matches.empty?
+
+      matches.flat_map do |match|
+        if File.directory?(match)
+          Dir[File.join(match, "**", "*_test.rb")]
+        else
+          match
+        end
+      end
     end
 
     def split_line_filter(argument)
