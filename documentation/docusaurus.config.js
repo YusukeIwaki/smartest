@@ -99,6 +99,10 @@ const config = {
                 label: 'GitHub',
                 href: 'https://github.com/YusukeIwaki/smartest',
               },
+              {
+                label: 'RubyGems',
+                href: 'https://rubygems.org/gems/smartest',
+              },
             ],
           },
         ],

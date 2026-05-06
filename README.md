@@ -1,7 +1,10 @@
-# Smartest introduces Pytest-style fixtures for Ruby
+# Smartest
 
-Smartest is a small Ruby test runner that brings pytest-style fixture
-injection, explicit fixture dependencies, and fixture cleanup to Ruby tests.
+[![Gem Version](https://badge.fury.io/rb/smartest.svg)](https://rubygems.org/gems/smartest)
+
+Smartest is a Ruby test runner that brings pytest-style fixtures to Ruby,
+with explicit fixture dependencies, automatic cleanup, and Playwright-friendly
+browser testing.
 
 Tests request fixtures with Ruby keyword arguments. Fixtures define their own
 dependencies the same way:
@@ -66,6 +69,9 @@ end
 ## Installation
 
 Smartest requires Ruby 2.7 or newer.
+
+Smartest is published as the `smartest` RubyGem:
+[Smartest on RubyGems](https://rubygems.org/gems/smartest).
 
 Add this line to your application's Gemfile:
 

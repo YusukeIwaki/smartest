@@ -7,8 +7,15 @@ Gem::Specification.new do |spec|
   spec.version = Smartest::VERSION
   spec.authors = ["Yusuke Iwaki"]
 
-  spec.summary = "Pytest-style fixtures for Ruby."
-  spec.description = "Smartest is a Ruby test runner with pytest-style fixture injection. Tests request fixtures using keyword arguments, fixtures can depend on other fixtures, and cleanup is registered only when needed."
+  spec.summary = "A Ruby test runner with pytest-style fixtures and Playwright-friendly browser testing."
+  spec.description = <<~TEXT
+    Smartest is a Ruby test runner that brings pytest-style fixture injection
+    to Ruby. Tests declare dependencies with keyword arguments, fixtures can
+    depend on other fixtures, and cleanup is handled explicitly when needed.
+
+    Smartest is designed for readable Ruby tests, Rails system tests, and
+    Playwright-powered browser testing.
+  TEXT
   spec.homepage = "https://smartest-rb.vercel.app"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 2.7"
@@ -17,7 +24,7 @@ Gem::Specification.new do |spec|
     "allowed_push_host" => "https://rubygems.org",
     "bug_tracker_uri" => "https://github.com/YusukeIwaki/smartest/issues",
     "changelog_uri" => "https://github.com/YusukeIwaki/smartest/blob/main/CHANGELOG.md",
-    "documentation_uri" => "https://smartest-rb.vercel.app/docs/fixtures",
+    "documentation_uri" => "https://smartest-rb.vercel.app/docs",
     "homepage_uri" => spec.homepage,
     "rubygems_mfa_required" => "true",
     "source_code_uri" => "https://github.com/YusukeIwaki/smartest"
