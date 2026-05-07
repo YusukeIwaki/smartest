@@ -33,7 +33,7 @@ The generated Rails fixture starts `Rails.application` with
 require 'smartest/rails'
 require "playwright"
 
-class RailsSystemFixture < Smartest::Fixture
+class RailsSystemTestFixture < Smartest::Fixture
   suite_fixture :rails_server do
     # Set the environment before loading config/environment so the test
     # server cannot boot against the development database by default.
@@ -70,7 +70,7 @@ The generated Rails fixture keeps these resources suite-scoped:
 Each test gets its own browser context and page:
 
 ```ruby
-class RailsSystemFixture < Smartest::Fixture
+class RailsSystemTestFixture < Smartest::Fixture
   fixture :browser_context do |base_url:, browser:|
     context = browser.new_context(baseURL: base_url)
     on_teardown { context.close }

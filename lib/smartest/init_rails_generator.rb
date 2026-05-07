@@ -10,7 +10,7 @@ module Smartest
       require 'smartest/rails'
       require "playwright"
 
-      class RailsSystemFixture < Smartest::Fixture
+      class RailsSystemTestFixture < Smartest::Fixture
         suite_fixture :rails_server do
           # Set the environment before loading config/environment so the test
           # server cannot boot against the development database by default.
@@ -156,7 +156,7 @@ module Smartest
 
     def ensure_rails_registered(contents)
       missing_lines = []
-      missing_lines << "  use_fixture RailsSystemFixture\n" unless contents.include?("use_fixture RailsSystemFixture")
+      missing_lines << "  use_fixture RailsSystemTestFixture\n" unless contents.include?("use_fixture RailsSystemTestFixture")
       missing_lines << "  use_matcher PlaywrightMatcher\n" unless contents.include?("use_matcher PlaywrightMatcher")
       return contents if missing_lines.empty?
 

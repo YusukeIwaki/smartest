@@ -2316,7 +2316,7 @@ test("cli rails init generator creates Rails browser scaffold and installation c
     expect(status).to eq(0)
     rails_fixture = File.read(File.join(dir, "smartest/fixtures/rails_system_fixture.rb"))
     expect(rails_fixture).to include("require 'smartest/rails'")
-    expect(rails_fixture).to include("class RailsSystemFixture < Smartest::Fixture")
+    expect(rails_fixture).to include("class RailsSystemTestFixture < Smartest::Fixture")
     expect(rails_fixture).to include("suite_fixture :rails_server")
     expect(rails_fixture).to include("server cannot boot against the development database")
     expect(rails_fixture).to include('require_relative "../../config/environment"')
@@ -2334,7 +2334,7 @@ test("cli rails init generator creates Rails browser scaffold and installation c
     expect(example_test).to include("expect(response.status).to be_between(200, 599)")
 
     helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
-    expect(helper_contents).to include("use_matcher PredicateMatcher\n  use_fixture RailsSystemFixture\n  use_matcher PlaywrightMatcher\n  suite.run")
+    expect(helper_contents).to include("use_matcher PredicateMatcher\n  use_fixture RailsSystemTestFixture\n  use_matcher PlaywrightMatcher\n  suite.run")
     expect(helper_contents).not_to include("Smartest::SimpleStub")
 
     gemfile_contents = File.read(File.join(dir, "Gemfile"))
@@ -2367,7 +2367,7 @@ test("cli rails init generator skips duplicate registration and dependencies") d
 
       around_suite do |suite|
         use_matcher PredicateMatcher
-        use_fixture RailsSystemFixture
+        use_fixture RailsSystemTestFixture
         use_matcher PlaywrightMatcher
         suite.run
       end
@@ -2388,7 +2388,7 @@ test("cli rails init generator skips duplicate registration and dependencies") d
 
     expect(status).to eq(0)
     helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
-    expect(helper_contents.scan("use_fixture RailsSystemFixture").length).to eq(1)
+    expect(helper_contents.scan("use_fixture RailsSystemTestFixture").length).to eq(1)
     expect(helper_contents.scan("use_matcher PlaywrightMatcher").length).to eq(1)
     expect(helper_contents).not_to include("Smartest::SimpleStub")
     expect(commands).to eq(
