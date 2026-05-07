@@ -262,6 +262,11 @@ process as the test runner. `Smartest::Rails::TestServer` is only loaded by
 explicitly requiring `smartest/rails`; plain `require "smartest"` does not load
 Puma.
 
+This is aimed at local Rails system tests that combine Rails test data, stubs,
+and Playwright browser assertions. It is not a Capybara compatibility layer or
+the main choice for staging / production-like E2E suites; use Node.js
+Playwright Test for that style of E2E testing.
+
 The generated `page` fixture uses a per-test Playwright browser context with
 `baseURL` set to the Rails server URL. Set `SMARTEST_RAILS_PORT` when you need a
 fixed port; otherwise the test server asks the OS for an available port.
