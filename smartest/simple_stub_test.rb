@@ -8,12 +8,13 @@ require "stringio"
 module SimpleStubSelfTest
   module_function
 
-  def test_case(name, block)
+  def test_case(name, block, around_test_hooks: [])
     Smartest::TestCase.new(
       name: name,
       metadata: {},
       block: block,
-      location: caller_locations(1, 1).first
+      location: caller_locations(1, 1).first,
+      around_test_hooks: around_test_hooks
     )
   end
 
@@ -206,6 +207,91 @@ test("simple stubs created from around_suite stay active until the hook resets t
     SimpleStubSelfTest.test_case(
       "uses around_suite stub",
       proc { expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("around suite Alice") }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("original Alice")
+end
+
+test("test-scoped around_test simple stubs restore around_suite simple stubs") do
+  suite = Smartest::Suite.new
+  suite.around_suite_hooks << proc do |suite_run|
+    stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "suite #{@name}" }
+    stub.apply!
+
+    begin
+      suite_run.run
+    ensure
+      stub.reset
+    end
+  end
+
+  test_override = proc do |test_run|
+    stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "test #{@name}" }
+    stub.apply!
+
+    begin
+      test_run.run
+    ensure
+      stub.reset
+    end
+  end
+
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "uses around_test override",
+      proc { expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("test Alice") },
+      around_test_hooks: [test_override]
+    )
+  )
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "restores around_suite stub",
+      proc { expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("suite Alice") }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("original Alice")
+end
+
+test("test-scoped simple stubs can override suite simple stubs and restore them on teardown") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :suite_stubbed_name do
+      simple_stub_any_instance_of(SimpleStubSelfTestSubject, :name) { "suite #{@name}" }
+      :suite_stubbed_name
+    end
+
+    fixture :test_stubbed_name do |suite_stubbed_name:|
+      expect(suite_stubbed_name).to eq(:suite_stubbed_name)
+      simple_stub_any_instance_of(SimpleStubSelfTestSubject, :name) { "test #{@name}" }
+      :test_stubbed_name
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "uses test override",
+      proc do |test_stubbed_name:|
+        expect(test_stubbed_name).to eq(:test_stubbed_name)
+        expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("test Alice")
+      end
+    )
+  )
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "restores suite stub after test teardown",
+      proc do |suite_stubbed_name:|
+        expect(suite_stubbed_name).to eq(:suite_stubbed_name)
+        expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("suite Alice")
+      end
     )
   )
 
@@ -439,7 +525,7 @@ test("simple stub supports safe and strict apply reset APIs") do
 
   begin
     error = SimpleStubSelfTest.capture_error(Smartest::SimpleStub::AlreadyAppliedError) do
-      Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "other" }.apply!
+      stub.apply!
     end
 
     expect(error.message).to eq("stub for SimpleStubSelfTestSubject#name is already applied")

@@ -712,12 +712,18 @@ register `on_teardown { stub.reset }`, and return the stub object.
 `with_stub_const` records the previous constant value, replaces it, yields to
 the block, and restores or removes the constant with `ensure`.
 
-`Smartest::SimpleStub#apply` and `#reset` are idempotent in the current stub store.
-`apply!` raises
-`Smartest::SimpleStub::AlreadyAppliedError` when the stub is already active in
-the current stub store, and `reset!` raises
-`Smartest::SimpleStub::NotAppliedError` when it is not active there. See
-[Stubs](documentation/docs/stubs.md).
+When the same class and method are stubbed more than once, Smartest keeps those
+stubs in a stack. The newest stub is used while it is active, and resetting it
+restores the previous stub. For example, a test-scoped
+`ApplicationController#current_user` stub can override a suite-scoped
+`current_user` stub without removing the suite-scoped stub.
+
+`Smartest::SimpleStub#apply` is idempotent for the same stub object, and
+`#reset` is safe to call after that object's stub has already been removed.
+`apply!` raises `Smartest::SimpleStub::AlreadyAppliedError` when that stub object
+is already active, and `reset!` raises
+`Smartest::SimpleStub::NotAppliedError` when there is no active stub entry that
+the object can reset. See [Stubs](documentation/docs/stubs.md).
 
 Because method stubs are shared across Threads and Fibers, avoid running tests
 that stub the same method concurrently in the same Ruby process.

@@ -14,19 +14,49 @@ module Smartest
       end
 
       def fetch(key, default = nil)
-        @mutex.synchronize { @stubs.fetch(key, default) }
+        @mutex.synchronize do
+          stack = @stubs[key]
+          stack && !stack.empty? ? stack.last.fetch(:implementation) : default
+        end
       end
 
       def set(key, implementation)
-        @mutex.synchronize { @stubs[key] = implementation }
+        @mutex.synchronize do
+          entry = { implementation: implementation }
+          (@stubs[key] ||= []) << entry
+          entry
+        end
       end
 
-      def delete(key)
-        @mutex.synchronize { @stubs.delete(key) }
+      def delete(key, entry = nil)
+        @mutex.synchronize do
+          stack = @stubs[key]
+          if stack && !stack.empty?
+            removed = if entry
+              index = stack.rindex { |candidate| candidate.equal?(entry) }
+              index ? stack.delete_at(index) : nil
+            else
+              stack.pop
+            end
+
+            @stubs.delete(key) if stack.empty?
+            removed&.fetch(:implementation)
+          end
+        end
       end
 
       def key?(key)
-        @mutex.synchronize { @stubs.key?(key) }
+        @mutex.synchronize do
+          stack = @stubs[key]
+          !!(stack && !stack.empty?)
+        end
+      end
+
+      def include?(key, entry)
+        @mutex.synchronize do
+          stack = @stubs[key]
+          stack ? stack.any? { |candidate| candidate.equal?(entry) } : false
+        end
       end
 
       def empty?
@@ -38,7 +68,9 @@ module Smartest
       end
 
       def to_h
-        @mutex.synchronize { @stubs.dup }
+        @mutex.synchronize do
+          @stubs.transform_values { |stack| stack.last.fetch(:implementation) }
+        end
       end
 
       alias [] fetch
@@ -204,25 +236,27 @@ module Smartest
     end
 
     def apply
-      return if stub_defined?
+      return if applied?
 
       apply_stub
     end
 
     def apply!
-      raise AlreadyAppliedError, "stub for #{@klass}##{@method_name} is already applied" if stub_defined?
+      raise AlreadyAppliedError, "stub for #{@klass}##{@method_name} is already applied" if applied?
 
       apply_stub
     end
 
     def reset
-      return unless stub_defined?
+      return if @stub_entry && !applied?
+      return unless applied? || stub_available?
 
       reset_stub
     end
 
     def reset!
-      raise NotAppliedError, "stub for #{@klass}##{@method_name} is not applied" unless stub_defined?
+      raise NotAppliedError, "stub for #{@klass}##{@method_name} is not applied" if @stub_entry && !applied?
+      raise NotAppliedError, "stub for #{@klass}##{@method_name} is not applied" unless applied? || stub_available?
 
       reset_stub
     end
@@ -233,11 +267,12 @@ module Smartest
       raise ArgumentError, "block must be given for applying stub" unless @implementation
 
       self.class.ensure_dispatcher_method(@klass, klass_key, @method_name)
-      active_stubs.set(stub_key, @implementation)
+      @stub_entry = active_stubs.set(stub_key, @implementation)
     end
 
     def reset_stub
-      active_stubs.delete(stub_key)
+      active_stubs.delete(stub_key, @stub_entry)
+      @stub_entry = nil
       self.class.clear_active_stubs_if_empty
     end
 
@@ -253,7 +288,11 @@ module Smartest
       @klass_key ||= Digest::SHA256.hexdigest(@klass.object_id.to_s)
     end
 
-    def stub_defined?
+    def applied?
+      @stub_entry && self.class.current_stubs&.include?(stub_key, @stub_entry)
+    end
+
+    def stub_available?
       self.class.current_stubs&.key?(stub_key)
     end
   end

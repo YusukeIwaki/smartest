@@ -166,6 +166,12 @@ Teardown is tied to the fixture lifecycle:
 - `fixture` method stubs reset after each test.
 - `suite_fixture` method stubs reset after the suite fixture scope ends.
 
+When the same class and method are stubbed more than once, Smartest keeps those
+stubs in a stack. The newest stub is used while it is active, and resetting it
+restores the previous stub. For example, a test-scoped
+`ApplicationController#current_user` stub can override a suite-scoped
+`current_user` stub without removing the suite-scoped stub.
+
 In most cases, prefer the fixture helpers so stub lifetime is automatically tied
 to the fixture lifecycle.
 
@@ -261,13 +267,19 @@ The first argument must be a `Class`, and the second argument must be a
 stub = Smartest::SimpleStub.new(Time.singleton_class, :now) { fixed_time }
 ```
 
-`apply` and `reset` are safe to call more than once. Use the bang methods when
-repeated application or reset should fail.
+`apply` is safe to call more than once on the same stub object. `reset` is safe
+to call more than once after that object's stub has been removed. Use the bang
+methods when repeated application or reset should fail.
 
-`apply!` raises `Smartest::SimpleStub::AlreadyAppliedError` when the stub is
-already active in the current stub store. `reset!` raises
-`Smartest::SimpleStub::NotAppliedError` when the stub is not active in the
-current stub store.
+`apply!` raises `Smartest::SimpleStub::AlreadyAppliedError` when that
+`Smartest::SimpleStub` object is already active. `reset!` raises
+`Smartest::SimpleStub::NotAppliedError` when there is no active stub entry that
+the object can reset. A fresh `Smartest::SimpleStub` object with no applied entry
+can still reset the newest active stub for the same class and method.
+
+Separate `Smartest::SimpleStub` objects for the same class and method are
+stacked. The newest stub handles calls, and resetting it restores the previous
+stub.
 
 During a Smartest run, the runner creates one process-shared store for the
 suite. `around_suite`, `suite_fixture`, test-scoped fixture, and test body stubs

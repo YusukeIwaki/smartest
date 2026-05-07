@@ -18,19 +18,22 @@ expected 2 to eq 3
 
 ## `Smartest::SimpleStub::AlreadyAppliedError`
 
-Raised when `Smartest::SimpleStub#apply!` is called for a stub that is already
-active in the current stub store:
+Raised when `Smartest::SimpleStub#apply!` is called on a stub object that is
+already active:
 
 ```text
 stub for PaymentGateway#charge is already applied
 ```
 
-Use `apply` instead of `apply!` when repeated application should be ignored.
+Use `apply` instead of `apply!` when repeated application of the same stub object
+should be ignored. Separate stub objects for the same class and method are
+stacked; the newest stub handles calls until it is reset.
 
 ## `Smartest::SimpleStub::NotAppliedError`
 
-Raised when `Smartest::SimpleStub#reset!` is called for a stub that is not
-active in the current stub store:
+Raised when `Smartest::SimpleStub#reset!` cannot find an active stub entry to
+reset. This happens when the stub object was already removed, or when no stub is
+active for the target class and method:
 
 ```text
 stub for PaymentGateway#charge is not applied
