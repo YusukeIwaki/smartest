@@ -5,30 +5,14 @@ description: Why Smartest exists for Ruby browser testing, and how pytest-style 
 
 # Why Smartest browser tests
 
-Smartest exists to make Ruby browser testing **smarter**, not just slightly nicer.
+Smartest is invented to make Ruby browser testing **smarter**, not just slightly nicer.
 
 The direct inspiration is Playwright Test: its authors built a dedicated test runner instead of writing yet another Jest plugin, because browser testing is a different domain from unit testing — not just unit testing with a browser bolted on top. Smartest brings that same move to Ruby. Rather than plug Playwright into RSpec or Minitest, it rebuilds the runner around pytest-style fixtures so that the Playwright runtime, browser, and page lifecycles are expressed directly in each test's signature. See [Introducing pytest-style fixtures into Ruby for smarter browser testing](https://dev.to/yusukeiwaki/introducing-pytest-style-fixtures-into-ruby-for-smarter-browser-testing-lbi) for the longer story.
 
-Smartest can scaffold a Playwright-powered browser-test setup. Once it is in
-place, you can write browser tests that look and feel like ordinary Smartest
-tests — just receive a `page:` fixture and drive it with the Playwright API.
-
-## Why It Feels Like Playwright Test Fixtures
-
-Smartest is useful for Ruby browser testing when you want Playwright fixtures
-in Ruby without switching to Playwright Test's JavaScript or TypeScript runner.
-The generated `page:` fixture gives each test a Playwright `Page`, similar to
-the way Playwright Test provides a `page` fixture.
-
-Smartest is not API-compatible with Playwright Test. The similarity comes from
-Smartest's class-based fixture model:
-
-- `suite_fixture :playwright` starts the Playwright runtime once.
-- `suite_fixture :browser` shares the browser process across the suite.
-- `fixture :page` creates a fresh browser context and page per test.
-
-That makes Smartest a lightweight option for Rails Playwright tests or teams
-evaluating Capybara alternatives while keeping setup explicit in Ruby.
+In practice this means you stay in Ruby: each browser test receives a `page:`
+fixture and drives it with the full Playwright API. Smartest scaffolds the
+setup for you, and the four steps below take you from zero to a passing
+browser test.
 
 ## Quick Start
 
@@ -95,11 +79,11 @@ HEADLESS=0 SLOW_MO=250 bundle exec smartest smartest/example_browser_test.rb
 ```
 
 That's everything you need to start writing browser tests. The rest of this
-page is for when you want to change how the scaffold behaves.
+page explains what the scaffold generated and how to tune it.
 
 ---
 
-## Customization Points
+## How it works
 
 `smartest --init-browser` generates three Ruby files. They are ordinary
 Smartest fixtures and matchers — edit them freely to tune behavior.
