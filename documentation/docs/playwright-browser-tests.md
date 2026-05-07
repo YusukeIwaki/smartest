@@ -7,7 +7,7 @@ description: Why Smartest exists for Ruby browser testing, and how pytest-style 
 
 Smartest exists to make Ruby browser testing **smarter**, not just slightly nicer.
 
-Mainstream Ruby browser tests still feel like a unit-test-era architecture with browser automation bolted on — RSpec or Minitest plus Capybara or Playwright, with setup scattered across `before` blocks, `let`, and support files. Smartest puts pytest-style fixtures first, so each test's dependencies live right in its signature, and the Playwright runtime, browser, and page lifecycles are expressed as fixtures directly. See [Introducing pytest-style fixtures into Ruby for smarter browser testing](https://dev.to/yusukeiwaki/introducing-pytest-style-fixtures-into-ruby-for-smarter-browser-testing-lbi) for the longer story.
+The direct inspiration is Playwright Test: its authors built a dedicated test runner instead of writing yet another Jest plugin, because browser testing is a different domain from unit testing — not just unit testing with a browser bolted on top. Smartest brings that same move to Ruby. Rather than plug Playwright into RSpec or Minitest, it rebuilds the runner around pytest-style fixtures so that the Playwright runtime, browser, and page lifecycles are expressed directly in each test's signature. See [Introducing pytest-style fixtures into Ruby for smarter browser testing](https://dev.to/yusukeiwaki/introducing-pytest-style-fixtures-into-ruby-for-smarter-browser-testing-lbi) for the longer story.
 
 Smartest can scaffold a Playwright-powered browser-test setup. Once it is in
 place, you can write browser tests that look and feel like ordinary Smartest
