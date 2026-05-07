@@ -35,9 +35,11 @@ require "playwright"
 
 class RailsSystemFixture < Smartest::Fixture
   suite_fixture :rails_server do
+    # Set the environment before loading config/environment so the test
+    # server cannot boot against the development database by default.
     ENV["RAILS_ENV"] ||= "test"
     ENV["RACK_ENV"] ||= ENV["RAILS_ENV"]
-    require File.expand_path("../../config/environment", __dir__)
+    require_relative "../../config/environment"
 
     server = Smartest::Rails::TestServer.new(app: Rails.application)
     server.start
@@ -83,9 +85,10 @@ class RailsSystemFixture < Smartest::Fixture
 end
 ```
 
-The `rails_server` fixture sets `RAILS_ENV` and `RACK_ENV` to `test` when they
-are not already set, requires `config/environment`, and starts the Rails app in
-the same Ruby process as the test runner.
+The `rails_server` fixture sets `RAILS_ENV` and `RACK_ENV` before requiring
+`config/environment`, then starts the Rails app in the same Ruby process as the
+test runner. Setting `RAILS_ENV` first prevents the server from accidentally
+booting in development mode and touching the development database.
 
 ## Port Selection
 

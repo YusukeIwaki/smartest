@@ -12,9 +12,11 @@ module Smartest
 
       class RailsSystemFixture < Smartest::Fixture
         suite_fixture :rails_server do
+          # Set the environment before loading config/environment so the test
+          # server cannot boot against the development database by default.
           ENV["RAILS_ENV"] ||= "test"
           ENV["RACK_ENV"] ||= ENV["RAILS_ENV"]
-          require File.expand_path("../../config/environment", __dir__)
+          require_relative "../../config/environment"
 
           server = Smartest::Rails::TestServer.new(app: Rails.application)
           server.start
