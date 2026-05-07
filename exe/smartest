@@ -28,6 +28,9 @@ usage = <<~USAGE
     bundle exec smartest --init-browser
         Generate a Playwright browser-test scaffold
 
+    bundle exec smartest --init-rails
+        Generate a Rails Playwright browser-test scaffold
+
   Options:
     --profile N
         Print the N slowest tests. Defaults to 5.
@@ -47,6 +50,9 @@ missing_smartest_directory_message = <<~MESSAGE
 
   For browser tests:
     bundle exec smartest --init-browser
+
+  For Rails browser tests:
+    bundle exec smartest --init-rails
 
   See all commands:
     bundle exec smartest --help
@@ -73,6 +79,11 @@ begin
   if ARGV.include?("--init-browser")
     command = :init_browser
     exit Smartest::InitBrowserGenerator.new.run
+  end
+
+  if ARGV.include?("--init-rails")
+    command = :init_rails
+    exit Smartest::InitRailsGenerator.new.run
   end
 
   Smartest.disable_autorun!
@@ -103,6 +114,8 @@ rescue Exception => error
       "Error initializing Smartest:"
     when :init_browser
       "Error initializing Smartest browser scaffold:"
+    when :init_rails
+      "Error initializing Smartest Rails browser scaffold:"
     else
       "Error loading tests:"
     end

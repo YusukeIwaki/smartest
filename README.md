@@ -141,6 +141,9 @@ To create a Smartest test scaffold:
 For browser tests:
   bundle exec smartest --init-browser
 
+For Rails browser tests:
+  bundle exec smartest --init-rails
+
 See all commands:
   bundle exec smartest --help
 ```
@@ -190,6 +193,7 @@ bundle exec smartest smartest/user_test.rb
 bundle exec smartest smartest/user_test.rb:12
 bundle exec smartest --init
 bundle exec smartest --init-browser
+bundle exec smartest --init-rails
 ```
 
 Output resembles:
@@ -233,6 +237,44 @@ Run the generated browser example with:
 
 ```bash
 bundle exec smartest smartest/example_browser_test.rb
+```
+
+## Rails browser quick start
+
+Initialize a Rails browser-test scaffold:
+
+```bash
+bundle exec smartest --init-rails
+```
+
+The Rails init command creates the normal Smartest helper and matcher files,
+then adds:
+
+```text
+smartest/fixtures/rails_system_fixture.rb
+smartest/matchers/playwright_matcher.rb
+smartest/example_rails_system_test.rb
+```
+
+The generated fixture requires `smartest/rails` and starts
+`Smartest::Rails::TestServer` against `Rails.application` in the same Ruby
+process as the test runner. `Smartest::Rails::TestServer` is only loaded by
+explicitly requiring `smartest/rails`; plain `require "smartest"` does not load
+Puma.
+
+This is aimed at local Rails system tests that combine Rails test data, stubs,
+and Playwright browser assertions. It is not a Capybara compatibility layer or
+the main choice for staging / production-like E2E suites; use Node.js
+Playwright Test for that style of E2E testing.
+
+The generated `page` fixture uses a per-test Playwright browser context with
+`baseURL` set to the Rails server URL. Set `SMARTEST_RAILS_PORT` when you need a
+fixed port; otherwise the test server asks the OS for an available port.
+
+Run the generated Rails browser example with:
+
+```bash
+bundle exec smartest smartest/example_rails_system_test.rb
 ```
 
 ## Defining tests

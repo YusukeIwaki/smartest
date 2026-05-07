@@ -17,6 +17,7 @@ documentation, prefer the project README and the public docs linked below.
 - Running test suites: https://smartest-rb.vercel.app/docs/running-test-suites
 - Matchers: https://smartest-rb.vercel.app/docs/matchers
 - Playwright browser tests: https://smartest-rb.vercel.app/docs/playwright-browser-tests
+- Rails browser tests: https://smartest-rb.vercel.app/docs/rails-browser-tests
 
 ## Core Concepts
 
