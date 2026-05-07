@@ -28,6 +28,7 @@ require_relative "smartest/reporter"
 require_relative "smartest/runner"
 require_relative "smartest/init_generator"
 require_relative "smartest/init_browser_generator"
+require_relative "smartest/init_rails_generator"
 require_relative "smartest/cli_arguments"
 
 module Smartest

@@ -141,6 +141,9 @@ To create a Smartest test scaffold:
 For browser tests:
   bundle exec smartest --init-browser
 
+For Rails browser tests:
+  bundle exec smartest --init-rails
+
 See all commands:
   bundle exec smartest --help
 ```
@@ -190,6 +193,7 @@ bundle exec smartest smartest/user_test.rb
 bundle exec smartest smartest/user_test.rb:12
 bundle exec smartest --init
 bundle exec smartest --init-browser
+bundle exec smartest --init-rails
 ```
 
 Output resembles:
@@ -234,6 +238,26 @@ Run the generated browser example with:
 ```bash
 bundle exec smartest smartest/example_browser_test.rb
 ```
+
+## Rails browser quick start
+
+Initialize a Rails browser-test scaffold:
+
+```bash
+bundle exec smartest --init-rails
+```
+
+The Rails init command creates the normal Smartest helper, a Rails system
+fixture, a Playwright matcher, and `smartest/example_rails_system_test.rb`.
+The generated fixture starts `Rails.application` in the test process with Puma,
+uses `SMARTEST_RAILS_PORT` when it is set, and otherwise asks the OS for an
+available port. The `page` fixture uses a per-test Playwright browser context
+with `baseURL` set to the Rails server URL.
+
+The generated helper wraps each test in
+`Smartest::SimpleStub.with_process_store(Smartest::SimpleStub::SharedStore.new)`
+so method stubs applied in test fixtures can also be seen by the Rails server
+thread.
 
 ## Defining tests
 
@@ -694,6 +718,10 @@ the block, and restores or removes the constant with `ensure`.
 the current Fiber, and `reset!` raises
 `Smartest::SimpleStub::NotAppliedError` when it is not active there. See
 [Stubs](documentation/docs/stubs.md).
+
+Rails browser tests can opt into a process-shared stub store with
+`Smartest::SimpleStub.with_process_store(Smartest::SimpleStub::SharedStore.new)`,
+which lets a same-process Rails server thread see stubs applied by the test.
 
 ## Logged-in client example
 

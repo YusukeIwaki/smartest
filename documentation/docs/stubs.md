@@ -279,11 +279,27 @@ Smartest::SimpleStub.new(User, :name) { "Test User" }.apply
 Smartest::SimpleStub.new(User, :name).reset
 ```
 
+For same-process Rails browser tests, use a process-shared store around the test
+when a Rails server thread must see stubs applied by fixture setup:
+
+```ruby
+around_test do |test|
+  store = Smartest::SimpleStub::SharedStore.new
+
+  Smartest::SimpleStub.with_process_store(store) do
+    test.run
+  end
+end
+```
+
+`with_process_store` restores the previous store and clears the shared store
+when the block exits.
+
 ## Scope and Concurrency
 
 `Smartest::SimpleStub` installs a process-wide dispatcher method, but the active
-stub implementation is looked up from Fiber-local storage. Applying a stub in
-one Fiber does not change behavior in another Fiber or Thread:
+stub implementation is looked up from `FiberLocalStore` by default. Applying a
+stub in one Fiber does not change behavior in another Fiber or Thread:
 
 ```ruby
 stub = Smartest::SimpleStub.new(User, :name) { "Stubbed" }
@@ -303,6 +319,11 @@ stub.reset!
 Different Threads can apply different stubs for the same class and method at
 the same time. Teardown still matters, so prefer the fixture helpers when the
 stub belongs to test setup.
+
+When `with_process_store` is active, all Threads in the process read and write
+the same `SharedStore`. That mode is intended for same-process Rails server
+tests. Do not run tests that use a process-shared stub store concurrently in the
+same Ruby process.
 
 Constant stubs are different: Ruby constant lookup does not provide a Fiber-local
 hook, so `with_stub_const` replaces the constant on the owner module. That

@@ -1723,6 +1723,7 @@ test("cli prints help") do
   expect(stdout).not_to include("Run a browser test file")
   expect(stdout).to include("bundle exec smartest --init")
   expect(stdout).to include("bundle exec smartest --init-browser")
+  expect(stdout).to include("bundle exec smartest --init-rails")
   expect(stdout).to include("--profile N")
   expect(stdout).to include("smartest/**/*_test.rb")
 end
@@ -1741,6 +1742,7 @@ test("cli explains how to initialize when default smartest directory is missing"
     expect(stdout).to include("No smartest/ directory found.")
     expect(stdout).to include("bundle exec smartest --init")
     expect(stdout).to include("bundle exec smartest --init-browser")
+    expect(stdout).to include("bundle exec smartest --init-rails")
     expect(stdout).to include("bundle exec smartest --help")
   end
 end
@@ -2195,6 +2197,125 @@ test("cli browser init generator skips npm init when package.json already exists
         [["./node_modules/.bin/playwright", "install"], dir]
       ]
     )
+    expect(output.string).not_to include("npm init --yes")
+  end
+end
+
+test("cli rails init generator creates Rails browser scaffold and installation commands") do
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "rails"
+      gem "smartest"
+    RUBY
+
+    commands = []
+    output = StringIO.new
+    generator = Smartest::InitRailsGenerator.new(
+      root: dir,
+      output: output,
+      command_runner: ->(command, chdir:) {
+        commands << [command, chdir]
+        true
+      }
+    )
+
+    status = generator.run
+
+    expect(status).to eq(0)
+    rails_fixture = File.read(File.join(dir, "smartest/fixtures/rails_system_fixture.rb"))
+    expect(rails_fixture).to include("class SmartestRailsTestServer")
+    expect(rails_fixture).to include('@requested_port = port || ENV["SMARTEST_RAILS_PORT"]&.to_i || 0')
+    expect(rails_fixture).to include("listener = @server.add_tcp_listener(@host, @requested_port)")
+    expect(rails_fixture).to include("class RailsSystemFixture < Smartest::Fixture")
+    expect(rails_fixture).to include("suite_fixture :rails_server")
+    expect(rails_fixture).to include('require File.expand_path("../../config/environment", __dir__)')
+    expect(rails_fixture).to include("suite_fixture :base_url")
+    expect(rails_fixture).to include("fixture :browser_context do |base_url:, browser:|")
+    expect(rails_fixture).to include("context = browser.new_context(baseURL: base_url)")
+    expect(rails_fixture).to include("fixture :page do |browser_context:|")
+
+    example_test = File.read(File.join(dir, "smartest/example_rails_system_test.rb"))
+    expect(example_test).to include('test("loads the Rails application") do |page:|')
+    expect(example_test).to include('response = page.goto("/")')
+    expect(example_test).to include("expect(response.status).to be_between(200, 599)")
+
+    helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
+    expect(helper_contents).to include("use_matcher PredicateMatcher\n  use_fixture RailsSystemFixture\n  use_matcher PlaywrightMatcher\n  suite.run")
+    expect(helper_contents).to include("around_test do |test|")
+    expect(helper_contents).to include("store = Smartest::SimpleStub::SharedStore.new")
+    expect(helper_contents).to include("Smartest::SimpleStub.with_process_store(store) do")
+
+    gemfile_contents = File.read(File.join(dir, "Gemfile"))
+    expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
+    expect(commands).to eq(
+      [
+        [["bundle", "install"], dir],
+        [["npm", "init", "--yes"], dir],
+        [["npm", "install", "playwright", "--save-dev"], dir],
+        [["./node_modules/.bin/playwright", "install"], dir]
+      ]
+    )
+    expect(output.string).to include("Run your Rails browser test suite with: bundle exec smartest smartest/example_rails_system_test.rb")
+  end
+end
+
+test("cli rails init generator skips duplicate registration and dependencies") do
+  Dir.mktmpdir do |dir|
+    FileUtils.mkdir_p(File.join(dir, "smartest/fixtures"))
+    FileUtils.mkdir_p(File.join(dir, "smartest/matchers"))
+    File.write(File.join(dir, "package.json"), "{\n  \"name\": \"existing\"\n}\n")
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "smartest"
+      gem "playwright-ruby-client", group: :test
+    RUBY
+    File.write(File.join(dir, "smartest/test_helper.rb"), <<~RUBY)
+      require "smartest/autorun"
+
+      around_suite do |suite|
+        use_matcher PredicateMatcher
+        use_fixture RailsSystemFixture
+        use_matcher PlaywrightMatcher
+        suite.run
+      end
+
+      around_test do |test|
+        store = Smartest::SimpleStub::SharedStore.new
+
+        Smartest::SimpleStub.with_process_store(store) do
+          test.run
+        end
+      end
+    RUBY
+
+    commands = []
+    output = StringIO.new
+    generator = Smartest::InitRailsGenerator.new(
+      root: dir,
+      output: output,
+      command_runner: ->(command, chdir:) {
+        commands << [command, chdir]
+        true
+      }
+    )
+
+    status = generator.run
+
+    expect(status).to eq(0)
+    helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
+    expect(helper_contents.scan("use_fixture RailsSystemFixture").length).to eq(1)
+    expect(helper_contents.scan("Smartest::SimpleStub.with_process_store").length).to eq(1)
+    expect(commands).to eq(
+      [
+        [["bundle", "install"], dir],
+        [["npm", "install", "playwright", "--save-dev"], dir],
+        [["./node_modules/.bin/playwright", "install"], dir]
+      ]
+    )
+    expect(output.string).to include("exist   Gemfile playwright-ruby-client")
     expect(output.string).not_to include("npm init --yes")
   end
 end

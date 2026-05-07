@@ -9,17 +9,137 @@ module Smartest
     class AlreadyAppliedError < Smartest::Error; end
     class NotAppliedError < Smartest::Error; end
 
+    class FiberLocalStore
+      class << self
+        def current
+          Thread.current[SimpleStub::STORAGE_KEY] ||= new
+        end
+
+        def current_if_defined
+          Thread.current[SimpleStub::STORAGE_KEY]
+        end
+
+        def clear_current_if_empty
+          store = Thread.current[SimpleStub::STORAGE_KEY]
+          Thread.current[SimpleStub::STORAGE_KEY] = nil if store&.empty?
+        end
+      end
+
+      private_class_method :new
+
+      def initialize
+        @stubs = {}
+      end
+
+      def fetch(key, default = nil)
+        @stubs.fetch(key, default)
+      end
+
+      def set(key, implementation)
+        @stubs[key] = implementation
+      end
+
+      def delete(key)
+        @stubs.delete(key)
+      end
+
+      def key?(key)
+        @stubs.key?(key)
+      end
+
+      def empty?
+        @stubs.empty?
+      end
+
+      def clear
+        @stubs.clear
+      end
+
+      def to_h
+        @stubs.dup
+      end
+
+      alias [] fetch
+      alias []= set
+    end
+
+    class SharedStore
+      def initialize
+        @mutex = Mutex.new
+        @stubs = {}
+      end
+
+      def fetch(key, default = nil)
+        @mutex.synchronize { @stubs.fetch(key, default) }
+      end
+
+      def set(key, implementation)
+        @mutex.synchronize { @stubs[key] = implementation }
+      end
+
+      def delete(key)
+        @mutex.synchronize { @stubs.delete(key) }
+      end
+
+      def key?(key)
+        @mutex.synchronize { @stubs.key?(key) }
+      end
+
+      def empty?
+        @mutex.synchronize { @stubs.empty? }
+      end
+
+      def clear
+        @mutex.synchronize { @stubs.clear }
+      end
+
+      def to_h
+        @mutex.synchronize { @stubs.dup }
+      end
+
+      alias [] fetch
+      alias []= set
+    end
+
     class << self
       def implementation_for(klass_key, method_name)
-        current_stubs&.fetch(stub_key(klass_key, method_name), nil)
+        lookup_store&.fetch(stub_key(klass_key, method_name), nil)
       end
 
       def active_stubs
-        Thread.current[STORAGE_KEY] ||= {}
+        current_store
       end
 
       def clear_active_stubs_if_empty
-        Thread.current[STORAGE_KEY] = nil if current_stubs&.empty?
+        return if process_store
+
+        FiberLocalStore.clear_current_if_empty
+      end
+
+      def current_stubs
+        store = lookup_store
+        store&.empty? ? nil : store
+      end
+
+      def current_store
+        process_store || FiberLocalStore.current
+      end
+
+      def with_process_store(store)
+        unless store.respond_to?(:fetch) && store.respond_to?(:set) && store.respond_to?(:delete)
+          raise ArgumentError, "store must respond to fetch, set, and delete"
+        end
+
+        previous_store = nil
+        process_store_mutex.synchronize do
+          previous_store = @process_store
+          @process_store = store
+        end
+
+        yield
+      ensure
+        process_store_mutex.synchronize { @process_store = previous_store }
+        store.clear if store.respond_to?(:clear)
       end
 
       def ensure_dispatcher_method(klass, klass_key, method_name)
@@ -43,10 +163,6 @@ module Smartest
 
       def stub_key(klass_key, method_name)
         [klass_key, method_name]
-      end
-
-      def current_stubs
-        Thread.current[STORAGE_KEY]
       end
 
       def call_implementation(receiver, implementation, args, kwargs, block)
@@ -77,6 +193,18 @@ module Smartest
       end
 
       private
+
+      def process_store
+        process_store_mutex.synchronize { @process_store }
+      end
+
+      def lookup_store
+        process_store || FiberLocalStore.current_if_defined
+      end
+
+      def process_store_mutex
+        @process_store_mutex ||= Mutex.new
+      end
 
       def dispatcher_module_for(klass, klass_key)
         const_name = dispatcher_module_name(klass_key)
@@ -151,7 +279,7 @@ module Smartest
       raise ArgumentError, "block must be given for applying stub" unless @implementation
 
       self.class.ensure_dispatcher_method(@klass, klass_key, @method_name)
-      active_stubs[stub_key] = @implementation
+      active_stubs.set(stub_key, @implementation)
     end
 
     def reset_stub

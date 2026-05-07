@@ -328,6 +328,67 @@ test("simple stub can differ per thread") do
   expect(subject.name).to eq("original Alice")
 end
 
+test("simple stub FiberLocalStore current is scoped to the current fiber") do
+  main_store = Smartest::SimpleStub::FiberLocalStore.current
+
+  expect(Smartest::SimpleStub::FiberLocalStore.current).to eq(main_store)
+
+  fiber_store = Fiber.new do
+    Smartest::SimpleStub::FiberLocalStore.current
+  end.resume
+
+  expect(fiber_store == main_store).to eq(false)
+end
+
+test("simple stub process store is visible across threads") do
+  subject = SimpleStubSelfTestSubject.new("Alice")
+  queue = Queue.new
+  store = Smartest::SimpleStub::SharedStore.new
+
+  Smartest::SimpleStub.with_process_store(store) do
+    stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "shared #{@name}" }
+    stub.apply!
+
+    thread = Thread.new do
+      queue << subject.name
+    rescue Exception => error
+      queue << error
+    end
+
+    begin
+      expect(subject.name).to eq("shared Alice")
+      thread_result = queue.pop
+      raise thread_result if thread_result.is_a?(Exception)
+
+      expect(thread_result).to eq("shared Alice")
+      thread.join
+    ensure
+      stub.reset
+      thread.kill if thread&.alive?
+    end
+  end
+
+  expect(store.empty?).to eq(true)
+  expect(subject.name).to eq("original Alice")
+end
+
+test("simple stub process store is restored after errors") do
+  subject = SimpleStubSelfTestSubject.new("Alice")
+  store = Smartest::SimpleStub::SharedStore.new
+
+  error = SimpleStubSelfTest.capture_error(RuntimeError) do
+    Smartest::SimpleStub.with_process_store(store) do
+      Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "shared #{@name}" }.apply!
+      expect(subject.name).to eq("shared Alice")
+      raise "shared store failure"
+    end
+  end
+
+  expect(error.message).to eq("shared store failure")
+  expect(store.empty?).to eq(true)
+  expect(subject.name).to eq("original Alice")
+end
+
 test("simple stub supports safe and strict apply reset APIs") do
   stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "stubbed" }
 
