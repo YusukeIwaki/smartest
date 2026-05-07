@@ -66,15 +66,6 @@ module Smartest
       def clear
         @mutex.synchronize { @stubs.clear }
       end
-
-      def to_h
-        @mutex.synchronize do
-          @stubs.transform_values { |stack| stack.last.fetch(:implementation) }
-        end
-      end
-
-      alias [] fetch
-      alias []= set
     end
 
     class << self
