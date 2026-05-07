@@ -1,5 +1,5 @@
 ---
-title: Pytest-style Fixtures in Ruby
+title: Fixtures
 description: Define class-based Smartest fixtures with keyword dependency injection and teardown.
 ---
 

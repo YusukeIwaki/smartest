@@ -1,5 +1,6 @@
 ---
 title: Smartest vs Minitest
+sidebar_label: vs Minitest
 description: Compare Smartest's keyword fixture injection with Minitest setup, teardown, assertions, and test file layout.
 ---
 

@@ -1,9 +1,10 @@
 ---
-title: Playwright-style Browser Tests in Ruby
+title: Playwright Browser Tests
+sidebar_label: Playwright
 description: Use Smartest fixtures to drive Playwright browser tests in Ruby.
 ---
 
-# Playwright-style Browser Tests in Ruby
+# Playwright Browser Tests
 
 Smartest can scaffold a Playwright-powered browser-test setup. Once it is in
 place, you can write browser tests that look and feel like ordinary Smartest

@@ -1,5 +1,6 @@
 ---
 title: Rails Browser Tests
+sidebar_label: Rails
 description: Write Rails system tests with Playwright and explicit Smartest fixtures.
 ---
 

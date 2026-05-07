@@ -1,13 +1,13 @@
 ---
-title: Pytest-style fixtures for Ruby
+title: Why Smartest
 description: Smartest is a Ruby test runner with pytest-style fixture injection, explicit fixture dependencies, and teardown.
 ---
 
-# Smartest
+# Why Smartest
 
-introduces **Pytest-style fixtures for Ruby.**
+Smartest introduces **pytest-style fixtures for Ruby.**
 
-Smartest is a small Ruby test runner that brings pytest-style fixture
+It is a small Ruby test runner that brings pytest-style fixture
 injection, explicit fixture dependencies, and fixture teardown to Ruby tests.
 
 It is designed around three ideas:
@@ -49,11 +49,11 @@ end
 - [Getting Started](./getting-started.md) shows the smallest runnable test file.
 - [Writing Tests](./writing-tests.md) explains test structure and expectations.
 - [Skipping Tests](./skipping-tests.md) covers skipped tests and expected failures.
-- [Running Test Suites](./running-test-suites.md) covers autorun and the CLI.
+- [Running Tests](./running-test-suites.md) covers autorun and the CLI.
 - [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and teardown.
 - [Stubs](./stubs.md) shows method stubs that reset from fixture teardown.
 - [Helpers](./helpers.md) explains registering helper modules from `around_test`.
-- [Browser Tests With Playwright](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
+- [Playwright Browser Tests](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
 - [Rails Browser Tests](./rails-browser-tests.md) shows the generated same-process Rails server fixture.
 
 ## Current Scope
