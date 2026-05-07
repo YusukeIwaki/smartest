@@ -1,9 +1,13 @@
 ---
-title: Test a remote site
-description: Use Smartest fixtures to drive Playwright browser tests against any URL.
+title: Why Smartest browser tests
+description: Why Smartest exists for Ruby browser testing, and how pytest-style fixtures change the setup.
 ---
 
-# Test a remote site
+# Why Smartest browser tests
+
+Smartest exists to make Ruby browser testing **smarter**, not just slightly nicer.
+
+Mainstream Ruby browser tests still feel like a unit-test-era architecture with browser automation bolted on — RSpec or Minitest plus Capybara or Playwright, with setup scattered across `before` blocks, `let`, and support files. Smartest puts pytest-style fixtures first, so each test's dependencies live right in its signature, and the Playwright runtime, browser, and page lifecycles are expressed as fixtures directly. See [Introducing pytest-style fixtures into Ruby for smarter browser testing](https://dev.to/yusukeiwaki/introducing-pytest-style-fixtures-into-ruby-for-smarter-browser-testing-lbi) for the longer story.
 
 Smartest can scaffold a Playwright-powered browser-test setup. Once it is in
 place, you can write browser tests that look and feel like ordinary Smartest
