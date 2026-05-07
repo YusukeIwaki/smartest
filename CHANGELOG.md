@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.x.x
+## 0.6.0 (not published yet)
+
+### New Features
+
+- Add Rails browser-test integration with `bundle exec smartest --init-rails`,
+  generated Playwright fixtures, and `Smartest::Rails::TestServer` loaded by
+  explicit `require "smartest/rails"`.
 
 ### Breaking Changes
 
