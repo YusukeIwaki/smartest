@@ -10,7 +10,7 @@ module Smartest
 
     def run
       results = []
-      suite_cleanup_errors = []
+      suite_teardown_errors = []
       suite_errors = []
       @suite_fixture_set = nil
 
@@ -18,7 +18,7 @@ module Smartest
 
       begin
         run_around_suite_hooks(@suite.around_suite_hooks.dup) do
-          run_tests(results, suite_cleanup_errors)
+          run_tests(results, suite_teardown_errors)
         end
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)
@@ -28,16 +28,16 @@ module Smartest
 
       @reporter.finish(
         results,
-        suite_cleanup_errors: suite_cleanup_errors,
+        suite_teardown_errors: suite_teardown_errors,
         suite_errors: suite_errors
       )
 
-      results.any?(&:failed?) || suite_cleanup_errors.any? || suite_errors.any? ? 1 : 0
+      results.any?(&:failed?) || suite_teardown_errors.any? || suite_errors.any? ? 1 : 0
     end
 
     private
 
-    def run_tests(results, suite_cleanup_errors)
+    def run_tests(results, suite_teardown_errors)
       begin
         @tests.each do |test_case|
           result = run_one(test_case)
@@ -45,7 +45,7 @@ module Smartest
           @reporter.record(result)
         end
       ensure
-        suite_cleanup_errors.concat(@suite_fixture_set.run_cleanups) if @suite_fixture_set
+        suite_teardown_errors.concat(@suite_fixture_set.run_teardowns) if @suite_fixture_set
         @suite_fixture_set = nil
       end
     end
@@ -68,13 +68,13 @@ module Smartest
       started_at = now
       error = nil
       skipped = nil
-      cleanup_errors = []
+      teardown_errors = []
       run_state = TestRunState.new
       test_run = TestRun.new(
         fixture_classes: @suite.fixture_classes,
         matcher_modules: @suite.matcher_modules
       ) do |fixture_classes:, matcher_modules:, helper_modules:|
-        run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, cleanup_errors)
+        run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, teardown_errors)
       end
 
       begin
@@ -89,12 +89,12 @@ module Smartest
 
       duration = now - started_at
 
-      return TestResult.failed(test_case: test_case, error: nil, duration: duration, cleanup_errors: cleanup_errors) if skipped && cleanup_errors.any?
+      return TestResult.failed(test_case: test_case, error: nil, duration: duration, teardown_errors: teardown_errors) if skipped && teardown_errors.any?
       return TestResult.skipped(test_case: test_case, reason: skipped.reason, duration: duration) if skipped
 
       if run_state.pending?
         if error && !around_test_protocol_error?(error)
-          return TestResult.failed(test_case: test_case, error: nil, duration: duration, cleanup_errors: cleanup_errors) if cleanup_errors.any?
+          return TestResult.failed(test_case: test_case, error: nil, duration: duration, teardown_errors: teardown_errors) if teardown_errors.any?
 
           return TestResult.pending(test_case: test_case, reason: run_state.pending_reason, duration: duration)
         end
@@ -102,19 +102,19 @@ module Smartest
         error ||= PendingPassedError.new(run_state.pending_reason)
       end
 
-      if error || cleanup_errors.any?
+      if error || teardown_errors.any?
         TestResult.failed(
           test_case: test_case,
           error: error,
           duration: duration,
-          cleanup_errors: cleanup_errors
+          teardown_errors: teardown_errors
         )
       else
         TestResult.passed(test_case: test_case, duration: duration)
       end
     end
 
-    def run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, cleanup_errors)
+    def run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, teardown_errors)
       context = build_context(matcher_modules, run_state, helper_modules)
       fixture_set = nil
 
@@ -123,7 +123,7 @@ module Smartest
         fixtures = fixture_set.resolve_keywords(test_case.fixture_names)
         context.instance_exec(**fixtures, &test_case.block)
       ensure
-        cleanup_errors.concat(fixture_set.run_cleanups) if fixture_set
+        teardown_errors.concat(fixture_set.run_teardowns) if fixture_set
       end
     end
 

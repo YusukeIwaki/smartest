@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.description = <<~TEXT
     Smartest is a Ruby test runner that brings pytest-style fixture injection
     to Ruby. Tests declare dependencies with keyword arguments, fixtures can
-    depend on other fixtures, and cleanup is handled explicitly when needed.
+    depend on other fixtures, and teardown is handled explicitly when needed.
 
     Smartest is designed for readable Ruby tests, Rails system tests, and
     Playwright-powered browser testing.

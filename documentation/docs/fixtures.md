@@ -1,6 +1,6 @@
 ---
 title: Pytest-style Fixtures in Ruby
-description: Define class-based Smartest fixtures with keyword dependency injection and cleanup.
+description: Define class-based Smartest fixtures with keyword dependency injection and teardown.
 ---
 
 # Fixtures
@@ -136,7 +136,7 @@ Regular `fixture` definitions are test-scoped. Every test gets:
 - a new `FixtureSet`
 - new fixture class instances
 - a fresh fixture value cache
-- a fresh cleanup stack
+- a fresh teardown stack
 
 That means a regular fixture runs once for each test that needs it:
 
@@ -155,7 +155,7 @@ suite, such as a database connection or browser process:
 class BrowserFixture < Smartest::Fixture
   suite_fixture :browser do
     browser = Browser.launch
-    cleanup { browser.close }
+    on_teardown { browser.close }
     browser
   end
 
@@ -166,7 +166,7 @@ end
 ```
 
 Suite fixtures are lazy. Setup runs the first time a test requests the fixture,
-and cleanup runs once after all tests finish.
+and teardown runs once after all tests finish.
 
 Test-scoped fixtures can depend on suite fixtures:
 
@@ -181,15 +181,15 @@ test-scoped value that can safely be shared across the full suite.
 
 File-scoped or module-scoped fixtures are not implemented yet.
 
-## Cleanup
+## Teardown
 
-Use `cleanup` when a fixture owns a resource that must be released:
+Use `on_teardown` when a fixture owns a resource that must be released:
 
 ```ruby
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
 
     server.wait_until_ready!
     server
@@ -197,23 +197,23 @@ class WebFixture < Smartest::Fixture
 end
 ```
 
-Register cleanup immediately after acquiring the resource. Cleanup runs even if a later setup step or the test body fails.
+Register teardown immediately after acquiring the resource. Teardown runs even if a later setup step or the test body fails.
 
-For regular fixtures, cleanup runs after the test finishes. For `suite_fixture`,
-cleanup runs once after the full suite finishes.
+For regular fixtures, teardown runs after the test finishes. For `suite_fixture`,
+teardown runs once after the full suite finishes.
 
-Cleanups run in reverse registration order. If `browser` depends on `server`, the browser cleanup runs before the server cleanup:
+Teardown blocks run in reverse registration order. If `browser` depends on `server`, the browser teardown runs before the server teardown:
 
 ```ruby
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
   server
 end
 
 fixture :browser do |server:|
   browser = Browser.launch(server.url)
-  cleanup { browser.close }
+  on_teardown { browser.close }
   browser
 end
 ```

@@ -96,7 +96,7 @@ test("simple stub can be reset from a fresh stub object") do
   expect(SimpleStubSelfTestSubject.new("Alice").greeting("Hi")).to eq("Hi, Alice")
 end
 
-test("simple_stub_any_instance_of applies and resets from fixture cleanup") do
+test("simple_stub_any_instance_of applies and resets from fixture teardown") do
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :stubbed_name do
       simple_stub_any_instance_of(SimpleStubSelfTestSubject, :name) { "fixture #{@name}" }
@@ -127,7 +127,7 @@ test("simple_stub_any_instance_of applies and resets from fixture cleanup") do
   expect(status).to eq(0)
 end
 
-test("simple_stub applies and resets singleton methods from fixture cleanup") do
+test("simple_stub applies and resets singleton methods from fixture teardown") do
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :stubbed_time do
       simple_stub(SimpleStubSelfTestClock, :now) { :stubbed_now }

@@ -33,7 +33,7 @@ are no failures.
 ```
 
 Fixture keyword arguments are resolved before the test body starts. If the skip
-condition uses a fixture, that fixture has already been created. Any cleanup
+condition uses a fixture, that fixture has already been created. Any teardown
 registered by created fixtures still runs.
 
 ## Mark a Test as Pending

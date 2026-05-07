@@ -30,7 +30,7 @@ Fixture definitions:
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
 
     server.wait_until_ready!
     server
@@ -195,12 +195,12 @@ server teardown
 
 This is especially complex when fixtures depend on other fixtures.
 
-Smartest instead chooses `cleanup` for the MVP:
+Smartest instead chooses `on_teardown` for the MVP:
 
 ```ruby
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
 
   server.wait_until_ready!
   server
@@ -214,7 +214,7 @@ This has several advantages:
 - teardown is local to the fixture that owns the resource
 - implementation is simple
 - fixture dependencies remain ordinary recursive resolution
-- cleanup runs in `ensure`
+- teardown runs in `ensure`
 
 Not every fixture needs teardown, so teardown should not shape the entire fixture API.
 
@@ -236,12 +236,12 @@ fixture :article do |user:|
 end
 ```
 
-A fixture may register cleanup.
+A fixture may register teardown.
 
 ```ruby
 fixture :temp_dir do
   dir = Dir.mktmpdir
-  cleanup { FileUtils.rm_rf(dir) }
+  on_teardown { FileUtils.rm_rf(dir) }
   dir
 end
 ```
@@ -316,7 +316,7 @@ Runner
   ├── creates FixtureSet
   ├── resolves keyword fixtures
   ├── executes test body
-  ├── runs cleanup
+  ├── runs teardown
   └── reports TestResult
 ```
 
@@ -343,7 +343,7 @@ end
 
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
   server
 end
 
@@ -363,7 +363,7 @@ resolve logged_in_client
       requires server
         resolve server
           evaluate server block
-          register cleanup
+          register teardown
           cache server
       evaluate client block with server:
       cache client
@@ -376,7 +376,7 @@ resolve logged_in_client
 
 execute test body with logged_in_client:
 
-run cleanup stack in reverse order
+run teardown stack in reverse order
 ```
 
 ## Fixture caching
@@ -397,33 +397,33 @@ shared for the runner lifetime.
 This keeps regular fixtures isolated while allowing explicit suite fixtures for
 expensive shared resources.
 
-## Cleanup stack
+## Teardown stack
 
-`FixtureSet` owns a cleanup stack for one fixture scope.
+`FixtureSet` owns a teardown stack for one fixture scope.
 
 ```ruby
-@cleanups = []
+@teardowns = []
 ```
 
 Fixture blocks can call:
 
 ```ruby
-cleanup { resource.close }
+on_teardown { resource.close }
 ```
 
 This delegates to:
 
 ```ruby
-fixture_set.add_cleanup(&block)
+fixture_set.add_teardown(&block)
 ```
 
-For test-scoped fixtures, cleanup runs after the test in reverse order:
+For test-scoped fixtures, teardown runs after the test in reverse order:
 
 ```ruby
-@cleanups.reverse_each(&:call)
+@teardowns.reverse_each(&:call)
 ```
 
-For suite-scoped fixtures, cleanup runs after all tests. Reverse order matters
+For suite-scoped fixtures, teardown runs after all tests. Reverse order matters
 because later resources may depend on earlier ones.
 
 Example:
@@ -431,18 +431,18 @@ Example:
 ```ruby
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
   server
 end
 
 fixture :browser do |server:|
   browser = Browser.launch(server.url)
-  cleanup { browser.close }
+  on_teardown { browser.close }
   browser
 end
 ```
 
-Cleanup should run:
+Teardown should run:
 
 ```text
 browser.close
@@ -669,7 +669,7 @@ Fixture block execution happens on the fixture instance:
 fixture_instance.instance_exec(**dependencies, &definition.block)
 ```
 
-This allows fixture helper methods and `cleanup` to be private instance methods.
+This allows fixture helper methods and `on_teardown` to be private instance methods.
 
 ## Helper methods in fixtures
 
@@ -964,7 +964,7 @@ end
 ```
 
 `around_suite` wraps the full suite body, including all tests and suite fixture
-cleanup. The hook receives a run target and must call `suite.run` exactly once.
+teardown. The hook receives a run target and must call `suite.run` exactly once.
 Multiple hooks compose in registration order, with the first hook as the
 outermost wrapper.
 
@@ -1013,7 +1013,7 @@ For `around_test`, those registrations are test-run local and must happen before
 `test.run`.
 
 Fixture classes registered from `around_test` must not define `suite_fixture`.
-Suite-scoped fixtures need suite-level cache and cleanup ownership, so classes
+Suite-scoped fixtures need suite-level cache and teardown ownership, so classes
 with suite-scoped fixtures must be registered from `around_suite`.
 
 Potential simpler per-test API:
@@ -1036,7 +1036,7 @@ Order:
 before hooks
 fixture setup
 test body
-fixture cleanup
+fixture teardown
 after hooks
 ```
 
@@ -1047,12 +1047,12 @@ fixture setup
 before hooks
 test body
 after hooks
-fixture cleanup
+fixture teardown
 ```
 
 This needs a final decision later.
 
-Fixture cleanup already handles resource-specific teardown.
+Fixture teardown already handles resource-specific teardown.
 
 ### Around-test parallelism note
 
@@ -1086,7 +1086,7 @@ Expensive shared resources can use `suite_fixture`:
 ```ruby
 suite_fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
   server
 end
 ```
@@ -1099,7 +1099,7 @@ Supported scopes:
 `fixture :name do ... end` creates a test-scoped fixture.
 
 `suite_fixture :name do ... end` creates a suite-scoped fixture. It is lazy:
-setup runs the first time a test requests it, and cleanup runs after all tests.
+setup runs the first time a test requests it, and teardown runs after all tests.
 
 Test-scoped fixtures may depend on suite-scoped fixtures. Suite-scoped fixtures
 may depend only on other suite-scoped fixtures.
@@ -1136,7 +1136,7 @@ Benefits:
 - reusable fixture modules
 - clearer organization
 - fewer global definitions
-- natural place for cleanup helper
+- natural place for teardown helper
 
 Example:
 
@@ -1197,7 +1197,7 @@ Pros:
 - easy dependency extraction
 - easy duplicate detection
 - easy source locations
-- easy cleanup integration
+- easy teardown integration
 
 ### `fixture def user`
 
@@ -1241,7 +1241,7 @@ Reason:
 
 - requires around-chain execution
 - complicates dependency handling
-- not needed if `cleanup` exists
+- not needed if `on_teardown` exists
 - makes fixture API more complex
 
 Could be added later as advanced API.
@@ -1271,7 +1271,7 @@ class AppFixture < Smartest::Fixture
 
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 

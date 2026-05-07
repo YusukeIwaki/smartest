@@ -20,7 +20,7 @@ graph.
 | Reusable setup | `let`, `let!`, `before`, helper methods | Class-based fixtures |
 | Dependency visibility | Examples call helper methods from the body | Tests request fixtures with keyword arguments |
 | Setup dependencies | Often expressed by one `let` calling another | Fixture block keyword arguments |
-| Teardown | `after` hooks or helper-owned cleanup | `cleanup` inside the fixture that owns the resource |
+| Teardown | `after` hooks or helper-owned teardown | `on_teardown` inside the fixture that owns the resource |
 | Best fit | Rich BDD structure and RSpec ecosystem | Explicit pytest-style fixture injection |
 
 ## `let` Compared With Keyword Fixtures
@@ -65,16 +65,16 @@ end
 The Smartest test signature shows that the test depends on `mailer`. The
 `mailer` fixture signature shows that it depends on `user`.
 
-## Resource Cleanup
+## Resource Teardown
 
-RSpec can clean up resources with hooks. Smartest puts cleanup next to the
+RSpec can clean up resources with hooks. Smartest puts teardown next to the
 resource acquisition:
 
 ```ruby title="Smartest"
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 
@@ -85,7 +85,7 @@ end
 ```
 
 This keeps lifecycle ownership local. The fixture that starts `server` also
-registers the cleanup for `server`.
+registers the teardown for `server`.
 
 ## Method Stubs
 
@@ -128,7 +128,7 @@ end
 ```
 
 The fixture signature makes the stubbed dependency explicit, and Smartest resets
-the method stub from fixture cleanup.
+the method stub from fixture teardown.
 
 For `allow_any_instance_of`, use `simple_stub_any_instance_of`:
 
@@ -175,7 +175,7 @@ Smartest is worth considering when:
 
 - tests have setup dependencies that should be visible at the test boundary
 - one fixture naturally depends on another fixture
-- cleanup should live beside the resource setup
+- teardown should live beside the resource setup
 - you want a small runner with pytest-style fixture injection for Ruby
 
 RSpec may be a better fit when:

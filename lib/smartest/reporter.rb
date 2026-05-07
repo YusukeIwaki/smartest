@@ -21,14 +21,14 @@ module Smartest
       @io.puts record_line(result)
     end
 
-    def finish(results, suite_cleanup_errors: [], suite_errors: [])
+    def finish(results, suite_teardown_errors: [], suite_errors: [])
       failures = results.select(&:failed?)
       skipped = results.select(&:skipped?)
       pending = results.select(&:pending?)
 
       report_failures(failures) if failures.any?
       report_suite_errors(suite_errors) if suite_errors.any?
-      report_suite_cleanup_errors(suite_cleanup_errors) if suite_cleanup_errors.any?
+      report_suite_teardown_errors(suite_teardown_errors) if suite_teardown_errors.any?
       report_profile(results) if @profile_count && @profile_count.positive?
 
       @io.puts
@@ -39,9 +39,9 @@ module Smartest
         suite_label = suite_errors.count == 1 ? "suite failure" : "suite failures"
         summary = "#{summary}, #{suite_errors.count} #{suite_label}"
       end
-      if suite_cleanup_errors.any?
-        cleanup_label = suite_cleanup_errors.count == 1 ? "suite cleanup" : "suite cleanups"
-        summary = "#{summary}, #{suite_cleanup_errors.count} #{cleanup_label} failed"
+      if suite_teardown_errors.any?
+        teardown_label = suite_teardown_errors.count == 1 ? "suite teardown" : "suite teardowns"
+        summary = "#{summary}, #{suite_teardown_errors.count} #{teardown_label} failed"
       end
       @io.puts summary
     end
@@ -72,7 +72,7 @@ module Smartest
         @io.puts "#{index + 1}) #{result.test_case.name}"
         report_location(result.test_case.location)
         report_error(result.error) if result.error
-        result.cleanup_errors.each { |error| report_cleanup_error(error) }
+        result.teardown_errors.each { |error| report_teardown_error(error) }
         @io.puts
       end
     end
@@ -89,14 +89,14 @@ module Smartest
       end
     end
 
-    def report_suite_cleanup_errors(errors)
+    def report_suite_teardown_errors(errors)
       @io.puts
-      @io.puts "Suite cleanup failures:"
+      @io.puts "Suite teardown failures:"
       @io.puts
 
       errors.each_with_index do |error, index|
-        @io.puts "#{index + 1}) suite cleanup"
-        report_cleanup_error(error)
+        @io.puts "#{index + 1}) suite teardown"
+        report_teardown_error(error)
         @io.puts
       end
     end
@@ -148,8 +148,8 @@ module Smartest
       report_backtrace(error)
     end
 
-    def report_cleanup_error(error)
-      @io.puts "   cleanup failed: #{error.class}: #{error.message}"
+    def report_teardown_error(error)
+      @io.puts "   teardown failed: #{error.class}: #{error.message}"
       report_backtrace(error)
     end
 

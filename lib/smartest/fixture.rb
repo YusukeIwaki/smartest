@@ -59,10 +59,10 @@ module Smartest
 
     private
 
-    def cleanup(&block)
-      raise ArgumentError, "cleanup block is required" unless block
+    def on_teardown(&block)
+      raise ArgumentError, "on_teardown block is required" unless block
 
-      @fixture_set.add_cleanup(&block)
+      @fixture_set.add_teardown(&block)
     end
 
     def simple_stub_any_instance_of(klass, method_name, &block)
@@ -75,7 +75,7 @@ module Smartest
 
     def apply_simple_stub(stub)
       stub.apply!
-      cleanup { stub.reset }
+      on_teardown { stub.reset }
       stub
     end
 

@@ -1,6 +1,6 @@
 ---
 title: Pytest-style fixtures for Ruby
-description: Smartest is a Ruby test runner with pytest-style fixture injection, explicit fixture dependencies, and cleanup.
+description: Smartest is a Ruby test runner with pytest-style fixture injection, explicit fixture dependencies, and teardown.
 ---
 
 # Smartest
@@ -8,7 +8,7 @@ description: Smartest is a Ruby test runner with pytest-style fixture injection,
 introduces **Pytest-style fixtures for Ruby.**
 
 Smartest is a small Ruby test runner that brings pytest-style fixture
-injection, explicit fixture dependencies, and fixture cleanup to Ruby tests.
+injection, explicit fixture dependencies, and fixture teardown to Ruby tests.
 
 It is designed around three ideas:
 
@@ -21,7 +21,7 @@ It is designed around three ideas:
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 
@@ -50,8 +50,8 @@ end
 - [Writing Tests](./writing-tests.md) explains test structure and expectations.
 - [Skipping Tests](./skipping-tests.md) covers skipped tests and expected failures.
 - [Running Test Suites](./running-test-suites.md) covers autorun and the CLI.
-- [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and cleanup.
-- [Stubs](./stubs.md) shows method stubs that reset from fixture cleanup.
+- [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and teardown.
+- [Stubs](./stubs.md) shows method stubs that reset from fixture teardown.
 - [Helpers](./helpers.md) explains registering helper modules from `around_test`.
 - [Browser Tests With Playwright](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
 
@@ -63,7 +63,7 @@ Smartest currently focuses on a small runner API:
 - class-based fixtures
 - keyword-argument fixture injection
 - fixture dependencies through keyword arguments
-- fixture cleanup
+- fixture teardown
 - suite-scoped fixtures through `suite_fixture`
 - fixture-scoped method stubs and block-scoped constant stubs
 - suite hooks through `around_suite`

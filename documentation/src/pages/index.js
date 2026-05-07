@@ -7,7 +7,7 @@ import CodeBlock from '@theme/CodeBlock';
 export default function Home() {
   return (
     <Layout
-      description="Smartest is a Ruby test runner with pytest-style fixture injection, explicit fixture dependencies, and cleanup.">
+      description="Smartest is a Ruby test runner with pytest-style fixture injection, explicit fixture dependencies, and teardown.">
       <Head>
         <title>Smartest: Pytest-style fixtures for Ruby</title>
       </Head>
@@ -33,7 +33,7 @@ export default function Home() {
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 
@@ -76,7 +76,7 @@ end`}</CodeBlock>
           <section className="smartest-panel">
             <h2>Use Fixtures</h2>
             <p>
-              Define fixture dependencies and cleanup close to resource setup.
+              Define fixture dependencies and teardown close to resource setup.
             </p>
             <Link to="/docs/fixtures">Learn fixtures</Link>
           </section>

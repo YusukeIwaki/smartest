@@ -156,7 +156,7 @@ class PlaywrightFixture < Smartest::Fixture
     runtime = Playwright.create(
       playwright_cli_executable_path: "./node_modules/.bin/playwright",
     )
-    cleanup { runtime.stop }
+    on_teardown { runtime.stop }
     runtime.playwright
   end
 
@@ -177,13 +177,13 @@ class PlaywrightFixture < Smartest::Fixture
     end
 
     browser = playwright.send(browser_type).launch(**launch_options)
-    cleanup { browser.close }
+    on_teardown { browser.close }
     browser
   end
 
   fixture :page do |browser:|
     context = browser.new_context
-    cleanup { context.close }
+    on_teardown { context.close }
     context.new_page
   end
 end

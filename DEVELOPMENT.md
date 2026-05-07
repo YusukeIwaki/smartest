@@ -13,7 +13,7 @@ Smartest is a Ruby test runner focused on:
 - top-level test definitions
 - class-based fixtures
 - explicit keyword-argument fixture dependencies
-- optional cleanup for fixtures that need teardown
+- optional teardown for fixtures that need teardown
 - suite-scoped fixtures for expensive shared resources
 - a small internal architecture that is easy to reason about
 
@@ -224,7 +224,7 @@ Responsibilities:
 - class-level `suite_fixture` DSL for suite-scoped fixtures
 - stores fixture definitions
 - supports inheritance
-- exposes `cleanup` to fixture blocks
+- exposes `on_teardown` to fixture blocks
 - optionally delegates helper methods to `ExecutionContext`
 - does not delegate `skip` or `pending` to fixture blocks
 
@@ -293,8 +293,8 @@ Responsibilities:
 - find fixture definitions
 - resolve fixture dependencies
 - cache fixture values for its scope
-- collect cleanup blocks
-- run cleanup blocks in reverse order
+- collect teardown blocks
+- run teardown blocks in reverse order
 - detect duplicate fixture names
 - detect circular dependencies
 
@@ -332,9 +332,9 @@ Responsibilities:
 - create a fresh `FixtureSet` per test
 - resolve test keyword fixtures
 - run test body
-- run cleanup in `ensure`
+- run teardown in `ensure`
 - track skipped and pending test state
-- run suite fixture cleanup after all tests
+- run suite fixture teardown after all tests
 - produce `TestResult`
 - notify reporter
 
@@ -373,7 +373,7 @@ rescue Exception => error
     TestResult.failed(test_case, error)
   end
 ensure
-  fixture_set&.run_cleanups
+  fixture_set&.run_teardowns
 end
 ```
 
@@ -424,7 +424,7 @@ end
 
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
   server
 end
 
@@ -456,12 +456,12 @@ resolve :logged_in_client
   evaluate logged_in_client
   cache logged_in_client
 run test body
-run cleanup stack
+run teardown stack
 ```
 
-## Cleanup behavior
+## Teardown behavior
 
-Fixture cleanup is optional.
+Fixture teardown is optional.
 
 Fixture without teardown:
 
@@ -476,33 +476,33 @@ Fixture with teardown:
 ```ruby
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
 
   server.wait_until_ready!
   server
 end
 ```
 
-`cleanup` should register a block on the current fixture set. Regular fixture
-cleanups run after the test. `suite_fixture` cleanups run after all tests.
+`on_teardown` should register a block on the current fixture set. Regular fixture
+teardown blocks run after the test. `suite_fixture` teardown blocks run after all tests.
 
-Cleanup blocks must run:
+Teardown blocks must run:
 
 - after the test body
 - after the suite for suite-scoped fixtures
 - after failed tests
-- after fixture setup errors, if cleanup was already registered
+- after fixture setup errors, if teardown was already registered
 - in reverse registration order
 
 Implementation:
 
 ```ruby
-def add_cleanup(&block)
-  @cleanups << block
+def add_teardown(&block)
+  @teardowns << block
 end
 
-def run_cleanups
-  @cleanups.reverse_each(&:call)
+def run_teardowns
+  @teardowns.reverse_each(&:call)
 end
 ```
 
@@ -621,17 +621,17 @@ A practical approach:
 - recursive fixture resolution
 - per-test caching
 
-### Phase 4: Cleanup
+### Phase 4: Teardown
 
-- `cleanup { ... }`
-- cleanup stack on `FixtureSet`
-- cleanup in `ensure`
+- `on_teardown { ... }`
+- teardown stack on `FixtureSet`
+- teardown in `ensure`
 
 ### Phase 5: Suite-scoped fixtures
 
 - `suite_fixture :name do ... end`
 - suite-level fixture cache
-- suite cleanup after all tests
+- suite teardown after all tests
 - test fixtures may depend on suite fixtures
 - suite fixtures may not depend on test fixtures
 
@@ -662,14 +662,14 @@ A practical approach:
 
 - `around_suite do |suite| ... end`
 - run hooks around the full suite body
-- include suite fixture cleanup inside the wrapped body
+- include suite fixture teardown inside the wrapped body
 - report hook failures as suite failures
 
 ### Phase 8: Test hooks
 
 - `around_test do |test| ... end`
 - snapshot file-local hooks when each test is registered
-- run hooks around fixture setup, test body, and fixture cleanup
+- run hooks around fixture setup, test body, and fixture teardown
 - expose `use_fixture` and `use_matcher` only inside hook contexts
 - make `around_test` registered from `around_suite` suite-wide
 
@@ -720,7 +720,7 @@ end
 ```
 
 ```ruby
-cleanup { ... }
+on_teardown { ... }
 ```
 
 ```ruby
@@ -842,6 +842,22 @@ Before releasing:
 - install the built gem locally
 - run a sample project against the installed gem
 - push the release tag
+
+### Changelog updates
+
+Update `CHANGELOG.md` from the actual diff between released versions, not from
+commit messages. For an already tagged release, compare the previous release tag
+to the release tag and inspect the code/docs changes, for example:
+
+```bash
+git diff --stat 0.4.0..0.5.0
+git diff 0.4.0..0.5.0
+```
+
+Before the new tag exists, compare the latest release tag to the release branch
+or working tree and inspect the same kind of diff. Only document breaking
+changes and notable new features. Do not copy every commit message or list
+documentation-only maintenance changes unless they materially affect users.
 
 Example commands:
 

@@ -1,6 +1,6 @@
 ---
 title: Stubs
-description: Stub Ruby methods from Smartest fixtures with automatic cleanup.
+description: Stub Ruby methods from Smartest fixtures with automatic teardown.
 ---
 
 # Stubs
@@ -50,7 +50,7 @@ end
 `use_fixture` is available inside `around_suite` or `around_test` blocks, not as
 a top-level method in a test file.
 
-The stub is automatically reset when the fixture is cleaned up.
+The stub is automatically reset when the fixture is torn down.
 
 ## Instance Method Stubs
 
@@ -61,7 +61,7 @@ simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
 ```
 
 The stub affects existing instances and new instances of the target class in
-the current Fiber until cleanup resets it. Other Fibers and Threads continue to
+the current Fiber until teardown resets it. Other Fibers and Threads continue to
 see the original method unless they apply their own stub.
 
 A Rails authentication fixture might look like this:
@@ -137,14 +137,14 @@ end
 Constant stubs are process-global. Avoid concurrent tests that stub the same
 constant.
 
-## How Method Stub Cleanup Works
+## How Method Stub Teardown Works
 
 You do not need to call `reset!` manually when using method stub helpers inside
 fixtures. The helper internally:
 
 1. creates the stub state
 2. applies the replacement
-3. registers cleanup to reset it
+3. registers teardown to reset it
 
 Conceptually, this:
 
@@ -157,10 +157,10 @@ behaves like:
 ```ruby
 stub = Smartest::SimpleStub.new(ApplicationController, :current_user) { user }
 stub.apply!
-cleanup { stub.reset }
+on_teardown { stub.reset }
 ```
 
-Cleanup is tied to the fixture lifecycle:
+Teardown is tied to the fixture lifecycle:
 
 - `fixture` method stubs reset after each test.
 - `suite_fixture` method stubs reset after the suite fixture scope ends.
@@ -229,7 +229,7 @@ end
 
 `simple_stub_any_instance_of` and `simple_stub` are available inside
 `Smartest::Fixture` fixture blocks, including `fixture` and `suite_fixture`,
-because they need `cleanup` to keep the stub lifetime tied to the fixture scope.
+because they need `on_teardown` to keep the stub lifetime tied to the fixture scope.
 `with_stub_const` is available in test bodies, `around_test`, and
 `around_suite`.
 
@@ -269,7 +269,7 @@ already active in the current Fiber. `reset!` raises
 current Fiber.
 
 `Smartest::SimpleStub` stores the active stub in Fiber-local storage keyed by
-the target class and method name. That means setup and cleanup can use separate
+the target class and method name. That means setup and teardown can use separate
 stub instances in the same Fiber:
 
 ```ruby
@@ -301,10 +301,10 @@ stub.reset!
 ```
 
 Different Threads can apply different stubs for the same class and method at
-the same time. Cleanup still matters, so prefer the fixture helpers when the
+the same time. Teardown still matters, so prefer the fixture helpers when the
 stub belongs to test setup.
 
 Constant stubs are different: Ruby constant lookup does not provide a Fiber-local
 hook, so `with_stub_const` replaces the constant on the owner module. That
-change is process-global until cleanup runs. Avoid concurrent tests that stub
+change is process-global until teardown runs. Avoid concurrent tests that stub
 the same constant.

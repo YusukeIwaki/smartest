@@ -697,7 +697,7 @@ test("caches fixture values within one test") do
   expect(calls).to eq(1)
 end
 
-test("suite fixtures are created once and cleaned up after the suite") do
+test("suite fixtures are created once and torn down after the suite") do
   events = []
   servers = []
 
@@ -705,7 +705,7 @@ test("suite fixtures are created once and cleaned up after the suite") do
     suite_fixture :server do
       events << :server_setup
       server = Object.new
-      cleanup { events << :server_cleanup }
+      on_teardown { events << :server_teardown }
       server
     end
   end
@@ -718,7 +718,7 @@ test("suite fixtures are created once and cleaned up after the suite") do
   status, = SmartestSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
-  expect(events).to eq(%i[server_setup first second server_cleanup])
+  expect(events).to eq(%i[server_setup first second server_teardown])
   expect(servers.length).to eq(2)
   expect(servers[0].object_id).to eq(servers[1].object_id)
 end
@@ -773,14 +773,14 @@ test("suite fixtures cannot depend on test fixtures") do
   expect(output).to include("suite-scoped fixture server cannot depend on test-scoped fixture user")
 end
 
-test("suite fixture setup failures are cached and cleaned up once") do
+test("suite fixture setup failures are cached and torn down once") do
   calls = 0
   events = []
 
   fixture_class = Class.new(Smartest::Fixture) do
     suite_fixture :server do
       calls += 1
-      cleanup { events << :server_cleanup }
+      on_teardown { events << :server_teardown }
       raise "server setup failed"
     end
   end
@@ -794,17 +794,17 @@ test("suite fixture setup failures are cached and cleaned up once") do
 
   expect(status).to eq(1)
   expect(calls).to eq(1)
-  expect(events).to eq([:server_cleanup])
+  expect(events).to eq([:server_teardown])
   expect(output.scan("RuntimeError: server setup failed").length).to eq(2)
 end
 
-test("around_suite wraps tests and suite fixture cleanup") do
+test("around_suite wraps tests and suite fixture teardown") do
   events = []
 
   fixture_class = Class.new(Smartest::Fixture) do
     suite_fixture :server do
       events << :server_setup
-      cleanup { events << :server_cleanup }
+      on_teardown { events << :server_teardown }
       :server
     end
   end
@@ -821,7 +821,7 @@ test("around_suite wraps tests and suite fixture cleanup") do
   status, = SmartestSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
-  expect(events).to eq(%i[around_before server_setup test server_cleanup around_after])
+  expect(events).to eq(%i[around_before server_setup test server_teardown around_after])
 end
 
 test("around_suite hooks run in registration order") do
@@ -886,13 +886,13 @@ test("around_suite can register suite-wide around_test hooks") do
   expect(events).to eq(%i[around_test_before test around_test_after])
 end
 
-test("around_test wraps fixture setup, test body, and cleanup") do
+test("around_test wraps fixture setup, test body, and teardown") do
   events = []
 
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :resource do
       events << :fixture_setup
-      cleanup { events << :fixture_cleanup }
+      on_teardown { events << :fixture_teardown }
       :resource
     end
   end
@@ -918,7 +918,7 @@ test("around_test wraps fixture setup, test body, and cleanup") do
   status, = SmartestSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
-  expect(events).to eq(%i[around_test_before fixture_setup test fixture_cleanup around_test_after])
+  expect(events).to eq(%i[around_test_before fixture_setup test fixture_teardown around_test_after])
 end
 
 test("around_test can register fixtures for one test run") do
@@ -1232,10 +1232,10 @@ test("around_suite must call suite.run") do
   expect(output).to include("Smartest::AroundSuiteRunError: around_suite hook did not call suite.run")
 end
 
-test("suite cleanup failures fail the run") do
+test("suite teardown failures fail the run") do
   fixture_class = Class.new(Smartest::Fixture) do
     suite_fixture :browser do
-      cleanup { raise "browser close failed" }
+      on_teardown { raise "browser close failed" }
       :browser
     end
   end
@@ -1247,22 +1247,22 @@ test("suite cleanup failures fail the run") do
   status, output = SmartestSelfTest.run_suite(suite)
 
   expect(status).to eq(1)
-  expect(output).to include("Suite cleanup failures:")
-  expect(output).to include("cleanup failed: RuntimeError: browser close failed")
-  expect(output).to include("1 test, 1 passed, 0 failed, 1 suite cleanup failed")
+  expect(output).to include("Suite teardown failures:")
+  expect(output).to include("teardown failed: RuntimeError: browser close failed")
+  expect(output).to include("1 test, 1 passed, 0 failed, 1 suite teardown failed")
 end
 
-test("runs cleanup in reverse order after failures") do
+test("runs teardown in reverse order after failures") do
   events = []
 
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :server do
-      cleanup { events << :server }
+      on_teardown { events << :server }
       :server
     end
 
     fixture :browser do |server:|
-      cleanup { events << :browser }
+      on_teardown { events << :browser }
       server
     end
   end
@@ -1277,12 +1277,12 @@ test("runs cleanup in reverse order after failures") do
   expect(events).to eq(%i[browser server])
 end
 
-test("runs cleanup when fixture setup fails after cleanup registration") do
+test("runs teardown when fixture setup fails after teardown registration") do
   events = []
 
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :server do
-      cleanup { events << :server }
+      on_teardown { events << :server }
       raise "server setup failed"
     end
   end
@@ -1296,6 +1296,25 @@ test("runs cleanup when fixture setup fails after cleanup registration") do
   expect(status).to eq(1)
   expect(events).to eq([:server])
   expect(output).to include("RuntimeError: server setup failed")
+end
+
+test("does not keep cleanup as a fixture teardown alias") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :server do
+      cleanup { :server }
+      :server
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(SmartestSelfTest.test_case("needs server", proc { |server:| expect(server).to eq(:server) }))
+
+  status, output = SmartestSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("NoMethodError")
+  expect(output).to include("cleanup")
 end
 
 test("duplicate fixture names fail the test") do

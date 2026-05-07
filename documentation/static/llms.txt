@@ -2,7 +2,7 @@
 
 Smartest is a small Ruby test runner that brings Pytest-style fixtures for Ruby:
 keyword-argument fixture injection, explicit fixture dependencies, fixture
-cleanup, and a focused CLI runner.
+teardown, and a focused CLI runner.
 
 Use this page as an LLM-friendly entry point. For canonical human-readable
 documentation, prefer the project README and the public docs linked below.
@@ -29,12 +29,12 @@ documentation, prefer the project README and the public docs linked below.
   full suite.
 - Tests and fixtures request dependencies with required Ruby keyword arguments.
 - `use_fixture` registers fixture classes from `around_suite` or `around_test`.
-- `cleanup` registers teardown for resources owned by a fixture. Test-scoped
-  fixture cleanup runs after the test; suite fixture cleanup runs after the
+- `on_teardown` registers teardown for resources owned by a fixture. Test-scoped
+  fixture teardown runs after the test; suite fixture teardown runs after the
   suite.
 - `simple_stub_any_instance_of(Klass, :method) { ... }` and
   `simple_stub(object, :method) { ... }` are fixture helpers that apply a
-  Fiber-local stub and register cleanup automatically.
+  Fiber-local stub and register teardown automatically.
 - `with_stub_const("Namespace::CONST", value) { ... }` is a block-scoped
   helper available in test bodies, `around_test`, and `around_suite`. It
   replaces a constant and restores or removes it with ensure. Constant stubs are
@@ -54,7 +54,7 @@ documentation, prefer the project README and the public docs linked below.
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 
@@ -78,7 +78,7 @@ end
 ## Current Scope
 
 Smartest currently focuses on a small runner API: `test`, `expect`, fixtures,
-suite fixtures, fixture cleanup, `around_suite`, `around_test`, `skip`,
+suite fixtures, fixture teardown, `around_suite`, `around_test`, `skip`,
 `pending`, helper and matcher registration, console reporting, and the CLI
 runner.
 

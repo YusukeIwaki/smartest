@@ -9,7 +9,7 @@ module Smartest
       @parent = parent
       @cache = {}
       @setup_errors = {}
-      @cleanups = []
+      @teardowns = []
       @resolving = []
 
       build_fixture_index
@@ -49,17 +49,17 @@ module Smartest
       @resolving.pop if @resolving.last == symbol_name
     end
 
-    def add_cleanup(&block)
-      raise ArgumentError, "cleanup block is required" unless block
+    def add_teardown(&block)
+      raise ArgumentError, "on_teardown block is required" unless block
 
-      @cleanups << block
+      @teardowns << block
     end
 
-    def run_cleanups
+    def run_teardowns
       errors = []
 
-      @cleanups.reverse_each do |cleanup|
-        cleanup.call
+      @teardowns.reverse_each do |teardown|
+        teardown.call
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)
 

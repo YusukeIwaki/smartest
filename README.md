@@ -3,7 +3,7 @@
 [![Gem Version](https://badge.fury.io/rb/smartest.svg)](https://rubygems.org/gems/smartest)
 
 Smartest is a Ruby test runner that brings pytest-style fixtures to Ruby,
-with explicit fixture dependencies, automatic cleanup, and Playwright-friendly
+with explicit fixture dependencies, automatic teardown, and Playwright-friendly
 browser testing.
 
 Tests request fixtures with Ruby keyword arguments. Fixtures define their own
@@ -13,7 +13,7 @@ dependencies the same way:
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 
@@ -48,7 +48,7 @@ idea: tests should explicitly declare their dependencies.
 RSpec `let` is useful when examples need lazy helper methods. Minitest `setup`
 is simple for xUnit-style setup. Rails fixtures and FactoryBot are great for
 test data. Smartest is aimed at tests where setup resources, dependency graphs,
-and cleanup should be visible in the test signature and fixture definitions.
+and teardown should be visible in the test signature and fixture definitions.
 
 ```ruby
 test("GET /me") do |logged_in_client:|
@@ -483,7 +483,7 @@ released after the full suite finishes:
 class BrowserFixture < Smartest::Fixture
   suite_fixture :browser do
     browser = Browser.launch
-    cleanup { browser.close }
+    on_teardown { browser.close }
     browser
   end
 
@@ -494,7 +494,7 @@ end
 ```
 
 Suite fixtures are lazy: setup runs the first time a test requests the fixture,
-and cleanup runs once after all tests finish. Test-scoped fixtures can depend on
+and teardown runs once after all tests finish. Test-scoped fixtures can depend on
 suite fixtures, but suite fixtures cannot depend on test-scoped fixtures.
 
 ## Suite hooks
@@ -510,8 +510,8 @@ end
 ```
 
 The hook receives a run target and must call `suite.run` exactly once. The block
-wraps every test, test-scoped fixture setup and cleanup, suite fixture setup, and
-suite fixture cleanup.
+wraps every test, test-scoped fixture setup and teardown, suite fixture setup, and
+suite fixture teardown.
 
 Fixture and matcher registrations made before `suite.run` are applied to that
 run:
@@ -552,7 +552,7 @@ end
 ```
 
 The hook receives a run target and must call `test.run` exactly once. It wraps
-fixture setup, the test body, and fixture cleanup.
+fixture setup, the test body, and fixture teardown.
 
 `around_test` is file-scoped when it is written directly in a test file. Smartest
 copies the current file's `around_test` hooks when each `test` is registered, so
@@ -586,20 +586,20 @@ end
 
 Fixture classes registered from `around_test` must define only test-scoped
 fixtures. If a class defines `suite_fixture`, register it from `around_suite`
-instead so its cache and cleanup belong to the suite lifecycle.
+instead so its cache and teardown belong to the suite lifecycle.
 
 `use_fixture` and `use_matcher` are only available inside `around_suite` or
 `around_test` blocks. They are not top-level DSL methods.
 
 ## Fixtures with teardown
 
-Not every fixture needs teardown. For fixtures that do, use `cleanup`.
+Not every fixture needs teardown. For fixtures that do, use `on_teardown`.
 
 ```ruby
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
 
     server.wait_until_ready!
     server
@@ -611,8 +611,8 @@ class WebFixture < Smartest::Fixture
 end
 ```
 
-`cleanup` blocks run after the fixture's scope finishes. For regular fixtures
-that means after the test. For `suite_fixture`, cleanup runs after the full
+`on_teardown` blocks run after the fixture's scope finishes. For regular fixtures
+that means after the test. For `suite_fixture`, teardown runs after the full
 suite.
 
 They are executed in reverse order of registration.
@@ -620,7 +620,7 @@ They are executed in reverse order of registration.
 ```ruby
 fixture :temp_dir do
   dir = Dir.mktmpdir
-  cleanup { FileUtils.rm_rf(dir) }
+  on_teardown { FileUtils.rm_rf(dir) }
 
   dir
 end
@@ -631,19 +631,19 @@ Recommended pattern:
 ```ruby
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
 
   server.wait_until_ready!
   server
 end
 ```
 
-Register cleanup immediately after acquiring the resource, before later setup steps that may fail.
+Register teardown immediately after acquiring the resource, before later setup steps that may fail.
 
 ## Stubs
 
 Use simple stub helpers when a fixture needs to temporarily replace a Ruby
-method and reset it during cleanup:
+method and reset it during teardown:
 
 ```ruby
 class PaymentFixture < Smartest::Fixture
@@ -684,7 +684,7 @@ constants in test bodies, `around_test`, or `around_suite`. Constant stubs are
 process-global; avoid concurrent tests that stub the same constant.
 
 The method stub helpers call `Smartest::SimpleStub` internally, apply the stub,
-register `cleanup { stub.reset }`, and return the stub object.
+register `on_teardown { stub.reset }`, and return the stub object.
 `with_stub_const` records the previous constant value, replaces it, yields to
 the block, and restores or removes the constant with `ensure`.
 
@@ -701,7 +701,7 @@ the current Fiber, and `reset!` raises
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
 
     server.wait_until_ready!
     server
@@ -761,7 +761,7 @@ client setup
 user setup
 logged_in_client setup
 test body
-server cleanup
+server teardown
 ```
 
 ## Registering fixture classes
@@ -790,15 +790,15 @@ Fixture names must be unique across registered fixture classes.
 
 If two fixture classes define the same fixture name, Smartest raises an error.
 
-## Suite hooks and fixture cleanup
+## Suite hooks and fixture teardown
 
-Suite hooks are separate from fixture cleanup. Use fixture cleanup for
+Suite hooks are separate from fixture teardown. Use fixture teardown for
 resource-specific teardown:
 
 ```ruby
 fixture :server do
   server = TestServer.start
-  cleanup { server.stop }
+  on_teardown { server.stop }
   server
 end
 ```
@@ -855,7 +855,7 @@ Example:
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 
@@ -918,7 +918,7 @@ Smartest currently focuses on a small runner API:
 - class-based fixtures
 - keyword-argument fixture injection
 - fixture dependencies through keyword arguments
-- fixture cleanup
+- fixture teardown
 - suite-scoped fixtures through `suite_fixture`
 - fixture-scoped method stubs and block-scoped constant stubs
 - suite hooks with `around_suite`

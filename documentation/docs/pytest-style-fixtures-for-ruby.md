@@ -1,6 +1,6 @@
 ---
 title: Pytest-style Fixtures for Ruby
-description: Map pytest fixture concepts to Smartest's class-based fixtures, keyword injection, fixture dependencies, and cleanup.
+description: Map pytest fixture concepts to Smartest's class-based fixtures, keyword injection, fixture dependencies, and teardown.
 ---
 
 # Pytest-style Fixtures for Ruby
@@ -71,7 +71,7 @@ When a test requests `client`, Smartest resolves `server` first. The dependency
 graph stays visible in fixture signatures instead of being hidden in test body
 calls.
 
-## Cleanup
+## Teardown
 
 Pytest often uses `yield` fixtures or finalizers for teardown:
 
@@ -83,20 +83,20 @@ def server():
     server.stop()
 ```
 
-Smartest keeps teardown near the resource setup with `cleanup`:
+Smartest keeps teardown near the resource setup with `on_teardown`:
 
 ```ruby title="Smartest"
 class WebFixture < Smartest::Fixture
   fixture :server do
     server = TestServer.start
-    cleanup { server.stop }
+    on_teardown { server.stop }
     server
   end
 end
 ```
 
-Cleanup runs even if a later setup step or the test body fails. Regular fixture
-cleanup runs after the test. `suite_fixture` cleanup runs after the suite.
+Teardown runs even if a later setup step or the test body fails. Regular fixture
+teardown runs after the test. `suite_fixture` teardown runs after the suite.
 
 ## Concept Map
 
@@ -106,7 +106,7 @@ cleanup runs after the test. `suite_fixture` cleanup runs after the suite.
 | Test function parameter | Required keyword argument | `test("name") do |user:|` requests `fixture :user`. |
 | Fixture parameter | Fixture block keyword argument | `fixture :client do |server:|` depends on `server`. |
 | `scope="session"` | `suite_fixture` | Created lazily and reused for the suite. |
-| `yield` teardown or finalizer | `cleanup` | Register cleanup immediately after acquiring the resource. |
+| `yield` teardown or finalizer | `on_teardown` | Register teardown immediately after acquiring the resource. |
 | `conftest.py` discovery | `require` fixture files and `use_fixture` | Smartest registers fixture classes explicitly. |
 
 ## How This Differs From Ruby Fixtures
@@ -118,7 +118,7 @@ narrower meaning:
 - a fixture is a named setup value
 - tests declare fixture usage in their keyword arguments
 - fixtures declare dependencies in their keyword arguments
-- cleanup belongs next to the resource setup
+- teardown belongs next to the resource setup
 
 This makes Smartest useful when you want pytest-style dependency injection for
 Ruby tests while keeping fixture ownership explicit.

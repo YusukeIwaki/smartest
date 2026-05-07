@@ -10,7 +10,7 @@ well when setup is simple, class-based test organization is preferred, and the
 suite already uses Minitest conventions.
 
 Smartest is focused on pytest-style fixture injection. It is designed for tests
-where dependencies should be requested explicitly and fixture cleanup should sit
+where dependencies should be requested explicitly and fixture teardown should sit
 beside the resource setup.
 
 ## At a Glance
@@ -20,7 +20,7 @@ beside the resource setup.
 | Test shape | Test classes with `test_` methods | Top-level `test("name")` blocks |
 | Setup | `setup` methods and instance variables | Class-based fixtures |
 | Dependency visibility | Test methods read `@instance_variables` | Tests request keyword arguments |
-| Teardown | `teardown` methods | `cleanup` inside fixtures |
+| Teardown | `teardown` methods | `on_teardown` inside fixtures |
 | Assertions | `assert_equal`, `refute`, and related assertions | `expect(actual).to matcher` |
 | Default file path | Often `test/` | `smartest/**/*_test.rb` |
 
@@ -52,7 +52,7 @@ In Smartest, setup values are fixtures and tests name the fixtures they need:
 class RepositoryFixture < Smartest::Fixture
   fixture :database do
     database = TestDatabase.create
-    cleanup { database.drop }
+    on_teardown { database.drop }
     database
   end
 
@@ -192,7 +192,7 @@ Smartest is worth considering when:
 - test dependencies are easier to read as named keyword arguments than as
   instance variables
 - setup values depend on other setup values
-- resource cleanup should be attached to the fixture that acquired the resource
+- resource teardown should be attached to the fixture that acquired the resource
 - you want pytest-style fixture injection in Ruby
 
 Minitest may be a better fit when:

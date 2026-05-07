@@ -173,8 +173,8 @@ end
 ```
 
 The hook receives a run target and must call `suite.run` exactly once. It wraps
-every test, test-scoped fixture setup and cleanup, suite fixture setup, and suite
-fixture cleanup.
+every test, test-scoped fixture setup and teardown, suite fixture setup, and suite
+fixture teardown.
 
 Fixture and matcher registrations made before `suite.run` are applied to that
 run:
@@ -215,7 +215,7 @@ end
 ```
 
 The hook receives a run target and must call `test.run` exactly once. It wraps
-fixture setup, the test body, and fixture cleanup.
+fixture setup, the test body, and fixture teardown.
 
 When `around_test` is written directly in a test file, it is file-scoped. Smartest
 copies the current file's `around_test` hooks when each `test` is registered, so
@@ -250,7 +250,7 @@ end
 
 Fixture classes registered from `around_test` must define only test-scoped
 fixtures. If a class defines `suite_fixture`, register it from `around_suite`
-instead so its cache and cleanup belong to the suite lifecycle.
+instead so its cache and teardown belong to the suite lifecycle.
 
 `use_fixture` and `use_matcher` are only available inside `around_suite` or
 `around_test` blocks. `use_helper` is only available inside `around_test`. None
@@ -264,7 +264,7 @@ Smartest returns:
 - `0` when every test passes, is skipped, or is pending as expected
 - `1` when any test fails
 - `1` when a pending test unexpectedly passes
-- `1` when suite fixture cleanup fails
+- `1` when suite fixture teardown fails
 - `1` when an `around_suite` hook fails
 - `1` when an `around_test` hook fails
 - `1` when a test file cannot be loaded
