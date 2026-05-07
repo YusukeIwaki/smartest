@@ -13,6 +13,7 @@ const sidebars = {
     'matchers',
     'helpers',
     'playwright-browser-tests',
+    'rails-browser-tests',
     {
       type: 'category',
       label: 'Comparisons',

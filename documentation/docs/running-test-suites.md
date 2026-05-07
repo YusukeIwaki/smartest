@@ -32,6 +32,15 @@ bundle exec smartest --init-browser
 That command creates the normal Smartest scaffold plus Playwright fixture,
 matcher, and example files.
 
+For a Rails Playwright browser-test scaffold, use:
+
+```bash
+bundle exec smartest --init-rails
+```
+
+That command creates the normal Smartest scaffold plus a Rails server fixture,
+Playwright matcher, and Rails browser-test example.
+
 Generated tests require the helper by name:
 
 ```ruby
@@ -73,6 +82,9 @@ To create a Smartest test scaffold:
 
 For browser tests:
   bundle exec smartest --init-browser
+
+For Rails browser tests:
+  bundle exec smartest --init-rails
 
 See all commands:
   bundle exec smartest --help
@@ -151,6 +163,9 @@ Common commands:
 
   bundle exec smartest --init-browser
       Generate a Playwright browser-test scaffold
+
+  bundle exec smartest --init-rails
+      Generate a Rails Playwright browser-test scaffold
 ```
 
 Show the installed Smartest version:

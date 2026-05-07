@@ -869,6 +869,9 @@ To create a Smartest test scaffold:
 For browser tests:
   bundle exec smartest --init-browser
 
+For Rails browser tests:
+  bundle exec smartest --init-rails
+
 See all commands:
   bundle exec smartest --help
 ```
