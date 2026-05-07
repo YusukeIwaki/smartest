@@ -56,6 +56,12 @@ matrices, and parallel workers across deployed environments.
 
 ## Quick start
 
+Add Smartest to the test group:
+
+```bash
+bundle add smartest --group test
+```
+
 Generate the Rails browser-test scaffold:
 
 ```bash
@@ -69,6 +75,12 @@ smartest/fixtures/rails_system_fixture.rb
 smartest/matchers/playwright_matcher.rb
 smartest/example_rails_system_test.rb
 ```
+
+Smartest uses `smartest/` by default so its files can be run by the Smartest
+runner without changing existing Rails `test/` or RSpec `spec/` directories. If
+you prefer a Rails-like layout, you can move tests under a structure such as
+`smartest/system/` or `test/smartest/system/` and pass that path to
+`bundle exec smartest`.
 
 It also adds `playwright-ruby-client` to the Gemfile test group, installs the
 Playwright npm package, and downloads browsers.
@@ -119,6 +131,20 @@ from Ruby.
 
 Smartest keeps that strength and makes the setup visible from the test
 signature.
+
+The examples below assume FactoryBot is available and
+`FactoryBot::Syntax::Methods` has been included where the fixtures run. If your
+app does not use FactoryBot, create records with ActiveRecord directly:
+
+```ruby
+fixture :admin_user do
+  User.create!(
+    name: "Admin",
+    email: "admin@example.com",
+    role: "admin"
+  )
+end
+```
 
 ```ruby
 class ApplicationSystemFixture < Smartest::Fixture
@@ -207,6 +233,9 @@ end
 Rails browser tests are often easier to read when user state, stubs, and the
 browser page are combined into a named page fixture.
 
+`simple_stub` and `simple_stub_any_instance_of` are Smartest stub helpers.
+Stubs installed inside fixtures are automatically reset during fixture teardown.
+
 ```ruby
 class ApplicationSystemFixture < Smartest::Fixture
   fixture :admin_user do
@@ -241,6 +270,11 @@ class ApplicationSystemFixture < Smartest::Fixture
 end
 ```
 
+The examples use `ApplicationController#current_user` stubbing because it shows
+how Smartest fixtures can create app-specific browser states. In a real Rails
+app, you may prefer your existing authentication helper, Devise/Warden test
+helpers, or a cookie/session-based login fixture.
+
 Tests can request the exact state they need:
 
 ```ruby
@@ -264,6 +298,9 @@ test("push failure banner is not shown when push is stubbed") do |page_with_push
   expect(page_with_push_stubbed.get_by_text("Push failed")).not_to be_visible
 end
 ```
+
+The examples use string paths for simplicity. If you want Rails route helpers
+such as `admin_users_path`, expose them from your own fixture or helper module.
 
 This style is especially useful for edge cases that are hard to create by hand
 through the UI, such as suspended users, admin-only states, billing failures,
