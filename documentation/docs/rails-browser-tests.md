@@ -1,10 +1,9 @@
 ---
-title: Rails Browser Tests
-sidebar_label: Rails
-description: Write Rails system tests with Playwright and explicit Smartest fixtures.
+title: Test a Rails app locally
+description: Write Rails system tests with Playwright and an in-process Rails server fixture.
 ---
 
-# Rails Browser Tests
+# Test a Rails app locally
 
 Smartest can run Rails browser tests against your Rails `test` environment.
 

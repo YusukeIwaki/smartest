@@ -53,8 +53,8 @@ end
 - [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and teardown.
 - [Stubs](./stubs.md) shows method stubs that reset from fixture teardown.
 - [Helpers](./helpers.md) explains registering helper modules from `around_test`.
-- [Playwright Browser Tests](./playwright-browser-tests.md) shows how to use fixtures for browser tests.
-- [Rails Browser Tests](./rails-browser-tests.md) shows the generated same-process Rails server fixture.
+- [Test a remote site](./playwright-browser-tests.md) shows how to drive Playwright browser tests against any URL.
+- [Test a Rails app locally](./rails-browser-tests.md) shows the generated same-process Rails server fixture.
 
 ## Current Scope
 

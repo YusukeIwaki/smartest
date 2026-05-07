@@ -1,10 +1,9 @@
 ---
-title: Playwright Browser Tests
-sidebar_label: Playwright
-description: Use Smartest fixtures to drive Playwright browser tests in Ruby.
+title: Test a remote site
+description: Use Smartest fixtures to drive Playwright browser tests against any URL.
 ---
 
-# Playwright Browser Tests
+# Test a remote site
 
 Smartest can scaffold a Playwright-powered browser-test setup. Once it is in
 place, you can write browser tests that look and feel like ordinary Smartest
