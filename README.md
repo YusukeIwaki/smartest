@@ -646,7 +646,7 @@ Use simple stub helpers when a fixture needs to temporarily replace a Ruby
 method and reset it during teardown:
 
 ```ruby
-class PaymentFixture < Smartest::Fixture
+class ApplicationTestFixture < Smartest::Fixture
   fixture :payment_gateway_stub do
     simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
   end
@@ -657,7 +657,7 @@ Register the fixture class from `around_suite` before tests request the fixture:
 
 ```ruby
 around_suite do |suite|
-  use_fixture PaymentFixture
+  use_fixture ApplicationTestFixture
   suite.run
 end
 ```
@@ -665,10 +665,10 @@ end
 `use_fixture` is available inside `around_suite` or `around_test` blocks, not as
 a top-level method in a test file.
 
-The stub affects existing instances and new instances of the target class in
-the current Fiber until it is reset. Other Fibers and Threads continue to see
-the original method unless they apply their own stub. Tests can request the
-fixture to make the side effect explicit:
+The stub affects existing instances and new instances of the target class until
+it is reset. Method stubs are shared across Fibers and Threads, including a
+Rails test server running in another thread. Tests can request the fixture to
+make the side effect explicit:
 
 ```ruby
 test("checkout succeeds") do |payment_gateway_stub:|
@@ -680,20 +680,22 @@ Use `simple_stub(Time, :now) { fixed_time }` for singleton methods such as class
 methods.
 
 Use `with_stub_const("AppConfig::PAYMENT_PROVIDER", "fake") { ... }` for
-constants in test bodies, `around_test`, or `around_suite`. Constant stubs are
-process-global; avoid concurrent tests that stub the same constant.
+constants in test bodies, `around_test`, or `around_suite`.
+
+Smartest stubs are process-wide state. They are intended for serial test
+execution and for cases like a Rails test server thread serving the current
+test. They do not provide isolation for multi-threaded parallel test execution:
+one test can observe or reset another test's method or constant stub.
 
 The method stub helpers call `Smartest::SimpleStub` internally, apply the stub,
 register `on_teardown { stub.reset }`, and return the stub object.
 `with_stub_const` records the previous constant value, replaces it, yields to
 the block, and restores or removes the constant with `ensure`.
 
-`Smartest::SimpleStub#apply` and `#reset` are idempotent in the current Fiber.
-`apply!` raises
-`Smartest::SimpleStub::AlreadyAppliedError` when the stub is already active in
-the current Fiber, and `reset!` raises
-`Smartest::SimpleStub::NotAppliedError` when it is not active there. See
-[Stubs](documentation/docs/stubs.md).
+`Smartest::SimpleStub#apply` raises
+`Smartest::SimpleStub::AlreadyAppliedError` when the same stub object is already
+applied. `#reset` raises `Smartest::SimpleStub::NotAppliedError` when that stub
+object is not applied. See [Stubs](documentation/docs/stubs.md).
 
 ## Logged-in client example
 

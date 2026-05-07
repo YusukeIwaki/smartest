@@ -10,61 +10,27 @@ They are useful when a test depends on stubbed behavior and you want that
 dependency to be visible in the test signature:
 
 ```ruby
-test("checkout succeeds") do |payment_gateway_stub:|
-  expect(Checkout.call).to eq(:paid)
+test("shows the suspended account state") do |suspended_user_logged_in:|
+  expect(AccountStatus.call).to eq(:suspended)
 end
 ```
 
-The fixture name makes it clear that this test depends on a payment gateway
-stub.
+The fixture name makes it clear that this test depends on an authenticated
+suspended user.
 
 If you are familiar with RSpec, this is similar to putting a stub in `before`:
 
 ```ruby
+let(:suspended_user) { create(:user, :suspended) }
+
 before do
-  allow_any_instance_of(PaymentGateway)
-    .to receive(:charge)
-    .and_return(:approved)
+  allow_any_instance_of(ApplicationController)
+    .to receive(:current_user)
+    .and_return(suspended_user)
 end
 ```
 
 In Smartest, the same idea is expressed as a fixture:
-
-```ruby
-class PaymentFixture < Smartest::Fixture
-  fixture :payment_gateway_stub do
-    simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
-  end
-end
-```
-
-Register the fixture class from `around_suite` before tests request the fixture:
-
-```ruby
-around_suite do |suite|
-  use_fixture PaymentFixture
-  suite.run
-end
-```
-
-`use_fixture` is available inside `around_suite` or `around_test` blocks, not as
-a top-level method in a test file.
-
-The stub is automatically reset when the fixture is torn down.
-
-## Instance Method Stubs
-
-Use `simple_stub_any_instance_of` for instance methods:
-
-```ruby
-simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
-```
-
-The stub affects existing instances and new instances of the target class in
-the current Fiber until teardown resets it. Other Fibers and Threads continue to
-see the original method unless they apply their own stub.
-
-A Rails authentication fixture might look like this:
 
 ```ruby
 class EdgeCaseFixture < Smartest::Fixture
@@ -75,6 +41,46 @@ class EdgeCaseFixture < Smartest::Fixture
   fixture :suspended_user_logged_in do |suspended_user:|
     simple_stub_any_instance_of(ApplicationController, :current_user) { suspended_user }
     suspended_user
+  end
+end
+```
+
+Register the fixture class from `around_suite` before tests request the fixture:
+
+```ruby
+around_suite do |suite|
+  use_fixture EdgeCaseFixture
+  suite.run
+end
+```
+
+`use_fixture` is available inside `around_suite` or `around_test` blocks, not as
+a top-level method in a test file.
+
+The stub is automatically reset when the fixture is torn down. Because the stub
+fixture depends on `suspended_user:`, the user record and authenticated state
+stay tied together in one fixture dependency graph.
+
+## Instance Method Stubs
+
+Use `simple_stub_any_instance_of` for instance methods:
+
+```ruby
+simple_stub_any_instance_of(ApplicationController, :current_user) { user }
+```
+
+The stub affects existing instances and new instances of the target class until
+teardown resets it. Method stubs are shared across Fibers and Threads, so a
+stub applied by test setup is also visible to a Rails test server running in
+another thread.
+
+You can also use method stubs for external services that should not run during
+tests, such as push notifications or payment processing:
+
+```ruby
+class ApplicationTestFixture < Smartest::Fixture
+  fixture :payment_gateway_stub do
+    simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
   end
 end
 ```
@@ -134,12 +140,11 @@ around_suite do |suite|
 end
 ```
 
-Constant stubs are process-global. Avoid concurrent tests that stub the same
-constant.
+Constant stubs are process-global until the block exits.
 
 ## How Method Stub Teardown Works
 
-You do not need to call `reset!` manually when using method stub helpers inside
+You do not need to call `reset` manually when using method stub helpers inside
 fixtures. The helper internally:
 
 1. creates the stub state
@@ -156,7 +161,7 @@ behaves like:
 
 ```ruby
 stub = Smartest::SimpleStub.new(ApplicationController, :current_user) { user }
-stub.apply!
+stub.apply
 on_teardown { stub.reset }
 ```
 
@@ -164,6 +169,11 @@ Teardown is tied to the fixture lifecycle:
 
 - `fixture` method stubs reset after each test.
 - `suite_fixture` method stubs reset after the suite fixture scope ends.
+
+When method stubs for the same class and method overlap, the most recently
+applied stub wins. Resetting that stub restores the previous stub instead of
+resetting the whole stack. This lets a test-scoped stub temporarily override a
+suite-scoped stub.
 
 In most cases, prefer the fixture helpers so stub lifetime is automatically tied
 to the fixture lifecycle.
@@ -249,8 +259,8 @@ Use `Smartest::SimpleStub` directly when you need to manage reset manually:
 
 ```ruby
 stub = Smartest::SimpleStub.new(PaymentGateway, :charge) { :approved }
-stub.apply!
-stub.reset!
+stub.apply
+stub.reset
 ```
 
 The first argument must be a `Class`, and the second argument must be a
@@ -258,53 +268,45 @@ The first argument must be a `Class`, and the second argument must be a
 
 ```ruby
 stub = Smartest::SimpleStub.new(Time.singleton_class, :now) { fixed_time }
+stub.apply
+stub.reset
 ```
 
-`apply` and `reset` are safe to call more than once. Use the bang methods when
-repeated application or reset should fail.
-
-`apply!` raises `Smartest::SimpleStub::AlreadyAppliedError` when the stub is
-already active in the current Fiber. `reset!` raises
-`Smartest::SimpleStub::NotAppliedError` when the stub is not active in the
-current Fiber.
-
-`Smartest::SimpleStub` stores the active stub in Fiber-local storage keyed by
-the target class and method name. That means setup and teardown can use separate
-stub instances in the same Fiber:
-
-```ruby
-Smartest::SimpleStub.new(User, :name) { "Test User" }.apply
-
-# Later:
-Smartest::SimpleStub.new(User, :name).reset
-```
+`apply` raises `Smartest::SimpleStub::AlreadyAppliedError` when the same stub
+object is already applied. `reset` raises
+`Smartest::SimpleStub::NotAppliedError` when that stub object is not applied.
+Reset must be called on the stub object returned by the original setup.
 
 ## Scope and Concurrency
 
-`Smartest::SimpleStub` installs a process-wide dispatcher method, but the active
-stub implementation is looked up from Fiber-local storage. Applying a stub in
-one Fiber does not change behavior in another Fiber or Thread:
+Smartest stubs are process-wide state. They are intended for serial test
+execution and for cases like a Rails test server thread serving the current
+test. They do not provide isolation for multi-threaded parallel test execution:
+one test can observe or reset another test's method or constant stub.
+
+`Smartest::SimpleStub` installs a process-wide dispatcher method and stores
+active method stubs in a process-wide registry. Applying a stub changes behavior
+in all Fibers and Threads until that stub is reset:
 
 ```ruby
 stub = Smartest::SimpleStub.new(User, :name) { "Stubbed" }
-stub.apply!
+stub.apply
 
 User.new.name
 # => "Stubbed"
 
-Fiber.new do
+Thread.new do
   User.new.name
-  # Calls the original method.
-end.resume
+  # => "Stubbed"
+end.join
 
-stub.reset!
+stub.reset
 ```
 
-Different Threads can apply different stubs for the same class and method at
-the same time. Teardown still matters, so prefer the fixture helpers when the
-stub belongs to test setup.
+Method stubs for the same class and method are stacked. The newest applied stub
+is used, and resetting it restores the previous stub. This stack is for
+deliberately nested stub lifetimes, such as a test-scoped fixture temporarily
+overriding a suite-scoped fixture.
 
-Constant stubs are different: Ruby constant lookup does not provide a Fiber-local
-hook, so `with_stub_const` replaces the constant on the owner module. That
-change is process-global until teardown runs. Avoid concurrent tests that stub
-the same constant.
+Constant stubs are also process-global: `with_stub_const` replaces the constant
+on the owner module until the block exits.

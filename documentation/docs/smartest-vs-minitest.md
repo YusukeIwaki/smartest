@@ -153,8 +153,8 @@ end
 ```
 
 For constants, use `with_stub_const` as a block-scoped helper in the test body,
-`around_test`, or `around_suite`. Constant stubs are process-global, so avoid
-concurrent tests that stub the same constant:
+`around_test`, or `around_suite`. Smartest stubs are process-wide state, so they
+do not provide isolation for multi-threaded parallel test execution:
 
 ```ruby title="Smartest"
 test("uses fake payment provider") do

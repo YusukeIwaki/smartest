@@ -4,22 +4,40 @@ require "digest"
 
 module Smartest
   class SimpleStub
-    STORAGE_KEY = :__smartest_simple_stub
+    StubEntry = Struct.new(:owner, :implementation)
 
     class AlreadyAppliedError < Smartest::Error; end
     class NotAppliedError < Smartest::Error; end
 
     class << self
       def implementation_for(klass_key, method_name)
-        current_stubs&.fetch(stub_key(klass_key, method_name), nil)
+        stub_registry_mutex.synchronize do
+          active_stubs.fetch(stub_key(klass_key, method_name), nil)&.last&.implementation
+        end
       end
 
-      def active_stubs
-        Thread.current[STORAGE_KEY] ||= {}
+      def activate_stub(stub, stub_key, implementation)
+        stub_registry_mutex.synchronize do
+          stack = active_stubs[stub_key] ||= []
+          return false if stack.any? { |entry| entry.owner.equal?(stub) }
+
+          stack << StubEntry.new(stub, implementation)
+          true
+        end
       end
 
-      def clear_active_stubs_if_empty
-        Thread.current[STORAGE_KEY] = nil if current_stubs&.empty?
+      def deactivate_stub(stub, stub_key)
+        stub_registry_mutex.synchronize do
+          stack = active_stubs.fetch(stub_key, nil)
+          return false unless stack
+
+          index = stack.index { |entry| entry.owner.equal?(stub) }
+          return false unless index
+
+          stack.delete_at(index)
+          active_stubs.delete(stub_key) if stack.empty?
+          true
+        end
       end
 
       def ensure_dispatcher_method(klass, klass_key, method_name)
@@ -43,10 +61,6 @@ module Smartest
 
       def stub_key(klass_key, method_name)
         [klass_key, method_name]
-      end
-
-      def current_stubs
-        Thread.current[STORAGE_KEY]
       end
 
       def call_implementation(receiver, implementation, args, kwargs, block)
@@ -110,6 +124,14 @@ module Smartest
       def call_mutex
         @call_mutex ||= Mutex.new
       end
+
+      def active_stubs
+        @active_stubs ||= {}
+      end
+
+      def stub_registry_mutex
+        @stub_registry_mutex ||= Mutex.new
+      end
     end
 
     def initialize(klass, method_name, &implementation)
@@ -122,26 +144,10 @@ module Smartest
     end
 
     def apply
-      return if stub_defined?
-
-      apply_stub
-    end
-
-    def apply!
-      raise AlreadyAppliedError, "stub for #{@klass}##{@method_name} is already applied" if stub_defined?
-
       apply_stub
     end
 
     def reset
-      return unless stub_defined?
-
-      reset_stub
-    end
-
-    def reset!
-      raise NotAppliedError, "stub for #{@klass}##{@method_name} is not applied" unless stub_defined?
-
       reset_stub
     end
 
@@ -151,16 +157,15 @@ module Smartest
       raise ArgumentError, "block must be given for applying stub" unless @implementation
 
       self.class.ensure_dispatcher_method(@klass, klass_key, @method_name)
-      active_stubs[stub_key] = @implementation
+      return self if self.class.activate_stub(self, stub_key, @implementation)
+
+      raise AlreadyAppliedError, "stub for #{@klass}##{@method_name} is already applied"
     end
 
     def reset_stub
-      active_stubs.delete(stub_key)
-      self.class.clear_active_stubs_if_empty
-    end
+      return self if self.class.deactivate_stub(self, stub_key)
 
-    def active_stubs
-      self.class.active_stubs
+      raise NotAppliedError, "stub for #{@klass}##{@method_name} is not applied"
     end
 
     def stub_key
@@ -169,10 +174,6 @@ module Smartest
 
     def klass_key
       @klass_key ||= Digest::SHA256.hexdigest(@klass.object_id.to_s)
-    end
-
-    def stub_defined?
-      self.class.current_stubs&.key?(stub_key)
     end
   end
 end

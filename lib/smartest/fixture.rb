@@ -74,7 +74,7 @@ module Smartest
     end
 
     def apply_simple_stub(stub)
-      stub.apply!
+      stub.apply
       on_teardown { stub.reset }
       stub
     end

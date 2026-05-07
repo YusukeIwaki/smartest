@@ -71,7 +71,7 @@ test("simple stub stubs instance methods until reset") do
   existing = SimpleStubSelfTestSubject.new("Alice")
   stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "stubbed" }
 
-  stub.apply!
+  stub.apply
 
   begin
     expect(existing.name).to eq("stubbed")
@@ -84,13 +84,23 @@ test("simple stub stubs instance methods until reset") do
   expect(SimpleStubSelfTestSubject.new("Bob").name).to eq("original Bob")
 end
 
-test("simple stub can be reset from a fresh stub object") do
-  Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :greeting) { |prefix| "#{prefix}, stubbed" }.apply!
+test("simple stub reset requires the applied stub object") do
+  stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :greeting) do |prefix|
+    "#{prefix}, stubbed"
+  end
+
+  stub.apply
 
   begin
     expect(SimpleStubSelfTestSubject.new("Alice").greeting("Hi")).to eq("Hi, stubbed")
+
+    error = SimpleStubSelfTest.capture_error(Smartest::SimpleStub::NotAppliedError) do
+      Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :greeting).reset
+    end
+
+    expect(error.message).to eq("stub for SimpleStubSelfTestSubject#greeting is not applied")
   ensure
-    Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :greeting).reset!
+    stub.reset
   end
 
   expect(SimpleStubSelfTestSubject.new("Alice").greeting("Hi")).to eq("Hi, Alice")
@@ -125,6 +135,39 @@ test("simple_stub_any_instance_of applies and resets from fixture teardown") do
   status, = SimpleStubSelfTest.run_suite(suite)
 
   expect(status).to eq(0)
+end
+
+test("test-scoped method stubs restore suite-scoped method stubs") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :suite_name_stub do
+      simple_stub_any_instance_of(SimpleStubSelfTestSubject, :name) { "suite #{@name}" }
+    end
+
+    fixture :test_name_stub do |suite_name_stub:|
+      expect(suite_name_stub).to be_a(Smartest::SimpleStub)
+      simple_stub_any_instance_of(SimpleStubSelfTestSubject, :name) { "test #{@name}" }
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "uses test scoped override",
+      proc { |test_name_stub:| expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("test Alice") }
+    )
+  )
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "sees suite scoped stub after override teardown",
+      proc { |suite_name_stub:| expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("suite Alice") }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("original Alice")
 end
 
 test("simple_stub applies and resets singleton methods from fixture teardown") do
@@ -261,7 +304,7 @@ test("simple stub preserves receiver self and method blocks") do
     block.call("#{prefix}, stubbed #{@name}")
   end
 
-  stub.apply!
+  stub.apply
 
   begin
     result = subject.yielding_greeting("Hi") { |message| message.upcase }
@@ -273,16 +316,16 @@ test("simple stub preserves receiver self and method blocks") do
   expect(subject.yielding_greeting("Hi") { |message| message }).to eq("Hi, Alice")
 end
 
-test("simple stub is scoped to the current fiber") do
+test("simple stub is shared with fibers") do
   subject = SimpleStubSelfTestSubject.new("Alice")
   stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "stubbed #{@name}" }
 
-  stub.apply!
+  stub.apply
 
   begin
     expect(subject.name).to eq("stubbed Alice")
     Fiber.new do
-      expect(subject.name).to eq("original Alice")
+      expect(subject.name).to eq("stubbed Alice")
     end.resume
   ensure
     stub.reset
@@ -291,52 +334,62 @@ test("simple stub is scoped to the current fiber") do
   expect(subject.name).to eq("original Alice")
 end
 
-test("simple stub can differ per thread") do
+test("simple stub is shared with threads") do
   subject = SimpleStubSelfTestSubject.new("Alice")
   queue = Queue.new
-  main_stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "main #{@name}" }
+  stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "stubbed #{@name}" }
 
-  main_stub.apply!
+  stub.apply
 
   thread = Thread.new do
-    thread_stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "thread #{@name}" }
-    thread_stub.apply!
-
-    begin
-      queue << subject.name
-    rescue Exception => error
-      queue << error
-    ensure
-      thread_stub.reset
-    end
+    queue << subject.name
+  rescue Exception => error
+    queue << error
   end
 
   begin
-    expect(subject.name).to eq("main Alice")
+    expect(subject.name).to eq("stubbed Alice")
 
     thread_result = queue.pop
     raise thread_result if thread_result.is_a?(Exception)
 
-    expect(thread_result).to eq("thread Alice")
+    expect(thread_result).to eq("stubbed Alice")
     thread.join
-    expect(subject.name).to eq("main Alice")
   ensure
-    main_stub.reset
+    stub.reset
     thread.kill if thread.alive?
   end
 
   expect(subject.name).to eq("original Alice")
 end
 
-test("simple stub supports safe and strict apply reset APIs") do
+test("simple stub restores previous implementation when nested stubs reset") do
+  subject = SimpleStubSelfTestSubject.new("Alice")
+  outer_stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "outer #{@name}" }
+  inner_stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "inner #{@name}" }
+
+  outer_stub.apply
+  inner_stub.apply
+
+  begin
+    expect(subject.name).to eq("inner Alice")
+    inner_stub.reset
+    expect(subject.name).to eq("outer Alice")
+  ensure
+    outer_stub.reset
+  end
+
+  expect(subject.name).to eq("original Alice")
+end
+
+test("simple stub apply and reset are strict") do
   stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "stubbed" }
 
-  stub.apply
   stub.apply
 
   begin
     error = SimpleStubSelfTest.capture_error(Smartest::SimpleStub::AlreadyAppliedError) do
-      Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "other" }.apply!
+      stub.apply
     end
 
     expect(error.message).to eq("stub for SimpleStubSelfTestSubject#name is already applied")
@@ -344,10 +397,8 @@ test("simple stub supports safe and strict apply reset APIs") do
     stub.reset
   end
 
-  stub.reset
-
   error = SimpleStubSelfTest.capture_error(Smartest::SimpleStub::NotAppliedError) do
-    stub.reset!
+    stub.reset
   end
 
   expect(error.message).to eq("stub for SimpleStubSelfTestSubject#name is not applied")
@@ -367,7 +418,7 @@ test("simple stub validates constructor arguments and apply block") do
   expect(error.message).to eq("method name must be a Symbol.")
 
   error = SimpleStubSelfTest.capture_error(ArgumentError) do
-    Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name).apply!
+    Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name).apply
   end
 
   expect(error.message).to eq("block must be given for applying stub")

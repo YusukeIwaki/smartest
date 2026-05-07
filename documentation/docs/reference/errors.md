@@ -18,25 +18,26 @@ expected 2 to eq 3
 
 ## `Smartest::SimpleStub::AlreadyAppliedError`
 
-Raised when `Smartest::SimpleStub#apply!` is called for a stub that is already
-active in the current Fiber:
+Raised when `Smartest::SimpleStub#apply` is called for a stub object that is
+already applied:
 
 ```text
 stub for PaymentGateway#charge is already applied
 ```
 
-Use `apply` instead of `apply!` when repeated application should be ignored.
+Create a new stub object if you need to temporarily override an active stub for
+the same class and method.
 
 ## `Smartest::SimpleStub::NotAppliedError`
 
-Raised when `Smartest::SimpleStub#reset!` is called for a stub that is not
-active in the current Fiber:
+Raised when `Smartest::SimpleStub#reset` is called for a stub object that is
+not applied:
 
 ```text
 stub for PaymentGateway#charge is not applied
 ```
 
-Use `reset` instead of `reset!` when repeated reset should be ignored.
+Call `reset` on the same stub object that was returned by setup.
 
 ## `Smartest::Skipped`
 

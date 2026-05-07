@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.x.x
+
+### Breaking Changes
+
+- Make method stubs process-wide across Fibers and Threads. Remove
+  `Smartest::SimpleStub#apply!` and `#reset!`; `#apply` and `#reset` now raise
+  when called on an already-applied or not-applied stub object.
+
 ## 0.5.0
 
 ### Breaking Changes

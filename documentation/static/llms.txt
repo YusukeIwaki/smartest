@@ -34,13 +34,16 @@ documentation, prefer the project README and the public docs linked below.
   suite.
 - `simple_stub_any_instance_of(Klass, :method) { ... }` and
   `simple_stub(object, :method) { ... }` are fixture helpers that apply a
-  Fiber-local stub and register teardown automatically.
+  process-wide method stub and register teardown automatically. Method stubs
+  are shared across Fibers and Threads until reset.
 - `with_stub_const("Namespace::CONST", value) { ... }` is a block-scoped
   helper available in test bodies, `around_test`, and `around_suite`. It
   replaces a constant and restores or removes it with ensure. Constant stubs are
-  process-global; avoid concurrent tests that stub the same constant.
+  process-global until the block exits.
 - `Smartest::SimpleStub.new(Klass, :method) { ... }` is the low-level API for
-  manually applying and resetting a Fiber-local stub.
+  manually applying and resetting an instance method stub.
+- Smartest stubs are process-wide state and do not provide isolation for
+  multi-threaded parallel test execution.
 - Fixture values are cached within one test. Regular fixtures get a fresh cache
   for each test.
 - Duplicate fixture names across registered fixture classes and circular fixture
