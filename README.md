@@ -254,7 +254,7 @@ uses `SMARTEST_RAILS_PORT` when it is set, and otherwise asks the OS for an
 available port. The `page` fixture uses a per-test Playwright browser context
 with `baseURL` set to the Rails server URL.
 
-Smartest automatically gives each test case a process-shared method stub store,
+Smartest automatically uses one process-shared method stub store for the suite,
 so method stubs applied in test fixtures can also be seen by the Rails server
 thread.
 
@@ -690,9 +690,9 @@ a top-level method in a test file.
 
 The stub affects existing instances and new instances of the target class until
 the current fixture scope tears down. During a Smartest test run, method stubs
-are stored in a process-shared store for the current test case, so other Fibers
-and Threads in the same test can see the stub. Tests can request the fixture to
-make the side effect explicit:
+are stored in one process-shared store for the suite, so other Fibers and
+Threads in the same Ruby process can see the stub. Tests can request the fixture
+to make the side effect explicit:
 
 ```ruby
 test("checkout succeeds") do |payment_gateway_stub:|
@@ -719,9 +719,8 @@ the current stub store, and `reset!` raises
 `Smartest::SimpleStub::NotAppliedError` when it is not active there. See
 [Stubs](documentation/docs/stubs.md).
 
-If Smartest ever runs tests concurrently in one Ruby process, tests using the
-process-shared method stub store are serialized internally to avoid cross-test
-stub leakage.
+Because method stubs are shared across Threads and Fibers, avoid running tests
+that stub the same method concurrently in the same Ruby process.
 
 ## Logged-in client example
 

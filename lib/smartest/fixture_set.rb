@@ -2,12 +2,11 @@
 
 module Smartest
   class FixtureSet
-    def initialize(fixture_classes, context:, scope: :test, parent: nil, stub_store: nil)
+    def initialize(fixture_classes, context:, scope: :test, parent: nil)
       @fixture_classes = fixture_classes.to_a
       @context = context
       @scope = normalize_scope(scope)
       @parent = parent
-      @stub_store = stub_store
       @cache = {}
       @setup_errors = {}
       @teardowns = []
@@ -40,7 +39,7 @@ module Smartest
 
       @resolving << symbol_name
       dependencies = resolve_keywords(definition.dependencies)
-      @cache[symbol_name] = resolve_fixture_value(symbol_name, dependencies, definition)
+      @cache[symbol_name] = @instances[symbol_name].instance_exec(**dependencies, &definition.block)
     rescue Exception => error
       raise if Smartest.fatal_exception?(error)
 
@@ -48,14 +47,6 @@ module Smartest
       raise
     ensure
       @resolving.pop if @resolving.last == symbol_name
-    end
-
-    def resolve_fixture_value(name, dependencies, definition)
-      return @instances[name].instance_exec(**dependencies, &definition.block) unless @stub_store && @scope == :suite
-
-      Smartest::SimpleStub.with_process_store(@stub_store, serialize: false, clear: false) do
-        @instances[name].instance_exec(**dependencies, &definition.block)
-      end
     end
 
     def add_teardown(&block)

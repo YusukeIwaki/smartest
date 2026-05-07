@@ -62,8 +62,8 @@ simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
 
 The stub affects existing instances and new instances of the target class in
 the current fixture scope until teardown resets it. During a Smartest test run,
-method stubs use a process-shared store for the current test case, so other
-Fibers and Threads in the same test can see the stub.
+method stubs use one process-shared store for the suite, so other Fibers and
+Threads in the same Ruby process can see the stub.
 
 A Rails authentication fixture might look like this:
 
@@ -269,10 +269,10 @@ already active in the current stub store. `reset!` raises
 `Smartest::SimpleStub::NotAppliedError` when the stub is not active in the
 current stub store.
 
-During a Smartest run, the runner creates a suite-level process-shared store and
-a test-level process-shared store. `around_suite` stubs and `suite_fixture`
-stubs are stored in the suite store. Test-scoped fixture and test body stubs are
-stored in the current test store and reset by fixture teardown:
+During a Smartest run, the runner creates one process-shared store for the
+suite. `around_suite`, `suite_fixture`, test-scoped fixture, and test body stubs
+are stored in that same suite store. Fixture helper stubs are still reset by
+fixture teardown:
 
 ```ruby
 Smartest::SimpleStub.new(User, :name) { "Test User" }.apply
@@ -281,15 +281,16 @@ Smartest::SimpleStub.new(User, :name) { "Test User" }.apply
 Smartest::SimpleStub.new(User, :name).reset
 ```
 
-Outside a Smartest runner, direct low-level use falls back to `FiberLocalStore`
-so standalone setup and teardown can still be scoped to the current Fiber.
+Outside a Smartest runner, direct low-level use falls back to a process-local
+default store so standalone setup and teardown can still work without runner
+state.
 
 ## Scope and Concurrency
 
 `Smartest::SimpleStub` installs a process-wide dispatcher method, but the active
-stub implementation is looked up from the current Smartest stub store. In normal
+stub implementation is looked up from the current Smartest stub store. In
 Smartest tests, applying a stub in one Fiber or Thread changes behavior in other
-Fibers and Threads that run inside the same test case:
+Fibers and Threads in the same Ruby process.
 
 ```ruby
 stub = Smartest::SimpleStub.new(User, :name) { "Stubbed" }
@@ -298,20 +299,13 @@ stub.apply!
 User.new.name
 # => "Stubbed"
 
-Fiber.new do
-  User.new.name
-  # => "Stubbed"
-end.resume
-
 stub.reset!
 ```
 
-If Smartest runs tests concurrently in one Ruby process in the future, tests
-using the process-shared method stub store are serialized internally while their
-test store is active. This avoids one test's Rails server thread reading another
-test's stubs.
+Because method stubs are shared across Threads and Fibers, avoid running tests
+that stub the same method concurrently in the same Ruby process.
 
-Constant stubs are different: Ruby constant lookup does not provide a Fiber-local
-hook, so `with_stub_const` replaces the constant on the owner module. That
-change is process-global until teardown runs. Avoid concurrent tests that stub
-the same constant.
+Constant stubs are different: Ruby constant lookup does not provide a method
+dispatch hook, so `with_stub_const` replaces the constant on the owner module.
+That change is process-global until teardown runs. Avoid concurrent tests that
+stub the same constant.

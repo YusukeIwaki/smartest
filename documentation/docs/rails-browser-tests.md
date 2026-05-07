@@ -67,15 +67,13 @@ an available port by binding Puma to port `0`.
 ## Shared Method Stubs
 
 Rails browser tests often need stubs applied in fixture setup to affect code
-that runs inside the Rails server thread. Smartest automatically gives each test
-case a process-shared `SimpleStub` store. That makes method stubs installed by
-fixtures visible to the same-process Rails server thread without adding any
-store setup to `smartest/test_helper.rb`.
+that runs inside the Rails server thread. Smartest automatically uses one
+process-shared `SimpleStub` store for the suite. That makes method stubs
+installed by fixtures visible to the same-process Rails server thread without
+adding any store setup to `smartest/test_helper.rb`.
 
-If Smartest runs tests concurrently in one Ruby process in the future, tests
-using this process-shared method stub store are serialized internally while the
-test store is active. This avoids one test's Rails server thread reading another
-test's stubs.
+Because method stubs are shared across Threads and Fibers, avoid running tests
+that stub the same method concurrently in the same Ruby process.
 
 ## Example
 

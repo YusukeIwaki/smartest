@@ -4,66 +4,10 @@ require "digest"
 
 module Smartest
   class SimpleStub
-    STORAGE_KEY = :__smartest_simple_stub
-
     class AlreadyAppliedError < Smartest::Error; end
     class NotAppliedError < Smartest::Error; end
 
-    class FiberLocalStore
-      class << self
-        def current
-          Thread.current[SimpleStub::STORAGE_KEY] ||= new
-        end
-
-        def current_if_defined
-          Thread.current[SimpleStub::STORAGE_KEY]
-        end
-
-        def clear_current_if_empty
-          store = Thread.current[SimpleStub::STORAGE_KEY]
-          Thread.current[SimpleStub::STORAGE_KEY] = nil if store&.empty?
-        end
-      end
-
-      private_class_method :new
-
-      def initialize
-        @stubs = {}
-      end
-
-      def fetch(key, default = nil)
-        @stubs.fetch(key, default)
-      end
-
-      def set(key, implementation)
-        @stubs[key] = implementation
-      end
-
-      def delete(key)
-        @stubs.delete(key)
-      end
-
-      def key?(key)
-        @stubs.key?(key)
-      end
-
-      def empty?
-        @stubs.empty?
-      end
-
-      def clear
-        @stubs.clear
-      end
-
-      def to_h
-        @stubs.dup
-      end
-
-      alias [] fetch
-      alias []= set
-    end
-
-    class SharedStore
+    class LocalStore
       def initialize
         @mutex = Mutex.new
         @stubs = {}
@@ -104,12 +48,10 @@ module Smartest
     class << self
       def implementation_for(klass_key, method_name)
         key = stub_key(klass_key, method_name)
+        store = current_store_if_defined
+        return nil unless store&.key?(key)
 
-        lookup_stores.reverse_each do |store|
-          return store.fetch(key) if store.key?(key)
-        end
-
-        nil
+        store.fetch(key)
       end
 
       def active_stubs
@@ -117,32 +59,33 @@ module Smartest
       end
 
       def clear_active_stubs_if_empty
-        return if current_process_store
-
-        FiberLocalStore.clear_current_if_empty
+        @default_store = nil if @default_store&.empty?
       end
 
       def current_stubs
-        store = current_process_store || FiberLocalStore.current_if_defined
+        store = current_store_if_defined
         store&.empty? ? nil : store
       end
 
       def current_store
-        current_process_store || FiberLocalStore.current
+        active_store || default_store
       end
 
-      def with_process_store(store, serialize: true, clear: true)
+      def with_store(store, clear: true)
         unless store.respond_to?(:fetch) && store.respond_to?(:set) && store.respond_to?(:delete)
           raise ArgumentError, "store must respond to fetch, set, and delete"
         end
 
-        if serialize && !process_store_execution_mutex.owned?
-          process_store_execution_mutex.synchronize do
-            with_pushed_process_store(store, clear: clear) { yield }
-          end
-        else
-          with_pushed_process_store(store, clear: clear) { yield }
+        previous_store = nil
+        store_mutex.synchronize do
+          previous_store = @active_store
+          @active_store = store
         end
+
+        yield
+      ensure
+        store_mutex.synchronize { @active_store = previous_store }
+        store.clear if clear && store.respond_to?(:clear)
       end
 
       def ensure_dispatcher_method(klass, klass_key, method_name)
@@ -197,43 +140,24 @@ module Smartest
 
       private
 
-      def with_pushed_process_store(store, clear:)
-        process_store_mutex.synchronize do
-          process_store_stack << store
-        end
-
-        yield
-      ensure
-        process_store_mutex.synchronize do
-          stack = process_store_stack
-          index = stack.rindex { |entry| entry.equal?(store) }
-          stack.delete_at(index) if index
-        end
-        store.clear if clear && store.respond_to?(:clear)
+      def current_store_if_defined
+        active_store || default_store_if_defined
       end
 
-      def current_process_store
-        process_store_mutex.synchronize { process_store_stack.last }
+      def active_store
+        store_mutex.synchronize { @active_store }
       end
 
-      def lookup_stores
-        process_stores = process_store_mutex.synchronize { process_store_stack.dup }
-        return process_stores if process_stores.any?
-
-        store = FiberLocalStore.current_if_defined
-        store ? [store] : []
+      def default_store
+        store_mutex.synchronize { @default_store ||= LocalStore.new }
       end
 
-      def process_store_mutex
-        @process_store_mutex ||= Mutex.new
+      def default_store_if_defined
+        store_mutex.synchronize { @default_store }
       end
 
-      def process_store_execution_mutex
-        @process_store_execution_mutex ||= Mutex.new
-      end
-
-      def process_store_stack
-        @process_store_stack ||= []
+      def store_mutex
+        @store_mutex ||= Mutex.new
       end
 
       def dispatcher_module_for(klass, klass_key)
