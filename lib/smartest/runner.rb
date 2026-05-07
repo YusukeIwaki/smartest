@@ -13,17 +13,22 @@ module Smartest
       suite_teardown_errors = []
       suite_errors = []
       @suite_fixture_set = nil
+      @simple_stub_suite_store = Smartest::SimpleStub::SharedStore.new
 
       @reporter.start(@tests.count)
 
       begin
-        run_around_suite_hooks(@suite.around_suite_hooks.dup) do
-          run_tests(results, suite_teardown_errors)
+        Smartest::SimpleStub.with_process_store(@simple_stub_suite_store, serialize: false) do
+          run_around_suite_hooks(@suite.around_suite_hooks.dup) do
+            run_tests(results, suite_teardown_errors)
+          end
         end
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)
 
         suite_errors << error
+      ensure
+        @simple_stub_suite_store = nil
       end
 
       @reporter.finish(
@@ -78,7 +83,9 @@ module Smartest
       end
 
       begin
-        run_around_test_hooks(@suite.around_test_hooks + test_case.around_test_hooks, test_run, run_state)
+        Smartest::SimpleStub.with_process_store(Smartest::SimpleStub::SharedStore.new) do
+          run_around_test_hooks(@suite.around_test_hooks + test_case.around_test_hooks, test_run, run_state)
+        end
       rescue Skipped => skipped_error
         skipped = skipped_error
       rescue Exception => rescued_error
@@ -148,7 +155,8 @@ module Smartest
       @suite_fixture_set ||= FixtureSet.new(
         @suite.fixture_classes,
         context: build_context,
-        scope: :suite
+        scope: :suite,
+        stub_store: @simple_stub_suite_store
       )
     end
 

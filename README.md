@@ -254,8 +254,7 @@ uses `SMARTEST_RAILS_PORT` when it is set, and otherwise asks the OS for an
 available port. The `page` fixture uses a per-test Playwright browser context
 with `baseURL` set to the Rails server URL.
 
-The generated helper wraps each test in
-`Smartest::SimpleStub.with_process_store(Smartest::SimpleStub::SharedStore.new)`
+Smartest automatically gives each test case a process-shared method stub store,
 so method stubs applied in test fixtures can also be seen by the Rails server
 thread.
 
@@ -689,10 +688,11 @@ end
 `use_fixture` is available inside `around_suite` or `around_test` blocks, not as
 a top-level method in a test file.
 
-The stub affects existing instances and new instances of the target class in
-the current Fiber until it is reset. Other Fibers and Threads continue to see
-the original method unless they apply their own stub. Tests can request the
-fixture to make the side effect explicit:
+The stub affects existing instances and new instances of the target class until
+the current fixture scope tears down. During a Smartest test run, method stubs
+are stored in a process-shared store for the current test case, so other Fibers
+and Threads in the same test can see the stub. Tests can request the fixture to
+make the side effect explicit:
 
 ```ruby
 test("checkout succeeds") do |payment_gateway_stub:|
@@ -712,16 +712,16 @@ register `on_teardown { stub.reset }`, and return the stub object.
 `with_stub_const` records the previous constant value, replaces it, yields to
 the block, and restores or removes the constant with `ensure`.
 
-`Smartest::SimpleStub#apply` and `#reset` are idempotent in the current Fiber.
+`Smartest::SimpleStub#apply` and `#reset` are idempotent in the current stub store.
 `apply!` raises
 `Smartest::SimpleStub::AlreadyAppliedError` when the stub is already active in
-the current Fiber, and `reset!` raises
+the current stub store, and `reset!` raises
 `Smartest::SimpleStub::NotAppliedError` when it is not active there. See
 [Stubs](documentation/docs/stubs.md).
 
-Rails browser tests can opt into a process-shared stub store with
-`Smartest::SimpleStub.with_process_store(Smartest::SimpleStub::SharedStore.new)`,
-which lets a same-process Rails server thread see stubs applied by the test.
+If Smartest ever runs tests concurrently in one Ruby process, tests using the
+process-shared method stub store are serialized internally to avoid cross-test
+stub leakage.
 
 ## Logged-in client example
 

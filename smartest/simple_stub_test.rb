@@ -158,6 +158,63 @@ test("simple_stub applies and resets singleton methods from fixture teardown") d
   expect(status).to eq(0)
 end
 
+test("simple stubs created from suite fixtures stay active until suite teardown") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    suite_fixture :suite_stubbed_name do
+      simple_stub_any_instance_of(SimpleStubSelfTestSubject, :name) { "suite #{@name}" }
+      :suite_stubbed_name
+    end
+  end
+
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "activates suite stub",
+      proc do |suite_stubbed_name:|
+        expect(suite_stubbed_name).to eq(:suite_stubbed_name)
+        expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("suite Alice")
+      end
+    )
+  )
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "keeps suite stub active",
+      proc { expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("suite Alice") }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("original Alice")
+end
+
+test("simple stubs created from around_suite stay active until the hook resets them") do
+  suite = Smartest::Suite.new
+  suite.around_suite_hooks << proc do |suite_run|
+    stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "around suite #{@name}" }
+    stub.apply!
+
+    begin
+      suite_run.run
+    ensure
+      stub.reset
+    end
+  end
+  suite.tests.add(
+    SimpleStubSelfTest.test_case(
+      "uses around_suite stub",
+      proc { expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("around suite Alice") }
+    )
+  )
+
+  status, = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(0)
+  expect(SimpleStubSelfTestSubject.new("Alice").name).to eq("original Alice")
+end
+
 test("with_stub_const applies and resets existing constants in test body blocks") do
   result = with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
     expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
@@ -273,7 +330,7 @@ test("simple stub preserves receiver self and method blocks") do
   expect(subject.yielding_greeting("Hi") { |message| message }).to eq("Hi, Alice")
 end
 
-test("simple stub is scoped to the current fiber") do
+test("simple stub is shared with fibers during a test run") do
   subject = SimpleStubSelfTestSubject.new("Alice")
   stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "stubbed #{@name}" }
 
@@ -282,7 +339,7 @@ test("simple stub is scoped to the current fiber") do
   begin
     expect(subject.name).to eq("stubbed Alice")
     Fiber.new do
-      expect(subject.name).to eq("original Alice")
+      expect(subject.name).to eq("stubbed Alice")
     end.resume
   ensure
     stub.reset
@@ -291,37 +348,29 @@ test("simple stub is scoped to the current fiber") do
   expect(subject.name).to eq("original Alice")
 end
 
-test("simple stub can differ per thread") do
+test("simple stub is shared with threads during a test run") do
   subject = SimpleStubSelfTestSubject.new("Alice")
   queue = Queue.new
-  main_stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "main #{@name}" }
+  stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "shared #{@name}" }
 
-  main_stub.apply!
+  stub.apply!
 
   thread = Thread.new do
-    thread_stub = Smartest::SimpleStub.new(SimpleStubSelfTestSubject, :name) { "thread #{@name}" }
-    thread_stub.apply!
-
-    begin
-      queue << subject.name
-    rescue Exception => error
-      queue << error
-    ensure
-      thread_stub.reset
-    end
+    queue << subject.name
+  rescue Exception => error
+    queue << error
   end
 
   begin
-    expect(subject.name).to eq("main Alice")
+    expect(subject.name).to eq("shared Alice")
 
     thread_result = queue.pop
     raise thread_result if thread_result.is_a?(Exception)
 
-    expect(thread_result).to eq("thread Alice")
+    expect(thread_result).to eq("shared Alice")
     thread.join
-    expect(subject.name).to eq("main Alice")
   ensure
-    main_stub.reset
+    stub.reset
     thread.kill if thread.alive?
   end
 

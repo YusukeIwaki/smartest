@@ -2243,9 +2243,7 @@ test("cli rails init generator creates Rails browser scaffold and installation c
 
     helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
     expect(helper_contents).to include("use_matcher PredicateMatcher\n  use_fixture RailsSystemFixture\n  use_matcher PlaywrightMatcher\n  suite.run")
-    expect(helper_contents).to include("around_test do |test|")
-    expect(helper_contents).to include("store = Smartest::SimpleStub::SharedStore.new")
-    expect(helper_contents).to include("Smartest::SimpleStub.with_process_store(store) do")
+    expect(helper_contents).not_to include("Smartest::SimpleStub.with_process_store")
 
     gemfile_contents = File.read(File.join(dir, "Gemfile"))
     expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
@@ -2281,14 +2279,6 @@ test("cli rails init generator skips duplicate registration and dependencies") d
         use_matcher PlaywrightMatcher
         suite.run
       end
-
-      around_test do |test|
-        store = Smartest::SimpleStub::SharedStore.new
-
-        Smartest::SimpleStub.with_process_store(store) do
-          test.run
-        end
-      end
     RUBY
 
     commands = []
@@ -2307,7 +2297,7 @@ test("cli rails init generator skips duplicate registration and dependencies") d
     expect(status).to eq(0)
     helper_contents = File.read(File.join(dir, "smartest/test_helper.rb"))
     expect(helper_contents.scan("use_fixture RailsSystemFixture").length).to eq(1)
-    expect(helper_contents.scan("Smartest::SimpleStub.with_process_store").length).to eq(1)
+    expect(helper_contents).not_to include("Smartest::SimpleStub.with_process_store")
     expect(commands).to eq(
       [
         [["bundle", "install"], dir],

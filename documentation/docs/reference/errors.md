@@ -19,7 +19,7 @@ expected 2 to eq 3
 ## `Smartest::SimpleStub::AlreadyAppliedError`
 
 Raised when `Smartest::SimpleStub#apply!` is called for a stub that is already
-active in the current Fiber:
+active in the current stub store:
 
 ```text
 stub for PaymentGateway#charge is already applied
@@ -30,7 +30,7 @@ Use `apply` instead of `apply!` when repeated application should be ignored.
 ## `Smartest::SimpleStub::NotAppliedError`
 
 Raised when `Smartest::SimpleStub#reset!` is called for a stub that is not
-active in the current Fiber:
+active in the current stub store:
 
 ```text
 stub for PaymentGateway#charge is not applied

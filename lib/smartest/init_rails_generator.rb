@@ -202,7 +202,6 @@ module Smartest
       path = File.join(@root, "smartest/test_helper.rb")
       contents = File.read(path)
       updated = ensure_rails_registered(contents)
-      updated = ensure_shared_stub_store(updated)
 
       return if updated == contents
 
@@ -223,22 +222,6 @@ module Smartest
       else
         "#{contents.chomp}\n\naround_suite do |suite|\n#{missing_lines.join}  suite.run\nend\n"
       end
-    end
-
-    def ensure_shared_stub_store(contents)
-      return contents if contents.include?("Smartest::SimpleStub.with_process_store")
-
-      <<~RUBY
-        #{contents.chomp}
-
-        around_test do |test|
-          store = Smartest::SimpleStub::SharedStore.new
-
-          Smartest::SimpleStub.with_process_store(store) do
-            test.run
-          end
-        end
-      RUBY
     end
 
     def update_gemfile
