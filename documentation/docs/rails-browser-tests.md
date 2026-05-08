@@ -1,16 +1,19 @@
 ---
 title: Test a Rails app locally
-description: Write Rails system tests with Playwright and an in-process Rails server fixture.
+description: A Capybara-independent Rails browser-test runner with Playwright and pytest-style fixtures. Coexists with existing Rails system tests for gradual migration.
 ---
 
 # Test a Rails app locally
 
-Smartest can run Rails browser tests against your Rails `test` environment.
-
-It is useful when you want the Rails-native power of system tests -- FactoryBot,
-ActiveRecord records, Rails helpers, mailers, jobs, method stubs, and local app
-state -- while writing browser interactions with Playwright locators and
-web-first assertions.
+Rails system tests are a wonderful idea: they make it straightforward to drive
+a real browser through any edge case in your app, using FactoryBot,
+ActiveRecord, and Rails helpers to shape the state from Ruby. But two
+operational problems show up over time — system tests run on Capybara, which
+is hard to customize beyond its defaults, and the architecture tends to
+produce flaky tests. Smartest replaces the runner with a Capybara-independent
+design built on Playwright and pytest-style fixtures. It coexists with your
+existing system tests, so you can migrate gradually instead of rewriting
+everything at once.
 
 ```bash
 bundle exec smartest --init-rails
