@@ -1,9 +1,10 @@
 ---
-title: Pytest-style Fixtures for Ruby
+title: Smartest vs Pytest
+sidebar_label: vs Pytest
 description: Map pytest fixture concepts to Smartest's class-based fixtures, keyword injection, fixture dependencies, and teardown.
 ---
 
-# Pytest-style Fixtures for Ruby
+# Smartest vs Pytest
 
 Smartest brings pytest-style fixture injection to Ruby without copying Python's
 decorator syntax.

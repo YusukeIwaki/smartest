@@ -1,9 +1,9 @@
 ---
-title: Running Test Suites
+title: Running Tests
 description: Run Smartest tests through autorun or the CLI.
 ---
 
-# Running Test Suites
+# Running Tests
 
 The primary Smartest workflow is:
 

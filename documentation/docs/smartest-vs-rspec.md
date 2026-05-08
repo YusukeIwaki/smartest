@@ -1,5 +1,6 @@
 ---
 title: Smartest vs RSpec
+sidebar_label: vs RSpec
 description: Compare Smartest's explicit keyword fixture injection with RSpec let, before hooks, examples, and teardown.
 ---
 

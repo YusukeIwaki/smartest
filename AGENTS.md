@@ -25,3 +25,11 @@ Before finishing a task:
 6. If documentation did not need changes, explain why in the final response.
 
 Keep documentation examples runnable and aligned with the current MVP. Do not document future APIs as available behavior.
+
+## Documentation Editorial Conventions
+
+For the structural conventions of the Docusaurus site under `documentation/`
+— what Smartest's framing is, the sidebar shape, each page's primary purpose,
+the `title` / `sidebar_label` / `description` split, and the overlap warning
+between *Test a Rails app locally* and *vs Capybara* — see
+`documentation/AGENTS.md`. Do not re-derive these decisions per change.
