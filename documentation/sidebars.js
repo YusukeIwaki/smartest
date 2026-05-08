@@ -42,6 +42,7 @@ const sidebars = {
         'pytest-style-fixtures-for-ruby',
         'smartest-vs-rspec',
         'smartest-vs-minitest',
+        'smartest-vs-capybara',
       ],
     },
     {
