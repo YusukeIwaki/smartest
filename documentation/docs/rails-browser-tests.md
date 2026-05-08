@@ -150,7 +150,7 @@ end
 ```
 
 ```ruby
-class ApplicationSystemFixture < Smartest::Fixture
+class ApplicationFixture < Smartest::Fixture
   fixture :suspended_user do
     create(:user, :suspended)
   end
@@ -170,7 +170,7 @@ Register the application-specific fixture:
 ```ruby
 around_suite do |suite|
   use_fixture RailsSystemTestFixture
-  use_fixture ApplicationSystemFixture
+  use_fixture ApplicationFixture
   use_matcher PlaywrightMatcher
   suite.run
 end
@@ -240,7 +240,7 @@ browser page are combined into a named page fixture.
 Stubs installed inside fixtures are automatically reset during fixture teardown.
 
 ```ruby
-class ApplicationSystemFixture < Smartest::Fixture
+class ApplicationFixture < Smartest::Fixture
   fixture :admin_user do
     create(:user, :admin)
   end

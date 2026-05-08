@@ -150,7 +150,7 @@ In Smartest the setup is a fixture and a stub, and the test declares the
 fixture it depends on:
 
 ```ruby title="Smartest"
-class ApplicationSystemFixture < Smartest::Fixture
+class ApplicationFixture < Smartest::Fixture
   fixture :suspended_user do
     create(:user, :suspended)
   end
@@ -201,7 +201,7 @@ smartest/
   test_helper.rb
   fixtures/
     rails_system_fixture.rb
-    application_system_fixture.rb
+    application_fixture.rb
   comment_submission_test.rb ← rewritten in Smartest
   push_failure_test.rb       ← rewritten in Smartest
 ```
