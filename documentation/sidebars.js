@@ -27,7 +27,11 @@ const sidebars = {
       type: 'category',
       label: 'Browser Tests',
       collapsed: false,
-      items: ['playwright-browser-tests', 'rails-browser-tests'],
+      items: [
+        'playwright-browser-tests',
+        'rails-browser-tests',
+        'rails-browser-tests-with-docker',
+      ],
     },
     {
       type: 'category',

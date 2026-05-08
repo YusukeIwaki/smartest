@@ -18,7 +18,11 @@ module Smartest
           ENV["RACK_ENV"] ||= ENV["RAILS_ENV"]
           require_relative "../../config/environment"
 
-          server = Smartest::Rails::TestServer.new(app: Rails.application)
+          server = Smartest::Rails::TestServer.new(
+            app: Rails.application,
+            host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"],
+            port: ENV["SMARTEST_RAILS_TEST_SERVER_PORT"],
+          )
           server.start
           server.wait_for_ready
 
@@ -31,36 +35,34 @@ module Smartest
         end
 
         suite_fixture :base_url do |rails_server:|
-          rails_server.base_url
+          ENV.fetch("SMARTEST_RAILS_BASE_URL", rails_server.base_url)
         end
 
-        suite_fixture :playwright do
-          runtime = Playwright.create(
-            playwright_cli_executable_path: "./node_modules/.bin/playwright",
-          )
-          on_teardown { runtime.stop }
-          runtime.playwright
-        end
+        suite_fixture :browser do
+          ws_endpoint = ENV["PLAYWRIGHT_WS_ENDPOINT"]
 
-        suite_fixture :browser do |playwright:|
-          browser_type = case ENV["BROWSER"]
-          when "firefox"
-            :firefox
-          when "webkit"
-            :webkit
+          if ws_endpoint && !ws_endpoint.empty?
+            playwright_execution = Playwright.connect_to_browser_server(
+              ws_endpoint,
+              browser_type: selected_browser_type.to_s,
+            )
+            on_teardown { playwright_execution.stop }
+
+            playwright_execution.browser
           else
-            :chromium
-          end
+            playwright_execution = Playwright.create(
+              playwright_cli_executable_path: ENV.fetch(
+                "PLAYWRIGHT_CLI_EXECUTABLE_PATH",
+                "./node_modules/.bin/playwright",
+              )
+            )
+            on_teardown { playwright_execution.stop }
 
-          launch_options = {}
-          launch_options[:headless] = !%w[0 false].include?(ENV["HEADLESS"])
-          if (slow_mo = ENV["SLOW_MO"].to_i) > 0
-            launch_options[:slowMo] = slow_mo
+            playwright = playwright_execution.playwright
+            browser = playwright.public_send(selected_browser_type).launch(**browser_launch_options)
+            on_teardown { browser.close }
+            browser
           end
-
-          browser = playwright.send(browser_type).launch(**launch_options)
-          on_teardown { browser.close }
-          browser
         end
 
         fixture :browser_context do |base_url:, browser:|
@@ -73,6 +75,29 @@ module Smartest
           page = browser_context.new_page
           on_teardown { page.close }
           page
+        end
+
+        private
+
+        def selected_browser_type
+          case ENV.fetch("BROWSER", "chromium")
+          when "firefox"
+            :firefox
+          when "webkit"
+            :webkit
+          else
+            :chromium
+          end
+        end
+
+        def browser_launch_options
+          launch_options = {}
+          launch_options[:headless] = !%w[0 false].include?(ENV.fetch("HEADLESS", "true"))
+          if (slow_mo = ENV.fetch("SLOW_MO", "0").to_i) > 0
+            launch_options[:slowMo] = slow_mo
+          end
+
+          launch_options
         end
       end
     RUBY
@@ -192,14 +217,22 @@ module Smartest
 
         raise "command failed: #{command.join(" ")}"
       end
+
+      if skip_browser_download?
+        @output.puts "skip    ./node_modules/.bin/playwright install (SMARTEST_SKIP_BROWSER_DOWNLOAD=1)"
+      end
     end
 
     def install_commands
       commands = [["bundle", "install"]]
       commands << ["npm", "init", "--yes"] unless File.exist?(File.join(@root, "package.json"))
       commands << ["npm", "install", "playwright", "--save-dev"]
-      commands << ["./node_modules/.bin/playwright", "install"]
+      commands << ["./node_modules/.bin/playwright", "install"] unless skip_browser_download?
       commands
+    end
+
+    def skip_browser_download?
+      %w[1 true].include?(ENV.fetch("SMARTEST_SKIP_BROWSER_DOWNLOAD", "false"))
     end
 
     def run_system_command(command, chdir:)

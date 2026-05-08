@@ -41,6 +41,13 @@ bundle exec smartest --init-rails
 That command creates the normal Smartest scaffold plus a Rails server fixture,
 Playwright matcher, and Rails browser-test example.
 
+For a Rails app container that uses a Playwright sidecar for browsers, keep the
+same command and skip browser binary installation with an environment variable:
+
+```bash
+SMARTEST_SKIP_BROWSER_DOWNLOAD=1 bundle exec smartest --init-rails
+```
+
 Generated tests require the helper by name:
 
 ```ruby

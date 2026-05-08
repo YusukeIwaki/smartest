@@ -88,6 +88,11 @@ you prefer a Rails-like layout, you can move tests under a structure such as
 It also adds `playwright-ruby-client` to the Gemfile test group, installs the
 Playwright npm package, and downloads browsers.
 
+If your Rails app runs in Docker and browsers should live in a Playwright
+sidecar container, initialize with `SMARTEST_SKIP_BROWSER_DOWNLOAD=1` instead.
+See [Test a Rails app with Docker](./rails-browser-tests-with-docker.md) for the
+sidecar setup.
+
 Prepare the Rails test database:
 
 ```bash
@@ -343,7 +348,11 @@ class RailsSystemTestFixture < Smartest::Fixture
 
     require_relative "../../config/environment"
 
-    server = Smartest::Rails::TestServer.new(app: Rails.application)
+    server = Smartest::Rails::TestServer.new(
+      app: Rails.application,
+      host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"],
+      port: ENV["SMARTEST_RAILS_TEST_SERVER_PORT"],
+    )
     server.start
     server.wait_for_ready
 
@@ -353,6 +362,60 @@ class RailsSystemTestFixture < Smartest::Fixture
     end
 
     server
+  end
+
+  suite_fixture :base_url do |rails_server:|
+    ENV.fetch("SMARTEST_RAILS_BASE_URL", rails_server.base_url)
+  end
+
+  suite_fixture :browser do
+    ws_endpoint = ENV["PLAYWRIGHT_WS_ENDPOINT"]
+
+    if ws_endpoint && !ws_endpoint.empty?
+      playwright_execution = Playwright.connect_to_browser_server(
+        ws_endpoint,
+        browser_type: selected_browser_type.to_s,
+      )
+      on_teardown { playwright_execution.stop }
+
+      playwright_execution.browser
+    else
+      playwright_execution = Playwright.create(
+        playwright_cli_executable_path: ENV.fetch(
+          "PLAYWRIGHT_CLI_EXECUTABLE_PATH",
+          "./node_modules/.bin/playwright",
+        )
+      )
+      on_teardown { playwright_execution.stop }
+
+      playwright = playwright_execution.playwright
+      browser = playwright.public_send(selected_browser_type).launch(**browser_launch_options)
+      on_teardown { browser.close }
+      browser
+    end
+  end
+
+  private
+
+  def selected_browser_type
+    case ENV.fetch("BROWSER", "chromium")
+    when "firefox"
+      :firefox
+    when "webkit"
+      :webkit
+    else
+      :chromium
+    end
+  end
+
+  def browser_launch_options
+    launch_options = {}
+    launch_options[:headless] = !%w[0 false].include?(ENV.fetch("HEADLESS", "true"))
+    if (slow_mo = ENV.fetch("SLOW_MO", "0").to_i) > 0
+      launch_options[:slowMo] = slow_mo
+    end
+
+    launch_options
   end
 end
 ```
@@ -364,8 +427,10 @@ The generated fixture keeps expensive resources suite-scoped:
 
 - `rails_server`
 - `base_url`
-- `playwright`
 - `browser`
+
+The `browser` fixture either connects to `PLAYWRIGHT_WS_ENDPOINT` or starts a
+local Playwright runtime and browser, then tears down the resources it created.
 
 Each test gets its own browser context and page:
 
@@ -399,18 +464,25 @@ process are not visible to the Rails application process.
 
 :::
 
-## Test server port
+## Test server host and port
 
-By default, the Rails test server asks the OS for an available port.
+By default, the Rails test server binds to `127.0.0.1` and asks the OS for an
+available port.
 
-Set `SMARTEST_RAILS_PORT` when you need a fixed port:
+Set `SMARTEST_RAILS_TEST_SERVER_PORT` when you need a fixed port:
 
 ```bash
-SMARTEST_RAILS_PORT=4001 bundle exec smartest smartest/example_rails_system_test.rb
+SMARTEST_RAILS_TEST_SERVER_PORT=4001 bundle exec smartest smartest/example_rails_system_test.rb
 ```
 
 This is useful when debugging, inspecting browser traffic, or integrating with
 tools that expect a stable local port.
+
+Set `SMARTEST_RAILS_TEST_SERVER_HOST` only when the Rails test server must bind
+to another interface. For example, Docker sidecar runs usually need
+`SMARTEST_RAILS_TEST_SERVER_HOST=0.0.0.0` plus
+`SMARTEST_RAILS_BASE_URL=http://app:4001`; see
+[Test a Rails app with Docker](./rails-browser-tests-with-docker.md).
 
 ## Method stubs
 
@@ -539,10 +611,10 @@ the test.
 
 ### The test server port changes every run
 
-Set `SMARTEST_RAILS_PORT`:
+Set `SMARTEST_RAILS_TEST_SERVER_PORT`:
 
 ```bash
-SMARTEST_RAILS_PORT=4001 bundle exec smartest smartest/example_rails_system_test.rb
+SMARTEST_RAILS_TEST_SERVER_PORT=4001 bundle exec smartest smartest/example_rails_system_test.rb
 ```
 
 ## Summary

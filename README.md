@@ -268,8 +268,21 @@ the main choice for staging / production-like E2E suites; use Node.js
 Playwright Test for that style of E2E testing.
 
 The generated `page` fixture uses a per-test Playwright browser context with
-`baseURL` set to the Rails server URL. Set `SMARTEST_RAILS_PORT` when you need a
-fixed port; otherwise the test server asks the OS for an available port.
+`baseURL` set to the Rails server URL. Set
+`SMARTEST_RAILS_TEST_SERVER_PORT` when you need a fixed port; otherwise the test
+server asks the OS for an available port.
+
+For Docker sidecar runs, initialize without installing browser binaries into
+the Rails app container:
+
+```bash
+SMARTEST_SKIP_BROWSER_DOWNLOAD=1 bundle exec smartest --init-rails
+```
+
+At runtime, set `PLAYWRIGHT_WS_ENDPOINT`,
+`SMARTEST_RAILS_TEST_SERVER_HOST`, `SMARTEST_RAILS_TEST_SERVER_PORT`, and
+`SMARTEST_RAILS_BASE_URL` so the generated fixture connects to the Playwright
+sidecar and gives the browser a Docker-network URL for Rails.
 
 Run the generated Rails browser example with:
 

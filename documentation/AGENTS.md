@@ -50,7 +50,7 @@ Learn
 Browser Tests
   Why Smartest browser tests       ← entry / positioning
   Test a Rails app locally
-  (future) Test a Rails app in Docker
+  Test a Rails app with Docker
 Comparisons
   vs Pytest
   vs RSpec
@@ -78,6 +78,7 @@ Top-level categories should answer "what reader goal is this for?", not
 | `helpers.md` | Registering helper modules via `around_test`. |
 | `playwright-browser-tests.md` (Why Smartest browser tests) | Browser Tests entry. Why-style positioning followed by Quick Start and "How it works" for the generic Playwright scaffold. |
 | `rails-browser-tests.md` (Test a Rails app locally) | Concrete how-to for Rails browser tests against a local in-process Rails server. Aimed at engineers feeling Rails system-test pain. |
+| `rails-browser-tests-with-docker.md` (Test a Rails app with Docker) | Concrete how-to for Rails browser tests where Smartest runs in the Rails app container and browsers run in a Playwright sidecar container. |
 | `pytest-style-fixtures-for-ruby.md` (vs Pytest) | Comparison only. Map pytest concepts to Smartest. |
 | `smartest-vs-rspec.md` (vs RSpec) | Comparison only. RSpec `let` / `before` → Smartest fixtures. |
 | `smartest-vs-minitest.md` (vs Minitest) | Comparison only. Minitest setup / teardown → Smartest fixtures. |

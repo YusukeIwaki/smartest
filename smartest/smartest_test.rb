@@ -9,6 +9,8 @@ require "open3"
 require "tmpdir"
 
 module SmartestSelfTest
+  ENV_MISSING = Object.new.freeze
+
   module_function
 
   def test_case(name, block)
@@ -39,6 +41,20 @@ module SmartestSelfTest
     error
   else
     raise Smartest::AssertionFailed, "expected #{expected_error}, but nothing was raised"
+  end
+
+  def with_env(values)
+    previous_values = {}
+    values.each do |key, value|
+      previous_values[key] = ENV.fetch(key, ENV_MISSING)
+      value.nil? ? ENV.delete(key) : ENV[key] = value
+    end
+
+    yield
+  ensure
+    previous_values.each do |key, value|
+      value.equal?(ENV_MISSING) ? ENV.delete(key) : ENV[key] = value
+    end
   end
 end
 
@@ -2230,7 +2246,7 @@ test("smartest rails helper is loaded only by explicit require") do
   end
 end
 
-test("smartest rails test server wraps puma with env port and lifecycle") do
+test("smartest rails test server wraps puma with explicit arguments and lifecycle") do
   lib_path = File.expand_path("../lib", __dir__)
 
   Dir.mktmpdir do |dir|
@@ -2269,25 +2285,32 @@ test("smartest rails test server wraps puma with env port and lifecycle") do
     RUBY
 
     stdout, stderr, status = Open3.capture3(
-      { "RUBYLIB" => "#{dir}:#{lib_path}", "SMARTEST_RAILS_PORT" => "4567" },
+      {
+        "RUBYLIB" => "#{dir}:#{lib_path}",
+        "SMARTEST_RAILS_TEST_SERVER_HOST" => "0.0.0.0",
+        "SMARTEST_RAILS_TEST_SERVER_PORT" => "9876",
+        "SMARTEST_RAILS_BASE_URL" => "http://app:9876"
+      },
       "ruby",
       "-e",
       <<~'RUBY'
         require "smartest/rails"
 
-        server = Smartest::Rails::TestServer.new(app: Object.new)
+        server = Smartest::Rails::TestServer.new(app: Object.new, port: "4567")
+        default_port_server = Smartest::Rails::TestServer.new(app: Object.new)
         thread = server.start
         server.stop
         server.wait_for_stopped
 
         puts server.base_url
+        puts default_port_server.base_url
         puts thread.is_a?(Thread)
       RUBY
     )
 
     expect(status.success?).to eq(true)
     expect(stderr).to eq("")
-    expect(stdout).to eq("http://127.0.0.1:4567\ntrue\n")
+    expect(stdout).to eq("http://127.0.0.1:4567\nhttp://127.0.0.1:4321\ntrue\n")
   end
 end
 
@@ -2320,10 +2343,34 @@ test("cli rails init generator creates Rails browser scaffold and installation c
     expect(rails_fixture).to include("suite_fixture :rails_server")
     expect(rails_fixture).to include("server cannot boot against the development database")
     expect(rails_fixture).to include('require_relative "../../config/environment"')
-    expect(rails_fixture).to include("Smartest::Rails::TestServer.new(app: Rails.application)")
+    expect(rails_fixture).to include("Smartest::Rails::TestServer.new(")
+    expect(rails_fixture).to include('host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"]')
+    expect(rails_fixture).not_to include("bind_host:")
+    expect(rails_fixture).to include('port: ENV["SMARTEST_RAILS_TEST_SERVER_PORT"]')
+    expect(rails_fixture).not_to include("public_base_url")
     expect(rails_fixture).not_to include("SmartestRailsTestServer")
     expect(rails_fixture).not_to include("Puma::Server")
     expect(rails_fixture).to include("suite_fixture :base_url")
+    expect(rails_fixture).to include('ENV.fetch("SMARTEST_RAILS_BASE_URL", rails_server.base_url)')
+    expect(rails_fixture).not_to include("rails_test_server_port")
+    expect(rails_fixture).not_to include("SMARTEST_RAILS_PORT")
+    expect(rails_fixture).to include('ws_endpoint = ENV["PLAYWRIGHT_WS_ENDPOINT"]')
+    expect(rails_fixture).not_to include("suite_fixture :playwright_execution")
+    expect(rails_fixture).not_to include("suite_fixture :playwright do")
+    expect(rails_fixture).not_to include("Playwright.connect_to_playwright_server")
+    expect(rails_fixture).not_to include("rescue NotImplementedError")
+    expect(rails_fixture).to include("playwright_execution = Playwright.connect_to_browser_server(")
+    expect(rails_fixture).to include("browser_type: selected_browser_type.to_s")
+    expect(rails_fixture).to include("playwright_execution.browser")
+    expect(rails_fixture).to include('ENV.fetch(')
+    expect(rails_fixture).to include('"PLAYWRIGHT_CLI_EXECUTABLE_PATH"')
+    expect(rails_fixture).to include("suite_fixture :browser do")
+    expect(rails_fixture).to include("playwright_execution = Playwright.create(")
+    expect(rails_fixture).to include("on_teardown { playwright_execution.stop }")
+    expect(rails_fixture).to include("playwright = playwright_execution.playwright")
+    expect(rails_fixture).to include("playwright.public_send(selected_browser_type).launch(**browser_launch_options)")
+    expect(rails_fixture).to include("def selected_browser_type")
+    expect(rails_fixture).to include("def browser_launch_options")
     expect(rails_fixture).to include("fixture :browser_context do |base_url:, browser:|")
     expect(rails_fixture).to include("context = browser.new_context(baseURL: base_url)")
     expect(rails_fixture).to include("fixture :page do |browser_context:|")
@@ -2348,6 +2395,44 @@ test("cli rails init generator creates Rails browser scaffold and installation c
       ]
     )
     expect(output.string).to include("Run your Rails browser test suite with: bundle exec smartest smartest/example_rails_system_test.rb")
+  end
+end
+
+test("cli rails init generator skips browser install when requested by environment") do
+  SmartestSelfTest.with_env("SMARTEST_SKIP_BROWSER_DOWNLOAD" => "yes") do
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, "Gemfile"), <<~RUBY)
+        source "https://rubygems.org"
+
+        gem "rails"
+        gem "smartest"
+      RUBY
+
+      commands = []
+      output = StringIO.new
+      generator = Smartest::InitRailsGenerator.new(
+        root: dir,
+        output: output,
+        command_runner: ->(command, chdir:) {
+          commands << [command, chdir]
+          true
+        }
+      )
+
+      status = generator.run
+
+      expect(status).to eq(0)
+      expect(commands).to eq(
+        [
+          [["bundle", "install"], dir],
+          [["npm", "init", "--yes"], dir],
+          [["npm", "install", "playwright", "--save-dev"], dir]
+        ]
+      )
+      expect(output.string).to include("skip    ./node_modules/.bin/playwright install (SMARTEST_SKIP_BROWSER_DOWNLOAD=1)")
+      expect(File.exist?(File.join(dir, "smartest/fixtures/rails_system_fixture.rb"))).to eq(true)
+      expect(File.exist?(File.join(dir, "smartest/example_rails_system_test.rb"))).to eq(true)
+    end
   end
 end
 

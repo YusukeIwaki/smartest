@@ -9,15 +9,14 @@ require_relative "../smartest"
 module Smartest
   module Rails
     class TestServer
-      DEFAULT_HOST = "127.0.0.1"
       DEFAULT_READY_TIMEOUT = 10
 
       attr_reader :host, :port
 
-      def initialize(app:, host: DEFAULT_HOST, port: nil)
+      def initialize(app:, host: nil, port: nil)
         @app = app
-        @host = host
-        @requested_port = port || ENV["SMARTEST_RAILS_PORT"]&.to_i || 0
+        @host = host || "127.0.0.1"
+        @requested_port = port ? port.to_i : 0
         @server = Puma::Server.new(@app)
         @port = bind_tcp_listener
         @thread = nil
