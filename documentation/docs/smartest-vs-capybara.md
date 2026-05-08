@@ -17,10 +17,9 @@ tuning Capybara waits to fix them becomes ongoing maintenance.
 
 The recommended escape hatch is `capybara-playwright-driver`'s
 `with_playwright_page`, which exposes a real Playwright `Page` and Playwright
-web-first assertions inside a block. As [a Zenn article on this pattern points
-out](https://zenn.dev/calldoctor_blog/articles/57e55c363343ff), that block
-adds a layer of complexity that feels disproportionate when all you wanted was
-a slightly more stable browser test.
+web-first assertions inside a block. That block solves the stability problem,
+but the resulting nested-callback style feels disproportionate when all you
+wanted was a slightly more stable browser test.
 
 Smartest replaces the Capybara-based stack entirely. Thanks to pytest-style
 fixtures, writing `|page:|` is enough to get a Playwright `Page` already wired
