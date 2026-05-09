@@ -14,6 +14,30 @@ That means FactoryBot, ActiveRecord, Rails helpers, and Smartest method stubs
 still run in the test process, while the browser itself runs in the Playwright
 container.
 
+This page focuses on Docker-specific concerns: the sidecar topology, the
+network names that Rails and the browser must agree on, and the environment
+variables that switch the generated fixture between local and remote
+Playwright. For Rails-side concepts that are not Docker-specific — fixture
+composition, `around_suite` registration, database cleanup strategy, parallel
+execution, and troubleshooting — see
+[Test a Rails app locally](./rails-browser-tests.md).
+
+## Prerequisites
+
+Add Smartest to the test group in the Rails app's `Gemfile` and rebuild the
+image so the gem is available inside the app container:
+
+```bash
+bundle add smartest --group test
+```
+
+Prepare the test database. From your host shell, run it through Compose so it
+uses the same image and database service as the test run:
+
+```bash
+docker compose run --rm app bin/rails db:test:prepare
+```
+
 ## Quick start
 
 Generate the Rails browser-test scaffold without downloading browser binaries
@@ -31,7 +55,7 @@ Run the suite with a Playwright server URL and a Rails URL that the browser can
 reach from the Docker network:
 
 ```bash
-PLAYWRIGHT_WS_ENDPOINT=ws://playwright:3000/ \
+PLAYWRIGHT_WS_ENDPOINT=ws://playwright:8888/ws \
 SMARTEST_RAILS_TEST_SERVER_HOST=0.0.0.0 \
 SMARTEST_RAILS_TEST_SERVER_PORT=4001 \
 SMARTEST_RAILS_BASE_URL=http://app:4001 \
@@ -43,6 +67,8 @@ same generated fixture supports local and Docker runs through environment
 variables.
 
 ## Architecture
+
+![Two Docker Compose services. In the Rails app container (Alpine + Ruby + Node.js), the Smartest test runner boots Smartest::Rails::TestServer — which carries Rails.application bound to 0.0.0.0:3000 — and drives playwright-ruby-client. In the Playwright sidecar container (mcr.microsoft.com/playwright), PlaywrightServer drives Chromium, Firefox, and WebKit. The test runner reaches the browser over WebSocket (ws://playwright:8888/ws), and the browser reaches the Rails test server over HTTP (http://app:3000).](/img/rails-docker-architecture.png)
 
 In the Rails app container:
 
@@ -58,9 +84,18 @@ In the Playwright sidecar container:
 - Browser processes run with the dependencies from the official Playwright
   image.
 
-Keep the Rails server in the Smartest process. Starting Rails separately with
-`bin/rails server -e test` prevents Ruby-side method stubs from affecting the
-requests that the browser makes.
+:::warning
+
+Do not run Rails as a separate `bin/rails server -e test` process — neither
+in another Compose service nor in the same container. Smartest fixtures
+install method stubs in the test runner process, and those stubs are only
+visible to the Rails server thread when both run in the same Ruby process.
+
+In the Compose example below, the `app` service runs `bundle exec smartest`,
+which boots Rails inside that test runner. Do not add a second service that
+runs `bin/rails server -e test` against the same database.
+
+:::
 
 ## Docker Compose example
 
@@ -73,7 +108,7 @@ services:
       RAILS_ENV: test
       RACK_ENV: test
 
-      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:3000/
+      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:8888/ws
       SMARTEST_RAILS_TEST_SERVER_HOST: 0.0.0.0
       SMARTEST_RAILS_TEST_SERVER_PORT: 4001
       SMARTEST_RAILS_BASE_URL: http://app:4001
@@ -84,13 +119,13 @@ services:
       - playwright
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.50.1-noble
+    image: mcr.microsoft.com/playwright:v1.59.0-noble
     init: true
     ipc: host
     working_dir: /home/pwuser
     user: pwuser
     command: >
-      /bin/sh -c "npx -y playwright@1.50.1 run-server --port 3000 --host 0.0.0.0"
+      /bin/sh -c "npx -y playwright@1.59.0 run-server --port 8888 --host 0.0.0.0 --path /ws"
 ```
 
 Use your own service name if it is not `app`; `SMARTEST_RAILS_BASE_URL` must use
@@ -112,7 +147,7 @@ the host name that the Playwright container can resolve on the Compose network.
 separate. The first affects scaffold initialization; the second chooses remote
 Playwright at test runtime.
 
-## The 127.0.0.1 problem
+## Base URL for the Playwright sidecar
 
 In local mode, `127.0.0.1` points at the machine running both Rails and the
 browser.
