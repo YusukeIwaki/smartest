@@ -135,7 +135,7 @@ the host name that the Playwright container can resolve on the Compose network.
 
 | Variable | When used | Purpose |
 | --- | --- | --- |
-| `SMARTEST_SKIP_BROWSER_DOWNLOAD` | During `--init-rails` | Skip browser binary installation in the Rails app container. Truthy values include `1`, `true`, and `yes`. |
+| `SMARTEST_SKIP_BROWSER_DOWNLOAD` | During `--init-rails` | Skip browser binary installation in the Rails app container. Set to `1` or `true`. |
 | `PLAYWRIGHT_WS_ENDPOINT` | During test execution | Connect the generated fixture to a remote Playwright server instead of starting local Playwright. |
 | `SMARTEST_RAILS_TEST_SERVER_HOST` | During test execution | Bind the Rails test server to a host visible from the Docker network. Use `0.0.0.0` for Compose sidecars. |
 | `SMARTEST_RAILS_TEST_SERVER_PORT` | During test execution | Use a fixed Rails test-server port. |

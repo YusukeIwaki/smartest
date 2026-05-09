@@ -2399,7 +2399,7 @@ test("cli rails init generator creates Rails browser scaffold and installation c
 end
 
 test("cli rails init generator skips browser install when requested by environment") do
-  SmartestSelfTest.with_env("SMARTEST_SKIP_BROWSER_DOWNLOAD" => "yes") do
+  SmartestSelfTest.with_env("SMARTEST_SKIP_BROWSER_DOWNLOAD" => "1") do
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, "Gemfile"), <<~RUBY)
         source "https://rubygems.org"
