@@ -160,11 +160,15 @@ module Smartest
     end
 
     def install_dependencies
-      install_commands.each do |command|
-        @output.puts "run     #{command.join(" ")}"
-        next if @command_runner.call(command, chdir: @root)
+      commands = install_commands
 
-        raise "command failed: #{command.join(" ")}"
+      with_unbundled_env do
+        commands.each do |command|
+          @output.puts "run     #{command.join(" ")}"
+          next if @command_runner.call(command, chdir: @root)
+
+          raise "command failed: #{command.join(" ")}"
+        end
       end
     end
 
@@ -178,6 +182,16 @@ module Smartest
 
     def run_system_command(command, chdir:)
       system(*command, chdir: chdir)
+    end
+
+    def with_unbundled_env(&block)
+      require "bundler"
+
+      if Bundler.respond_to?(:with_unbundled_env)
+        Bundler.with_unbundled_env(&block)
+      else
+        Bundler.with_clean_env(&block)
+      end
     end
   end
 end

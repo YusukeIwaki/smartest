@@ -10,14 +10,14 @@ module Smartest
       require 'smartest/rails'
       require "playwright"
 
+      # Force the test environment and load Rails while test_helper is required
+      # so app constants are available before per-test fixtures are resolved.
+      ENV["RAILS_ENV"] = "test"
+      ENV["RACK_ENV"] = "test"
+      require_relative "../../config/environment"
+
       class RailsSystemTestFixture < Smartest::Fixture
         suite_fixture :rails_server do
-          # Set the environment before loading config/environment so the test
-          # server cannot boot against the development database by default.
-          ENV["RAILS_ENV"] ||= "test"
-          ENV["RACK_ENV"] ||= ENV["RAILS_ENV"]
-          require_relative "../../config/environment"
-
           server = Smartest::Rails::TestServer.new(
             app: Rails.application,
             host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"],
@@ -211,11 +211,15 @@ module Smartest
     end
 
     def install_dependencies
-      install_commands.each do |command|
-        @output.puts "run     #{command.join(" ")}"
-        next if @command_runner.call(command, chdir: @root)
+      commands = install_commands
 
-        raise "command failed: #{command.join(" ")}"
+      with_unbundled_env do
+        commands.each do |command|
+          @output.puts "run     #{command.join(" ")}"
+          next if @command_runner.call(command, chdir: @root)
+
+          raise "command failed: #{command.join(" ")}"
+        end
       end
 
       if skip_browser_download?
@@ -237,6 +241,16 @@ module Smartest
 
     def run_system_command(command, chdir:)
       system(*command, chdir: chdir)
+    end
+
+    def with_unbundled_env(&block)
+      require "bundler"
+
+      if Bundler.respond_to?(:with_unbundled_env)
+        Bundler.with_unbundled_env(&block)
+      else
+        Bundler.with_clean_env(&block)
+      end
     end
   end
 end

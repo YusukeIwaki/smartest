@@ -24,18 +24,23 @@ execution, and troubleshooting — see
 
 ## Prerequisites
 
+The examples on this page use `web` as the Rails Compose service name. If your
+project uses a different service name, replace `web` in the commands and in
+`SMARTEST_RAILS_BASE_URL`.
+
 Add Smartest to the test group in the Rails app's `Gemfile` and rebuild the
 image so the gem is available inside the app container:
 
 ```bash
-bundle add smartest --group test
+docker compose run --rm web bundle add smartest --group test
+docker compose build web
 ```
 
 Prepare the test database. From your host shell, run it through Compose so it
 uses the same image and database service as the test run:
 
 ```bash
-docker compose run --rm app bin/rails db:test:prepare
+docker compose run --rm web bin/rails db:test:prepare
 ```
 
 ## Quick start
@@ -44,23 +49,29 @@ Generate the Rails browser-test scaffold without downloading browser binaries
 into the Rails app container:
 
 ```bash
-SMARTEST_SKIP_BROWSER_DOWNLOAD=1 bundle exec smartest --init-rails
+docker compose run --rm -e SMARTEST_SKIP_BROWSER_DOWNLOAD=1 \
+  web bundle exec smartest --init-rails
 ```
 
 This still creates the Rails fixture, Playwright matcher, example test, Gemfile
 entry, and Playwright npm package. It skips only
 `./node_modules/.bin/playwright install`.
 
-Run the suite with a Playwright server URL and a Rails URL that the browser can
-reach from the Docker network:
+Put the Docker network wiring variables in Compose, as shown in the example
+below. Then run the suite:
 
 ```bash
-PLAYWRIGHT_WS_ENDPOINT=ws://playwright:8888/ws \
-SMARTEST_RAILS_TEST_SERVER_HOST=0.0.0.0 \
-SMARTEST_RAILS_TEST_SERVER_PORT=4001 \
-SMARTEST_RAILS_BASE_URL=http://app:4001 \
-bundle exec smartest smartest/
+docker compose run --rm --use-aliases \
+  web bundle exec smartest smartest/
 ```
+
+`--use-aliases` makes the one-off test container join the Compose network under
+the `web` service name, so the Playwright sidecar can resolve
+`http://web:4001`.
+
+The generated Rails fixture forces `RAILS_ENV` and `RACK_ENV` to `test` before
+loading `config/environment`, so the test run does not depend on the service's
+development environment variables.
 
 There is no separate `--browser=docker` or `--skip-browser-install` option. The
 same generated fixture supports local and Docker runs through environment
@@ -68,7 +79,7 @@ variables.
 
 ## Architecture
 
-![Two Docker Compose services. In the Rails app container (Alpine + Ruby + Node.js), the Smartest test runner boots Smartest::Rails::TestServer — which carries Rails.application bound to 0.0.0.0:3000 — and drives playwright-ruby-client. In the Playwright sidecar container (mcr.microsoft.com/playwright), PlaywrightServer drives Chromium, Firefox, and WebKit. The test runner reaches the browser over WebSocket (ws://playwright:8888/ws), and the browser reaches the Rails test server over HTTP (http://app:3000).](/img/rails-docker-architecture.png)
+![Two Docker Compose services. In the Rails web container (Alpine + Ruby + Node.js), the Smartest test runner boots Smartest::Rails::TestServer — which carries Rails.application bound to 0.0.0.0:3000 — and drives playwright-ruby-client. In the Playwright sidecar container (mcr.microsoft.com/playwright), PlaywrightServer drives Chromium, Firefox, and WebKit. The test runner reaches the browser over WebSocket (ws://playwright:8888/ws), and the browser reaches the Rails test server over HTTP (http://web:3000).](/img/rails-docker-architecture.png)
 
 In the Rails app container:
 
@@ -91,44 +102,45 @@ in another Compose service nor in the same container. Smartest fixtures
 install method stubs in the test runner process, and those stubs are only
 visible to the Rails server thread when both run in the same Ruby process.
 
-In the Compose example below, the `app` service runs `bundle exec smartest`,
-which boots Rails inside that test runner. Do not add a second service that
-runs `bin/rails server -e test` against the same database.
+The one-off `docker compose run web bundle exec smartest ...` command boots
+Rails inside that test runner. Do not add a second service that runs
+`bin/rails server -e test` against the same database.
 
 :::
 
 ## Docker Compose example
 
-```yaml title="compose.yml"
-services:
-  app:
-    build: .
-    command: bundle exec smartest smartest/
-    environment:
-      RAILS_ENV: test
-      RACK_ENV: test
+Add the Playwright sidecar and the Smartest browser-test environment variables
+to your existing Rails service. This is a diff against your current Compose
+file, not a replacement file. Keep the service's normal development `command`
+and `RAILS_ENV` unchanged if this file is also used for `docker compose up`.
 
-      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:8888/ws
-      SMARTEST_RAILS_TEST_SERVER_HOST: 0.0.0.0
-      SMARTEST_RAILS_TEST_SERVER_PORT: 4001
-      SMARTEST_RAILS_BASE_URL: http://app:4001
-
-      BROWSER: chromium
-      HEADLESS: "true"
-    depends_on:
-      - playwright
-
-  playwright:
-    image: mcr.microsoft.com/playwright:v1.59.0-noble
-    init: true
-    ipc: host
-    working_dir: /home/pwuser
-    user: pwuser
-    command: >
-      /bin/sh -c "npx -y playwright@1.59.0 run-server --port 8888 --host 0.0.0.0 --path /ws"
+```diff title="compose.yml"
+ services:
+   web:
+     build: .
++    environment:
++      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:8888/ws
++      SMARTEST_RAILS_TEST_SERVER_HOST: 0.0.0.0
++      SMARTEST_RAILS_TEST_SERVER_PORT: 4001
++      SMARTEST_RAILS_BASE_URL: http://web:4001
++
++      BROWSER: chromium
++      HEADLESS: "true"
++    depends_on:
++      - playwright
++
++  playwright:
++    image: mcr.microsoft.com/playwright:v1.59.0-noble
++    init: true
++    ipc: host
++    working_dir: /home/pwuser
++    user: pwuser
++    command: >
++      /bin/sh -c "npx -y playwright@1.59.0 run-server --port 8888 --host 0.0.0.0 --path /ws"
 ```
 
-Use your own service name if it is not `app`; `SMARTEST_RAILS_BASE_URL` must use
+Use your own service name if it is not `web`; `SMARTEST_RAILS_BASE_URL` must use
 the host name that the Playwright container can resolve on the Compose network.
 
 ## Environment variables
@@ -147,6 +159,10 @@ the host name that the Playwright container can resolve on the Compose network.
 separate. The first affects scaffold initialization; the second chooses remote
 Playwright at test runtime.
 
+For Docker sidecar runs, keep `PLAYWRIGHT_WS_ENDPOINT` and the
+`SMARTEST_RAILS_*` network variables in Compose. The generated Rails fixture
+sets `RAILS_ENV` and `RACK_ENV` to `test` before Rails boots.
+
 ## Base URL for the Playwright sidecar
 
 In local mode, `127.0.0.1` points at the machine running both Rails and the
@@ -161,11 +177,11 @@ Use all three Rails server variables together:
 ```bash
 SMARTEST_RAILS_TEST_SERVER_HOST=0.0.0.0
 SMARTEST_RAILS_TEST_SERVER_PORT=4001
-SMARTEST_RAILS_BASE_URL=http://app:4001
+SMARTEST_RAILS_BASE_URL=http://web:4001
 ```
 
 The generated fixture binds Rails to `0.0.0.0`, waits for readiness from inside
-the app container, and gives Playwright `http://app:4001` as the browser-visible
+the app container, and gives Playwright `http://web:4001` as the browser-visible
 base URL.
 
 ## Version matching
@@ -173,11 +189,17 @@ base URL.
 Keep the Playwright server version in the sidecar aligned with the version
 expected by `playwright-ruby-client` in the Rails app container.
 
-After bundle install, you can print the expected Playwright version with:
+After bundle install, you can print the expected Playwright version from the
+Rails app container with:
 
 ```bash
-ruby -rplaywright -e 'puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION'
+docker compose run --rm -e BUNDLE_WITHOUT="" web \
+  bundle exec ruby -rplaywright -e 'puts Playwright::COMPATIBLE_PLAYWRIGHT_VERSION'
 ```
+
+The `BUNDLE_WITHOUT=""` override matters when your image excludes the test group
+by default; `playwright-ruby-client` is installed in the test group by the Rails
+scaffold.
 
 Use that version in both the Docker image tag and the `npx playwright@...`
 command when possible.

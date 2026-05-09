@@ -256,11 +256,15 @@ smartest/matchers/playwright_matcher.rb
 smartest/example_rails_system_test.rb
 ```
 
-The generated fixture requires `smartest/rails` and starts
+The generated fixture requires `smartest/rails`, loads `config/environment`
+when `test_helper` requires the fixture file, and starts
 `Smartest::Rails::TestServer` against `Rails.application` in the same Ruby
-process as the test runner. `Smartest::Rails::TestServer` is only loaded by
-explicitly requiring `smartest/rails`; plain `require "smartest"` does not load
-Puma.
+process as the test runner. Loading Rails during helper setup makes app
+constants such as ActiveRecord models available inside test files and
+`around_test` hooks before per-test fixtures are resolved. The generated
+fixture forces `RAILS_ENV` and `RACK_ENV` to `test` before Rails boots.
+`Smartest::Rails::TestServer` is only loaded by explicitly requiring
+`smartest/rails`; plain `require "smartest"` does not load Puma.
 
 This is aimed at local Rails system tests that combine Rails test data, stubs,
 and Playwright browser assertions. It is not a Capybara compatibility layer or
@@ -282,7 +286,13 @@ SMARTEST_SKIP_BROWSER_DOWNLOAD=1 bundle exec smartest --init-rails
 At runtime, set `PLAYWRIGHT_WS_ENDPOINT`,
 `SMARTEST_RAILS_TEST_SERVER_HOST`, `SMARTEST_RAILS_TEST_SERVER_PORT`, and
 `SMARTEST_RAILS_BASE_URL` so the generated fixture connects to the Playwright
-sidecar and gives the browser a Docker-network URL for Rails.
+sidecar and gives the browser a Docker-network URL for Rails. These are usually
+stable Docker topology settings, so put them in `compose.yml` instead of
+repeating them on every `docker compose run` command.
+For a Rails Compose service named `web`, use
+`SMARTEST_RAILS_BASE_URL=http://web:4001`; replace `web` with your service name.
+The generated Rails fixture sets `RAILS_ENV` and `RACK_ENV` to `test`, even if
+the same service normally runs in development.
 
 Run the generated Rails browser example with:
 
