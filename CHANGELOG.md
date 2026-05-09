@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 (not published yet)
+## 0.6.0
 
 ### New Features
 
