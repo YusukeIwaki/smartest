@@ -17,6 +17,7 @@ everything at once.
 
 ```bash
 bundle exec smartest --init-rails
+bin/rails db:prepare
 bin/rails db:test:prepare
 bundle exec smartest smartest/example_rails_system_test.rb
 ```
@@ -93,11 +94,16 @@ sidecar container, initialize with `SMARTEST_SKIP_BROWSER_DOWNLOAD=1` instead.
 See [Test a Rails app with Docker](./rails-browser-tests-with-docker.md) for the
 sidecar setup.
 
-Prepare the Rails test database:
+Prepare the Rails databases:
 
 ```bash
+bin/rails db:prepare
 bin/rails db:test:prepare
 ```
+
+On a fresh Rails app, `db:prepare` creates and migrates the app database first,
+which also writes `db/schema.rb` or `db/structure.sql`. Then `db:test:prepare`
+can load that schema into the test database.
 
 Run the generated example:
 
@@ -341,13 +347,12 @@ The generated Rails fixture starts `Rails.application` with
 require "smartest/rails"
 require "playwright"
 
+ENV["RAILS_ENV"] = "test"
+ENV["RACK_ENV"] = "test"
+require_relative "../../config/environment"
+
 class RailsSystemTestFixture < Smartest::Fixture
   suite_fixture :rails_server do
-    ENV["RAILS_ENV"] ||= "test"
-    ENV["RACK_ENV"] ||= ENV["RAILS_ENV"]
-
-    require_relative "../../config/environment"
-
     server = Smartest::Rails::TestServer.new(
       app: Rails.application,
       host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"],
@@ -423,6 +428,11 @@ end
 `Smartest::Rails::TestServer` is loaded only when `smartest/rails` is required.
 Plain `require "smartest"` does not load Puma.
 
+The generated fixture forces `RAILS_ENV` and `RACK_ENV` to `test`, then loads
+`config/environment` when `test_helper` requires the fixture file. That makes
+Rails constants such as ActiveRecord models available inside test files and
+`around_test` hooks before per-test fixtures are resolved.
+
 The generated fixture keeps expensive resources suite-scoped:
 
 - `rails_server`
@@ -481,7 +491,7 @@ tools that expect a stable local port.
 Set `SMARTEST_RAILS_TEST_SERVER_HOST` only when the Rails test server must bind
 to another interface. For example, Docker sidecar runs usually need
 `SMARTEST_RAILS_TEST_SERVER_HOST=0.0.0.0` plus
-`SMARTEST_RAILS_BASE_URL=http://app:4001`; see
+`SMARTEST_RAILS_BASE_URL=http://web:4001`; see
 [Test a Rails app with Docker](./rails-browser-tests-with-docker.md).
 
 ## Method stubs
@@ -517,9 +527,10 @@ Do not rely on method-stub isolation for multi-threaded parallel test execution.
 
 ## Database setup and cleanup
 
-Prepare the test database before running Smartest:
+Prepare the databases before running Smartest:
 
 ```bash
+bin/rails db:prepare
 bin/rails db:test:prepare
 bundle exec smartest smartest/example_rails_system_test.rb
 ```
@@ -581,11 +592,12 @@ separation or method-stub isolation between parallel workers.
 
 Make sure `RAILS_ENV` is set before `config/environment` is loaded.
 
-The generated fixture does this before requiring the Rails app:
+The generated fixture forces the Rails and Rack environments to `test` while
+`test_helper` is loading fixture files:
 
 ```ruby
-ENV["RAILS_ENV"] ||= "test"
-ENV["RACK_ENV"] ||= ENV["RAILS_ENV"]
+ENV["RAILS_ENV"] = "test"
+ENV["RACK_ENV"] = "test"
 
 require_relative "../../config/environment"
 ```

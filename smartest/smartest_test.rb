@@ -2183,6 +2183,49 @@ test("cli browser init generator creates Playwright scaffold and installation co
   end
 end
 
+test("cli browser init generator runs installation commands outside the current Bundler environment") do
+  require "bundler"
+
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "smartest"
+    RUBY
+
+    command_environments = []
+    output = StringIO.new
+    generator = Smartest::InitBrowserGenerator.new(
+      root: dir,
+      output: output,
+      command_runner: ->(_command, chdir:) {
+        command_environments << {
+          bundle_gemfile: ENV["BUNDLE_GEMFILE"],
+          bundle_bin_path: ENV["BUNDLE_BIN_PATH"],
+          rubyopt: ENV["RUBYOPT"]
+        }
+        true
+      }
+    )
+
+    SmartestSelfTest.with_env(
+      "BUNDLE_GEMFILE" => File.join(dir, "Gemfile"),
+      "BUNDLE_BIN_PATH" => "/tmp/smartest-self-test-bundle",
+      "RUBYOPT" => "-rbundler/setup -W0"
+    ) do
+      status = generator.run
+      expect(status).to eq(0)
+    end
+
+    expect(command_environments.length).to eq(4)
+    expect(command_environments.all? do |environment|
+      environment[:bundle_gemfile].nil? &&
+        environment[:bundle_bin_path].nil? &&
+        !environment[:rubyopt].to_s.include?("bundler/setup")
+    end).to eq(true)
+  end
+end
+
 test("cli browser init generator skips npm init when package.json already exists") do
   Dir.mktmpdir do |dir|
     File.write(File.join(dir, "Gemfile"), <<~RUBY)
@@ -2341,8 +2384,12 @@ test("cli rails init generator creates Rails browser scaffold and installation c
     expect(rails_fixture).to include("require 'smartest/rails'")
     expect(rails_fixture).to include("class RailsSystemTestFixture < Smartest::Fixture")
     expect(rails_fixture).to include("suite_fixture :rails_server")
-    expect(rails_fixture).to include("server cannot boot against the development database")
+    expect(rails_fixture).to include('ENV["RAILS_ENV"] = "test"')
+    expect(rails_fixture).to include('ENV["RACK_ENV"] = "test"')
+    expect(rails_fixture).not_to include('ENV["RAILS_ENV"] ||=')
+    expect(rails_fixture).to include("constants are available before per-test fixtures are resolved")
     expect(rails_fixture).to include('require_relative "../../config/environment"')
+    expect(rails_fixture.index('require_relative "../../config/environment"') < rails_fixture.index("class RailsSystemTestFixture")).to eq(true)
     expect(rails_fixture).to include("Smartest::Rails::TestServer.new(")
     expect(rails_fixture).to include('host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"]')
     expect(rails_fixture).not_to include("bind_host:")
@@ -2395,6 +2442,112 @@ test("cli rails init generator creates Rails browser scaffold and installation c
       ]
     )
     expect(output.string).to include("Run your Rails browser test suite with: bundle exec smartest smartest/example_rails_system_test.rb")
+  end
+end
+
+test("cli rails init generator forces Rails test environment when the generated fixture is required") do
+  Dir.mktmpdir do |dir|
+    FileUtils.mkdir_p(File.join(dir, "config"))
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "rails"
+      gem "smartest"
+    RUBY
+    File.write(File.join(dir, "config/environment.rb"), <<~RUBY)
+      raise "RAILS_ENV was not set before loading Rails" unless ENV["RAILS_ENV"] == "test"
+      raise "RACK_ENV was not set before loading Rails" unless ENV["RACK_ENV"] == "test"
+
+      class User
+      end
+    RUBY
+
+    stub_dir = File.join(dir, "stub_load_path")
+    FileUtils.mkdir_p(File.join(stub_dir, "smartest"))
+    File.write(File.join(stub_dir, "smartest/rails.rb"), <<~RUBY)
+      module Smartest
+        class Fixture
+          def self.suite_fixture(*)
+          end
+
+          def self.fixture(*)
+          end
+        end
+
+        module Rails
+        end
+      end
+    RUBY
+    File.write(File.join(stub_dir, "playwright.rb"), "")
+
+    generator = Smartest::InitRailsGenerator.new(
+      root: dir,
+      output: StringIO.new,
+      command_runner: ->(_command, chdir:) { true }
+    )
+    generator.run
+
+    stdout, stderr, status = Open3.capture3(
+      {
+        "RUBYLIB" => stub_dir,
+        "RAILS_ENV" => "development",
+        "RACK_ENV" => "development"
+      },
+      "ruby",
+      "-e",
+      <<~RUBY
+        require #{File.join(dir, "smartest/fixtures/rails_system_fixture").inspect}
+        puts User.name
+      RUBY
+    )
+
+    expect(status.success?).to eq(true)
+    expect(stderr).to eq("")
+    expect(stdout).to eq("User\n")
+  end
+end
+
+test("cli rails init generator runs installation commands outside the current Bundler environment") do
+  require "bundler"
+
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "rails"
+      gem "smartest"
+    RUBY
+
+    command_environments = []
+    output = StringIO.new
+    generator = Smartest::InitRailsGenerator.new(
+      root: dir,
+      output: output,
+      command_runner: ->(_command, chdir:) {
+        command_environments << {
+          bundle_gemfile: ENV["BUNDLE_GEMFILE"],
+          bundle_bin_path: ENV["BUNDLE_BIN_PATH"],
+          rubyopt: ENV["RUBYOPT"]
+        }
+        true
+      }
+    )
+
+    SmartestSelfTest.with_env(
+      "BUNDLE_GEMFILE" => File.join(dir, "Gemfile"),
+      "BUNDLE_BIN_PATH" => "/tmp/smartest-self-test-bundle",
+      "RUBYOPT" => "-rbundler/setup -W0"
+    ) do
+      status = generator.run
+      expect(status).to eq(0)
+    end
+
+    expect(command_environments.length).to eq(4)
+    expect(command_environments.all? do |environment|
+      environment[:bundle_gemfile].nil? &&
+        environment[:bundle_bin_path].nil? &&
+        !environment[:rubyopt].to_s.include?("bundler/setup")
+    end).to eq(true)
   end
 end
 
