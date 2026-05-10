@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.1
+
+### Bug Fixes
+
+- Fix Rails Docker scaffold friction in `smartest --init-rails` and the
+  generated Playwright fixtures so the Docker-based browser test setup works
+  out of the box.
+
+### Documentation
+
+- Document fresh Rails database preparation for browser tests, including the
+  Docker-based workflow.
+
 ## 0.6.0
 
 ### New Features
