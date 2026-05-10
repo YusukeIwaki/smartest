@@ -36,12 +36,17 @@ docker compose run --rm web bundle add smartest --group test
 docker compose build web
 ```
 
-Prepare the test database. From your host shell, run it through Compose so it
-uses the same image and database service as the test run:
+Prepare the Rails databases. From your host shell, run the commands through
+Compose so they use the same image and database service as the test run:
 
 ```bash
+docker compose run --rm web bin/rails db:prepare
 docker compose run --rm web bin/rails db:test:prepare
 ```
+
+On a fresh Rails app, `db:prepare` creates and migrates the app database first,
+which also writes `db/schema.rb` or `db/structure.sql`. Then `db:test:prepare`
+can load that schema into the test database.
 
 ## Quick start
 

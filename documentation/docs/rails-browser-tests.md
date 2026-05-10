@@ -17,6 +17,7 @@ everything at once.
 
 ```bash
 bundle exec smartest --init-rails
+bin/rails db:prepare
 bin/rails db:test:prepare
 bundle exec smartest smartest/example_rails_system_test.rb
 ```
@@ -93,11 +94,16 @@ sidecar container, initialize with `SMARTEST_SKIP_BROWSER_DOWNLOAD=1` instead.
 See [Test a Rails app with Docker](./rails-browser-tests-with-docker.md) for the
 sidecar setup.
 
-Prepare the Rails test database:
+Prepare the Rails databases:
 
 ```bash
+bin/rails db:prepare
 bin/rails db:test:prepare
 ```
+
+On a fresh Rails app, `db:prepare` creates and migrates the app database first,
+which also writes `db/schema.rb` or `db/structure.sql`. Then `db:test:prepare`
+can load that schema into the test database.
 
 Run the generated example:
 
@@ -521,9 +527,10 @@ Do not rely on method-stub isolation for multi-threaded parallel test execution.
 
 ## Database setup and cleanup
 
-Prepare the test database before running Smartest:
+Prepare the databases before running Smartest:
 
 ```bash
+bin/rails db:prepare
 bin/rails db:test:prepare
 bundle exec smartest smartest/example_rails_system_test.rb
 ```
