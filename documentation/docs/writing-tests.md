@@ -15,6 +15,25 @@ end
 
 The name should describe the behavior being checked. If an expectation fails or the block raises an ordinary exception, the test fails.
 
+## Editor Support
+
+Smartest ships RBS signatures for the public DSL, including `around_suite`,
+`around_test`, `fixture`, `suite_fixture`, `on_teardown`, `expect`, and the
+hook registration methods. Type-aware editors such as RubyMine can use those
+signatures for completion and documentation. The `test` method is intentionally
+not defined in RBS because it conflicts with Ruby's built-in `Kernel#test`
+file-test helper in some editors.
+
+For Playwright page fixtures, add a RubyMine type comment immediately before
+the test:
+
+```ruby
+# @type [Playwright::Page] page
+test("opens the home page") do |page:|
+  page.goto("/")
+end
+```
+
 ## Assertions
 
 Smartest uses an expectation style:

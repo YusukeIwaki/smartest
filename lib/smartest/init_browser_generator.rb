@@ -63,6 +63,7 @@ module Smartest
 
       require "test_helper"
 
+      # @type [Playwright::Page] page
       test("finds the smartest gem on RubyGems") do |page:|
         page.goto("https://rubygems.org/")
         page.locator("input[name='query']").fill("smartest")
