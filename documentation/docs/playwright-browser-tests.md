@@ -41,11 +41,13 @@ bundle exec smartest smartest/example_browser_test.rb
 Inside any test file under `smartest/`, declare a test that takes the `page:`
 fixture. `page` is a Playwright `Page`, so the full Playwright Ruby API is
 available. Smartest expectations support Playwright matchers like `have_url`
-and `have_text`.
+and `have_text`. The generated example includes a RubyMine type comment so
+completion works for the Playwright page fixture.
 
 ```ruby title="smartest/example_browser_test.rb"
 require "test_helper"
 
+# @type [Playwright::Page] page
 test("finds the smartest gem on RubyGems") do |page:|
   page.goto("https://rubygems.org/")
   page.locator("input[name='query']").fill("smartest")
