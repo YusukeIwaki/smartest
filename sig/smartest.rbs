@@ -1,0 +1,155 @@
+# Smartest public DSL signatures for editors and type-aware tooling.
+
+module Smartest
+  VERSION: String
+
+  def self.suite: () -> Suite
+  def self.reset!: () -> Suite
+  def self.disable_autorun!: () -> true
+  def self.autorun_disabled?: () -> bool
+  def self.register_autorun!: () -> nil
+  def self.install_dsl!: () -> untyped
+  def self.fatal_exception?: (Exception) -> bool
+
+  module DSL
+    private
+
+    # Wrap the whole suite. The block receives a run target and must call
+    # `suite.run` exactly once.
+    def around_suite: () { (SuiteRun) -> untyped } -> void
+
+    # Wrap tests registered after this hook in the same file. The block receives
+    # a run target and must call `test.run` exactly once.
+    def around_test: () { (TestRun) -> untyped } -> void
+  end
+
+  module Expectations
+    private
+
+    def expect: (?untyped) ?{ () -> untyped } -> ExpectationTarget
+  end
+
+  module Matchers
+    private
+
+    def eq: (untyped) -> Matcher
+    def include: (untyped) -> Matcher
+    def start_with: (*untyped) -> Matcher
+    def end_with: (*untyped) -> Matcher
+    def be_a: (Class | Module) -> Matcher
+    def be_an: (Class | Module) -> Matcher
+    def be_nil: () -> Matcher
+    def match: (Regexp | String) -> Matcher
+    def contain_exactly: (*untyped) -> Matcher
+    def match_array: (Array[untyped]) -> Matcher
+    def raise_error: (*untyped) -> Matcher
+    def change: () { () -> untyped } -> Matcher
+  end
+
+  module ConstantStubHelpers
+    private
+
+    def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
+  end
+
+  class Fixture
+    # Define a test-scoped fixture by default. Fixture dependencies are requested
+    # from the block with required keyword arguments.
+    def self.fixture: (String | Symbol, ?scope: Symbol) { (*untyped, **untyped) -> untyped } -> FixtureDefinition
+
+    # Define a suite-scoped fixture shared by all tests in the suite.
+    def self.suite_fixture: (String | Symbol) { (*untyped, **untyped) -> untyped } -> FixtureDefinition
+
+    def self.fixture_definitions: () -> Hash[Symbol, FixtureDefinition]
+
+    private
+
+    def on_teardown: () { () -> untyped } -> untyped
+    def simple_stub_any_instance_of: (Class | Module, String | Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, String | Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+  end
+
+  class AroundSuiteContext
+    private
+
+    def use_fixture: (Class | Module) -> untyped
+    def use_matcher: (Module) -> untyped
+    def around_test: () { (TestRun) -> untyped } -> void
+    def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
+  end
+
+  class AroundTestContext
+    private
+
+    def use_fixture: (Class | Module) -> untyped
+    def use_matcher: (Module) -> untyped
+    def use_helper: (Module) -> untyped
+    def skip: (?String) -> void
+    def pending: (?String) -> void
+    def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
+  end
+
+  class ExecutionContext
+    include Expectations
+    include Matchers
+    include ConstantStubHelpers
+
+    private
+
+    def skip: (?String) -> void
+    def pending: (?String) -> void
+  end
+
+  class SuiteRun
+    attr_reader result: untyped
+
+    def run: () -> untyped
+    def ran?: () -> bool
+  end
+
+  class TestRun
+    attr_reader result: untyped
+
+    def run: () -> untyped
+    def ran?: () -> bool
+  end
+
+  class ExpectationTarget
+    def to: (untyped) -> self
+    def not_to: (untyped) -> self
+  end
+
+  class Matcher
+    def and: (untyped) -> Matcher
+    def or: (untyped) -> Matcher
+    def description: () -> String
+  end
+
+  class FixtureDefinition
+    attr_reader name: Symbol
+    attr_reader block: Proc
+    attr_reader location: Thread::Backtrace::Location?
+    attr_reader scope: Symbol
+    attr_reader dependencies: Array[Symbol]
+  end
+
+  class SimpleStub
+    def apply: () -> self
+    def reset: () -> nil
+  end
+
+  class Suite
+  end
+end
+
+module Kernel
+  private
+
+  # Register a suite hook. The block receives a run target and must call
+  # `suite.run` exactly once.
+  def around_suite: () { (Smartest::SuiteRun) -> untyped } -> void
+
+  # Register a test hook for tests declared after this hook in the same file.
+  # The block receives a run target and must call `test.run` exactly once.
+  def around_test: () { (Smartest::TestRun) -> untyped } -> void
+end

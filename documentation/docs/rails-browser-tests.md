@@ -128,6 +128,7 @@ end
 A test can request the generated `page:` fixture and use Playwright directly:
 
 ```ruby
+# @type [Playwright::Page] page
 test("home page is visible") do |page:|
   page.goto("/")
 
@@ -136,7 +137,9 @@ end
 ```
 
 The `page:` fixture is connected to the Rails test server. A relative URL such
-as `"/"` is resolved against the generated Rails server `base_url`.
+as `"/"` is resolved against the generated Rails server `base_url`. The
+generated example includes the RubyMine type comment shown above so editor
+completion works for Playwright page methods.
 
 ## Think in Rails state, then browser behavior
 

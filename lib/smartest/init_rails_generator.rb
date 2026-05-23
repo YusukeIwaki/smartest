@@ -118,6 +118,7 @@ module Smartest
 
       require "test_helper"
 
+      # @type [Playwright::Page] page
       test("loads the Rails application") do |page:|
         response = page.goto("/")
 
