@@ -239,6 +239,9 @@ Run the generated browser example with:
 bundle exec smartest smartest/example_browser_test.rb
 ```
 
+The generated Playwright examples include `# @type [Playwright::Page] page`
+before the test block so RubyMine can complete methods on the `page` fixture.
+
 ## Rails browser quick start
 
 Initialize a Rails browser-test scaffold:
@@ -327,6 +330,13 @@ end
 ```
 
 This makes fixture usage explicit and avoids relying on positional argument order.
+
+Smartest also ships RBS signatures for the public DSL, including `test`,
+`around_suite`, `around_test`, `fixture`, `suite_fixture`, `on_teardown`,
+`expect`, and hook registration methods such as `use_fixture`. The signatures
+model `Smartest::DSL` as prepended into `Kernel`, matching how
+`smartest/autorun` installs the top-level DSL over Ruby's built-in
+`Kernel#test` file-test helper.
 
 ## Skipping and pending tests
 

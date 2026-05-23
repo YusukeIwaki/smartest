@@ -42,6 +42,7 @@ Gem::Specification.new do |spec|
         "SMARTEST_DESIGN.md",
         "exe/*",
         "lib/**/*.rb",
+        "sig/**/*.rbs",
         "smartest.gemspec",
         "smartest/**/*.rb"
       ]

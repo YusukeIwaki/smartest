@@ -82,6 +82,12 @@ test("registers fixture classes with use_fixture") do |registered_user_name:|
   expect(registered_user_name).to eq("Alice")
 end
 
+test("gemspec packages RBS signatures") do
+  spec = Gem::Specification.load(File.expand_path("../smartest.gemspec", __dir__))
+
+  expect(spec.files).to include("sig/smartest.rbs")
+end
+
 test("runs a registered test") do
   suite = Smartest::Suite.new
   suite.tests.add(SmartestSelfTest.test_case("factorial", proc { expect(1 * 2 * 3).to eq(6) }))
@@ -2150,6 +2156,7 @@ test("cli browser init generator creates Playwright scaffold and installation co
     expect(status).to eq(0)
     example_browser_test = File.read(File.join(dir, "smartest/example_browser_test.rb"))
     expect(example_browser_test).to include("finds the smartest gem on RubyGems")
+    expect(example_browser_test).to include("# @type [Playwright::Page] page")
     expect(example_browser_test).to include('expect(page).to have_url("https://rubygems.org/gems/smartest")')
     expect(example_browser_test).to include('expect(page.locator("h1")).to have_text("smartest")')
     expect(example_browser_test).not_to include("0.3.0.alpha1")
@@ -2446,6 +2453,7 @@ test("cli rails init generator creates Rails browser scaffold and installation c
     expect(rails_fixture).to include("fixture :page do |browser_context:|")
 
     example_test = File.read(File.join(dir, "smartest/example_rails_system_test.rb"))
+    expect(example_test).to include("# @type [Playwright::Page] page")
     expect(example_test).to include('test("loads the Rails application") do |page:|')
     expect(example_test).to include('response = page.goto("/")')
     expect(example_test).to include("expect(response.status).to be_between(200, 599)")
