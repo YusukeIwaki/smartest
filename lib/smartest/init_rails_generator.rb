@@ -198,16 +198,33 @@ module Smartest
       path = File.join(@root, "Gemfile")
       exists = File.exist?(path)
       contents = exists ? File.read(path) : "source \"https://rubygems.org\"\n"
+      updated = contents.dup
 
-      if contents.match?(/gem ["']playwright-ruby-client["']/)
-        @output.puts "exist   Gemfile playwright-ruby-client"
-        return
+      unless gem_present?(updated, "smartest")
+        updated = append_gem(updated, 'gem "smartest"')
       end
 
+      if gem_present?(updated, "playwright-ruby-client")
+        @output.puts "exist   Gemfile playwright-ruby-client"
+      else
+        updated = append_gem(updated, 'gem "playwright-ruby-client", group: :test')
+      end
+
+      if updated != contents
+        File.write(path, updated)
+        @output.puts(exists ? "update  Gemfile" : "create  Gemfile")
+      end
+    end
+
+    def append_gem(contents, line)
       separator = contents.end_with?("\n") ? "" : "\n"
-      updated = "#{contents}#{separator}\ngem \"playwright-ruby-client\", group: :test\n"
-      File.write(path, updated)
-      @output.puts(exists ? "update  Gemfile" : "create  Gemfile")
+      "#{contents}#{separator}\n#{line}\n"
+    end
+
+    def gem_present?(contents, name)
+      contents.each_line.any? do |line|
+        line.match?(/\A\s*gem\s+["']#{Regexp.escape(name)}["']/)
+      end
     end
 
     def install_dependencies

@@ -86,8 +86,9 @@ you prefer a Rails-like layout, you can move tests under a structure such as
 `smartest/system/` or `test/smartest/system/` and pass that path to
 `bundle exec smartest`.
 
-It also adds `playwright-ruby-client` to the Gemfile test group, installs the
-Playwright npm package, and downloads browsers.
+It also keeps or adds `gem "smartest"` in the Gemfile, adds
+`playwright-ruby-client` to the test group, installs the Playwright npm
+package, and downloads browsers.
 
 If your Rails app runs in Docker and browsers should live in a Playwright
 sidecar container, initialize with `SMARTEST_SKIP_BROWSER_DOWNLOAD=1` instead.

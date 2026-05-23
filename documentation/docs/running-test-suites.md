@@ -30,7 +30,8 @@ bundle exec smartest --init-browser
 ```
 
 That command creates the normal Smartest scaffold plus Playwright fixture,
-matcher, and example files.
+matcher, and example files. It keeps or adds `gem "smartest"` in the Gemfile,
+adds `playwright-ruby-client`, and runs the dependency installation commands.
 
 For a Rails Playwright browser-test scaffold, use:
 
@@ -39,7 +40,9 @@ bundle exec smartest --init-rails
 ```
 
 That command creates the normal Smartest scaffold plus a Rails server fixture,
-Playwright matcher, and Rails browser-test example.
+Playwright matcher, and Rails browser-test example. It also keeps or adds
+`gem "smartest"` in the Gemfile before installing the browser-test
+dependencies.
 
 For a Rails app container that uses a Playwright sidecar for browsers, keep the
 same command and skip browser binary installation with an environment variable:

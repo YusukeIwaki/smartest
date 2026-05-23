@@ -2166,6 +2166,8 @@ test("cli browser init generator creates Playwright scaffold and installation co
     expect(helper_contents).to include("use_matcher PredicateMatcher\n  use_fixture PlaywrightFixture\n  use_matcher PlaywrightMatcher\n  suite.run")
 
     gemfile_contents = File.read(File.join(dir, "Gemfile"))
+    expect(gemfile_contents).to include('gem "smartest"')
+    expect(gemfile_contents.scan(/^\s*gem ["']smartest["']/).length).to eq(1)
     expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
     expect(commands).to eq(
       [
@@ -2180,6 +2182,27 @@ test("cli browser init generator creates Playwright scaffold and installation co
     expect(output.string).to include("run     npm install playwright --save-dev")
     expect(output.string).to include("run     ./node_modules/.bin/playwright install")
     expect(output.string).to include("Run your browser test suite with: bundle exec smartest smartest/example_browser_test.rb")
+  end
+end
+
+test("cli browser init generator keeps smartest in Gemfile when adding Playwright") do
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+    RUBY
+
+    generator = Smartest::InitBrowserGenerator.new(
+      root: dir,
+      output: StringIO.new,
+      command_runner: ->(_command, chdir:) { true }
+    )
+
+    status = generator.run
+
+    expect(status).to eq(0)
+    gemfile_contents = File.read(File.join(dir, "Gemfile"))
+    expect(gemfile_contents).to include('gem "smartest"')
+    expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
   end
 end
 
@@ -2432,6 +2455,8 @@ test("cli rails init generator creates Rails browser scaffold and installation c
     expect(helper_contents).not_to include("Smartest::SimpleStub")
 
     gemfile_contents = File.read(File.join(dir, "Gemfile"))
+    expect(gemfile_contents).to include('gem "smartest"')
+    expect(gemfile_contents.scan(/^\s*gem ["']smartest["']/).length).to eq(1)
     expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
     expect(commands).to eq(
       [
@@ -2548,6 +2573,29 @@ test("cli rails init generator runs installation commands outside the current Bu
         environment[:bundle_bin_path].nil? &&
         !environment[:rubyopt].to_s.include?("bundler/setup")
     end).to eq(true)
+  end
+end
+
+test("cli rails init generator keeps smartest in Gemfile when adding Playwright") do
+  Dir.mktmpdir do |dir|
+    File.write(File.join(dir, "Gemfile"), <<~RUBY)
+      source "https://rubygems.org"
+
+      gem "rails"
+    RUBY
+
+    generator = Smartest::InitRailsGenerator.new(
+      root: dir,
+      output: StringIO.new,
+      command_runner: ->(_command, chdir:) { true }
+    )
+
+    status = generator.run
+
+    expect(status).to eq(0)
+    gemfile_contents = File.read(File.join(dir, "Gemfile"))
+    expect(gemfile_contents).to include('gem "smartest"')
+    expect(gemfile_contents).to include('gem "playwright-ruby-client", group: :test')
   end
 end
 

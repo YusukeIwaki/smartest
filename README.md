@@ -227,11 +227,11 @@ smartest/matchers/playwright_matcher.rb
 smartest/example_browser_test.rb
 ```
 
-It also registers `PlaywrightFixture` and `PlaywrightMatcher`, adds
-`playwright-ruby-client` to the Gemfile test group, runs `bundle install`, runs
-`npm init --yes` when no `package.json` exists yet, runs
-`npm install playwright --save-dev`, and downloads Chromium with
-`./node_modules/.bin/playwright install`.
+It also registers `PlaywrightFixture` and `PlaywrightMatcher`, keeps or adds
+`smartest` in the Gemfile, adds `playwright-ruby-client` to the Gemfile test
+group, runs `bundle install`, runs `npm init --yes` when no `package.json`
+exists yet, runs `npm install playwright --save-dev`, and downloads Chromium
+with `./node_modules/.bin/playwright install`.
 
 Run the generated browser example with:
 

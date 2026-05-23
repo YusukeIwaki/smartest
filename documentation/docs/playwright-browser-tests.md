@@ -22,9 +22,11 @@ browser test.
 bundle exec smartest --init-browser
 ```
 
-This sets up everything needed to run Playwright browser tests: the
-`playwright-ruby-client` gem, the Playwright Node.js package and browsers, and
-example fixture / matcher / test files under `smartest/`.
+This sets up everything needed to run Playwright browser tests. If your
+Gemfile was created with `bundle init`, Smartest keeps or adds `gem "smartest"`,
+adds the `playwright-ruby-client` gem, installs the Playwright Node.js package
+and browsers, and creates example fixture / matcher / test files under
+`smartest/`.
 
 ### 2. Run the generated example test
 
@@ -96,6 +98,7 @@ On top of the normal `smartest --init` scaffold, the command:
 - creates `smartest/matchers/playwright_matcher.rb`
 - creates `smartest/example_browser_test.rb`
 - registers `PlaywrightFixture` and `PlaywrightMatcher` in `test_helper.rb`
+- keeps or adds `gem "smartest"` in the Gemfile
 - adds `gem "playwright-ruby-client", group: :test` to the Gemfile and runs `bundle install`
 - runs `npm init --yes` when no `package.json` exists yet
 - runs `npm install playwright --save-dev`
