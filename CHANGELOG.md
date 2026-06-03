@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+### Breaking Changes
+
+- Rename the Rails test server to a Rack test server. Replace
+  `require "smartest/rails"` with `require "smartest/rack"` and
+  `Smartest::Rails::TestServer` with `Smartest::Rack::TestServer`.
+
 ## 0.6.1
 
 ### Bug Fixes
