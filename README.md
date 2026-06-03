@@ -259,15 +259,17 @@ smartest/matchers/playwright_matcher.rb
 smartest/example_rails_system_test.rb
 ```
 
-The generated fixture requires `smartest/rails`, loads `config/environment`
+The generated fixture requires `smartest/rack`, loads `config/environment`
 when `test_helper` requires the fixture file, and starts
-`Smartest::Rails::TestServer` against `Rails.application` in the same Ruby
+`Smartest::Rack::TestServer` against `Rails.application` in the same Ruby
 process as the test runner. Loading Rails during helper setup makes app
 constants such as ActiveRecord models available inside test files and
 `around_test` hooks before per-test fixtures are resolved. The generated
 fixture forces `RAILS_ENV` and `RACK_ENV` to `test` before Rails boots.
-`Smartest::Rails::TestServer` is only loaded by explicitly requiring
-`smartest/rails`; plain `require "smartest"` does not load Puma.
+`Smartest::Rack::TestServer` is only loaded by explicitly requiring
+`smartest/rack`; plain `require "smartest"` does not load Puma.
+Despite being used by the Rails scaffold, it accepts any Rack app via `app:`,
+including Sinatra, Hanami, and other Rack-compatible apps.
 
 This is aimed at local Rails system tests that combine Rails test data, stubs,
 and Playwright browser assertions. It is not a Capybara compatibility layer or
@@ -292,6 +294,10 @@ At runtime, set `PLAYWRIGHT_WS_ENDPOINT`,
 sidecar and gives the browser a Docker-network URL for Rails. These are usually
 stable Docker topology settings, so put them in `compose.yml` instead of
 repeating them on every `docker compose run` command.
+Because this path connects to Playwright over WebSocket, `websocket-driver` is
+**REQUIRED only when** using `PLAYWRIGHT_WS_ENDPOINT` or
+`Playwright.connect_to_browser_server`; local Rails browser tests that launch
+Playwright locally do not need it.
 For a Rails Compose service named `web`, use
 `SMARTEST_RAILS_BASE_URL=http://web:4001`; replace `web` with your service name.
 The generated Rails fixture sets `RAILS_ENV` and `RACK_ENV` to `test`, even if

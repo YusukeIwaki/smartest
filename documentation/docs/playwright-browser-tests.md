@@ -28,6 +28,11 @@ adds the `playwright-ruby-client` gem, installs the Playwright Node.js package
 and browsers, and creates example fixture / matcher / test files under
 `smartest/`.
 
+`websocket-driver` is **REQUIRED only when** connecting to a remote Playwright
+server with `PLAYWRIGHT_WS_ENDPOINT` or
+`Playwright.connect_to_browser_server`. The local scaffold path uses
+`Playwright.create` and does not need it.
+
 ### 2. Run the generated example test
 
 ```bash

@@ -2290,13 +2290,13 @@ test("cli browser init generator skips npm init when package.json already exists
   end
 end
 
-test("smartest rails helper is loaded only by explicit require") do
+test("smartest rack helper is loaded only by explicit require") do
   lib_path = File.expand_path("../lib", __dir__)
   stdout, stderr, status = Open3.capture3(
     { "RUBYLIB" => lib_path },
     "ruby",
     "-e",
-    'require "smartest"; puts Smartest.const_defined?(:Rails, false)'
+    'require "smartest"; puts Smartest.const_defined?(:Rack, false)'
   )
 
   expect(status.success?).to eq(true)
@@ -2310,7 +2310,7 @@ test("smartest rails helper is loaded only by explicit require") do
       { "RUBYLIB" => "#{dir}:#{lib_path}" },
       "ruby",
       "-e",
-      'require "smartest/rails"; puts Smartest::Rails.const_defined?(:TestServer, false)'
+      'require "smartest/rack"; puts Smartest::Rack.const_defined?(:TestServer, false)'
     )
 
     expect(status.success?).to eq(true)
@@ -2319,7 +2319,7 @@ test("smartest rails helper is loaded only by explicit require") do
   end
 end
 
-test("smartest rails test server wraps puma with explicit arguments and lifecycle") do
+test("smartest rack test server wraps puma with explicit arguments and lifecycle") do
   lib_path = File.expand_path("../lib", __dir__)
 
   Dir.mktmpdir do |dir|
@@ -2367,10 +2367,10 @@ test("smartest rails test server wraps puma with explicit arguments and lifecycl
       "ruby",
       "-e",
       <<~'RUBY'
-        require "smartest/rails"
+        require "smartest/rack"
 
-        server = Smartest::Rails::TestServer.new(app: Object.new, port: "4567")
-        default_port_server = Smartest::Rails::TestServer.new(app: Object.new)
+        server = Smartest::Rack::TestServer.new(app: Object.new, port: "4567")
+        default_port_server = Smartest::Rack::TestServer.new(app: Object.new)
         thread = server.start
         server.stop
         server.wait_for_stopped
@@ -2411,7 +2411,7 @@ test("cli rails init generator creates Rails browser scaffold and installation c
 
     expect(status).to eq(0)
     rails_fixture = File.read(File.join(dir, "smartest/fixtures/rails_system_fixture.rb"))
-    expect(rails_fixture).to include("require 'smartest/rails'")
+    expect(rails_fixture).to include("require 'smartest/rack'")
     expect(rails_fixture).to include("class RailsSystemTestFixture < Smartest::Fixture")
     expect(rails_fixture).to include("suite_fixture :rails_server")
     expect(rails_fixture).to include('ENV["RAILS_ENV"] = "test"')
@@ -2420,7 +2420,7 @@ test("cli rails init generator creates Rails browser scaffold and installation c
     expect(rails_fixture).to include("constants are available before per-test fixtures are resolved")
     expect(rails_fixture).to include('require_relative "../../config/environment"')
     expect(rails_fixture.index('require_relative "../../config/environment"') < rails_fixture.index("class RailsSystemTestFixture")).to eq(true)
-    expect(rails_fixture).to include("Smartest::Rails::TestServer.new(")
+    expect(rails_fixture).to include("Smartest::Rack::TestServer.new(")
     expect(rails_fixture).to include('host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"]')
     expect(rails_fixture).not_to include("bind_host:")
     expect(rails_fixture).to include('port: ENV["SMARTEST_RAILS_TEST_SERVER_PORT"]')
@@ -2497,7 +2497,7 @@ test("cli rails init generator forces Rails test environment when the generated 
 
     stub_dir = File.join(dir, "stub_load_path")
     FileUtils.mkdir_p(File.join(stub_dir, "smartest"))
-    File.write(File.join(stub_dir, "smartest/rails.rb"), <<~RUBY)
+    File.write(File.join(stub_dir, "smartest/rack.rb"), <<~RUBY)
       module Smartest
         class Fixture
           def self.suite_fixture(*)
@@ -2507,7 +2507,7 @@ test("cli rails init generator forces Rails test environment when the generated 
           end
         end
 
-        module Rails
+        module Rack
         end
       end
     RUBY

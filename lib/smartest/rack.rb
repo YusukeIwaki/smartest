@@ -7,7 +7,7 @@ require "timeout"
 require_relative "../smartest"
 
 module Smartest
-  module Rails
+  module Rack
     class TestServer
       DEFAULT_READY_TIMEOUT = 10
 
@@ -35,14 +35,14 @@ module Smartest
           sleep 0.05 until responsive?
         end
       rescue Timeout::Error
-        raise "Rails test server did not become ready at #{base_url} within #{timeout} seconds"
+        raise "Rack test server did not become ready at #{base_url} within #{timeout} seconds"
       end
 
       def wait_for_stopped(timeout: DEFAULT_READY_TIMEOUT)
         return unless @thread
         return if @thread.join(timeout)
 
-        raise "Rails test server did not stop within #{timeout} seconds"
+        raise "Rack test server did not stop within #{timeout} seconds"
       end
 
       def base_url
@@ -57,7 +57,7 @@ module Smartest
 
         return bound_port if bound_port && bound_port.positive?
 
-        raise "Rails test server could not determine bound port"
+        raise "Rack test server could not determine bound port"
       end
 
       def responsive?

@@ -343,12 +343,12 @@ React, Vue, or other asynchronous UI behavior.
 ## How the generated Rails fixture works
 
 The generated Rails fixture starts `Rails.application` with
-`Smartest::Rails::TestServer`.
+`Smartest::Rack::TestServer`.
 
 ```ruby
 # frozen_string_literal: true
 
-require "smartest/rails"
+require "smartest/rack"
 require "playwright"
 
 ENV["RAILS_ENV"] = "test"
@@ -357,7 +357,7 @@ require_relative "../../config/environment"
 
 class RailsSystemTestFixture < Smartest::Fixture
   suite_fixture :rails_server do
-    server = Smartest::Rails::TestServer.new(
+    server = Smartest::Rack::TestServer.new(
       app: Rails.application,
       host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"],
       port: ENV["SMARTEST_RAILS_TEST_SERVER_PORT"],
@@ -429,8 +429,12 @@ class RailsSystemTestFixture < Smartest::Fixture
 end
 ```
 
-`Smartest::Rails::TestServer` is loaded only when `smartest/rails` is required.
+`Smartest::Rack::TestServer` is loaded only when `smartest/rack` is required.
 Plain `require "smartest"` does not load Puma.
+
+Despite being shown in the Rails scaffold, `Smartest::Rack::TestServer` accepts
+any Rack app via `app:`. For Sinatra, Hanami, or another Rack-compatible app,
+pass that app object instead of `Rails.application`.
 
 The generated fixture forces `RAILS_ENV` and `RACK_ENV` to `test`, then loads
 `config/environment` when `test_helper` requires the fixture file. That makes

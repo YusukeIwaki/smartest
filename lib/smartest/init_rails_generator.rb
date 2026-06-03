@@ -7,7 +7,7 @@ module Smartest
     RAILS_SYSTEM_FIXTURE = <<~RUBY
       # frozen_string_literal: true
 
-      require 'smartest/rails'
+      require 'smartest/rack'
       require "playwright"
 
       # Force the test environment and load Rails while test_helper is required
@@ -18,7 +18,7 @@ module Smartest
 
       class RailsSystemTestFixture < Smartest::Fixture
         suite_fixture :rails_server do
-          server = Smartest::Rails::TestServer.new(
+          server = Smartest::Rack::TestServer.new(
             app: Rails.application,
             host: ENV["SMARTEST_RAILS_TEST_SERVER_HOST"],
             port: ENV["SMARTEST_RAILS_TEST_SERVER_PORT"],
