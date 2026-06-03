@@ -36,6 +36,16 @@ docker compose run --rm web bundle add smartest --group test
 docker compose build web
 ```
 
+The Docker sidecar setup connects to the Playwright server over WebSocket.
+`websocket-driver` is **REQUIRED only when** using `PLAYWRIGHT_WS_ENDPOINT` or
+`Playwright.connect_to_browser_server`; local Rails browser tests that launch
+Playwright locally do not need it.
+
+```bash
+docker compose run --rm web bundle add websocket-driver --group test
+docker compose build web
+```
+
 Prepare the Rails databases. From your host shell, run the commands through
 Compose so they use the same image and database service as the test run:
 
@@ -84,13 +94,13 @@ variables.
 
 ## Architecture
 
-![Two Docker Compose services. In the Rails web container (Alpine + Ruby + Node.js), the Smartest test runner boots Smartest::Rails::TestServer — which carries Rails.application bound to 0.0.0.0:3000 — and drives playwright-ruby-client. In the Playwright sidecar container (mcr.microsoft.com/playwright), PlaywrightServer drives Chromium, Firefox, and WebKit. The test runner reaches the browser over WebSocket (ws://playwright:8888/ws), and the browser reaches the Rails test server over HTTP (http://web:3000).](/img/rails-docker-architecture.png)
+![Two Docker Compose services. In the Rails web container (Alpine + Ruby + Node.js), the Smartest test runner boots Smartest::Rack::TestServer — which carries Rails.application bound to 0.0.0.0:3000 — and drives playwright-ruby-client. In the Playwright sidecar container (mcr.microsoft.com/playwright), PlaywrightServer drives Chromium, Firefox, and WebKit. The test runner reaches the browser over WebSocket (ws://playwright:8888/ws), and the browser reaches the Rails test server over HTTP (http://web:3000).](/img/rails-docker-architecture.png)
 
 In the Rails app container:
 
 - Smartest runs the test suite.
 - Rails boots in `RAILS_ENV=test`.
-- `Smartest::Rails::TestServer` starts `Rails.application` in the same Ruby
+- `Smartest::Rack::TestServer` starts `Rails.application` in the same Ruby
   process.
 - Fixtures create records, install stubs, and prepare application state.
 
