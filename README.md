@@ -738,7 +738,15 @@ class ApplicationTestFixture < Smartest::Fixture
 end
 ```
 
-Register the fixture class with `use_fixture` before tests request it.
+Register the fixture class with `use_fixture` before tests request it:
+
+```ruby
+around_suite do |suite|
+  use_fixture ApplicationTestFixture
+  suite.run
+end
+```
+
 `use_fixture` is available inside `around_suite` or `around_test` blocks, not as
 a top-level method.
 
@@ -789,6 +797,8 @@ register `stub.reset` with the current fixture or hook teardown scope, and
 return the stub object. Hook cleanup still runs when the suite, test, or hook
 fails. Nested hook, fixture, and suite fixture stubs restore the previous active
 stub when the inner scope exits.
+If the test or hook and its stub cleanup both fail, Smartest reports the primary
+failure and the teardown failure separately.
 `with_stub_const` records the previous constant value, replaces it, yields to
 the block, and restores or removes the constant with `ensure`.
 

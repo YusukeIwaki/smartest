@@ -8,6 +8,11 @@
   and `around_test`, with automatic hook-scoped reset and nested stub
   restoration.
 
+### Bug Fixes
+
+- Preserve the primary test or hook failure when hook-scoped method-stub
+  teardown also fails, and report the reset error separately.
+
 ### Breaking Changes
 
 - Rename the Rails test server to a Rack test server. Replace

@@ -5,9 +5,9 @@ module Smartest
     include ConstantStubHelpers
     include HookScopedSimpleStubHelpers
 
-    def initialize(suite)
+    def initialize(suite, teardown_errors:)
       @suite = suite
-      initialize_simple_stub_teardowns
+      @teardown_errors = teardown_errors
     end
 
     def call(hook, suite_run)
@@ -15,7 +15,7 @@ module Smartest
         instance_exec(suite_run, &hook)
       end
     ensure
-      run_simple_stub_teardowns
+      @teardown_errors.concat(run_simple_stub_teardowns)
     end
 
     private
@@ -39,16 +39,16 @@ module Smartest
     include ConstantStubHelpers
     include HookScopedSimpleStubHelpers
 
-    def initialize(test_run, run_state:)
+    def initialize(test_run, run_state:, teardown_errors:)
       @test_run = test_run
       @run_state = run_state
-      initialize_simple_stub_teardowns
+      @teardown_errors = teardown_errors
     end
 
     def call(hook, run_target = @test_run)
       instance_exec(run_target, &hook)
     ensure
-      run_simple_stub_teardowns
+      @teardown_errors.concat(run_simple_stub_teardowns)
     end
 
     private

@@ -24,18 +24,16 @@ module Smartest
 
     private
 
-    def initialize_simple_stub_teardowns
-      @simple_stub_teardowns = []
-    end
-
     def register_simple_stub_teardown(&block)
-      @simple_stub_teardowns << block
+      (@simple_stub_teardowns ||= []) << block
     end
 
     def run_simple_stub_teardowns
       errors = []
+      teardowns = @simple_stub_teardowns || []
+      @simple_stub_teardowns = []
 
-      @simple_stub_teardowns.reverse_each do |teardown|
+      teardowns.reverse_each do |teardown|
         teardown.call
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)
@@ -43,8 +41,7 @@ module Smartest
         errors << error
       end
 
-      @simple_stub_teardowns.clear
-      raise errors.first if errors.any?
+      errors
     end
   end
 end

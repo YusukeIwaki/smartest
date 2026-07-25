@@ -212,6 +212,8 @@ Teardown is tied to the scope that applies the stub:
 
 Hook cleanup runs even when a test fails, is skipped from the hook, or a hook
 fails to call its required run target.
+If a test or hook and its method-stub cleanup both fail, Smartest preserves the
+primary failure and reports the reset error separately as a teardown failure.
 
 When method stubs for the same class and method overlap, the most recently
 applied stub wins. Resetting that stub restores the previous stub instead of

@@ -17,7 +17,7 @@ module Smartest
       @reporter.start(@tests.count)
 
       begin
-        run_around_suite_hooks(@suite.around_suite_hooks.dup) do
+        run_around_suite_hooks(@suite.around_suite_hooks.dup, suite_teardown_errors) do
           run_tests(results, suite_teardown_errors)
         end
       rescue Exception => error
@@ -50,15 +50,15 @@ module Smartest
       end
     end
 
-    def run_around_suite_hooks(hooks, index = 0, &block)
+    def run_around_suite_hooks(hooks, suite_teardown_errors, index = 0, &block)
       return yield if index >= hooks.length
 
       hook = hooks[index]
       suite_run = SuiteRun.new do
-        run_around_suite_hooks(hooks, index + 1, &block)
+        run_around_suite_hooks(hooks, suite_teardown_errors, index + 1, &block)
       end
 
-      AroundSuiteContext.new(@suite).call(hook, suite_run)
+      AroundSuiteContext.new(@suite, teardown_errors: suite_teardown_errors).call(hook, suite_run)
       raise AroundSuiteRunError, "around_suite hook did not call suite.run" unless suite_run.ran?
 
       suite_run.result
@@ -78,7 +78,12 @@ module Smartest
       end
 
       begin
-        run_around_test_hooks(@suite.around_test_hooks + test_case.around_test_hooks, test_run, run_state)
+        run_around_test_hooks(
+          @suite.around_test_hooks + test_case.around_test_hooks,
+          test_run,
+          run_state,
+          teardown_errors
+        )
       rescue Skipped => skipped_error
         skipped = skipped_error
       rescue Exception => rescued_error
@@ -127,7 +132,7 @@ module Smartest
       end
     end
 
-    def run_around_test_hooks(hooks, test_run, run_state, index = 0)
+    def run_around_test_hooks(hooks, test_run, run_state, teardown_errors, index = 0)
       return test_run.run if index >= hooks.length
 
       hook = hooks[index]
@@ -135,10 +140,14 @@ module Smartest
         fixture_classes: [],
         matcher_modules: []
       ) do |**_keywords|
-        run_around_test_hooks(hooks, test_run, run_state, index + 1)
+        run_around_test_hooks(hooks, test_run, run_state, teardown_errors, index + 1)
       end
 
-      AroundTestContext.new(test_run, run_state: run_state).call(hook, next_run)
+      AroundTestContext.new(
+        test_run,
+        run_state: run_state,
+        teardown_errors: teardown_errors
+      ).call(hook, next_run)
       raise AroundTestRunError, "around_test hook did not call test.run" unless next_run.ran?
 
       next_run.result

@@ -560,6 +560,47 @@ test("hook method stub teardown resets remaining stubs when one reset fails") do
   expect(SimpleStubSelfTestClock.now).to eq(:original_now)
 end
 
+test("around_test stub teardown failures do not replace primary test failures") do
+  suite = Smartest::Suite.new
+
+  suite.around_test_hooks << proc do |test_run|
+    manually_reset_stub = simple_stub(SimpleStubSelfTestClock, :now) { :stubbed_now }
+    manually_reset_stub.reset
+    test_run.run
+  end
+  suite.tests.add(
+    SimpleStubSelfTest.test_case("fails before hook teardown", proc { raise "primary test failure" })
+  )
+
+  status, output = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("RuntimeError: primary test failure")
+  expect(output).to include("teardown failed: Smartest::SimpleStub::NotAppliedError")
+  expect(SimpleStubSelfTestClock.now).to eq(:original_now)
+end
+
+test("around_suite stub teardown failures do not replace primary suite failures") do
+  suite = Smartest::Suite.new
+
+  suite.around_suite_hooks << proc do |suite_run|
+    manually_reset_stub = simple_stub(SimpleStubSelfTestClock, :now) { :stubbed_now }
+    manually_reset_stub.reset
+    suite_run.run
+    raise "primary suite failure"
+  end
+  suite.tests.add(
+    SimpleStubSelfTest.test_case("passes before suite failure", proc { expect(true).to eq(true) })
+  )
+
+  status, output = SimpleStubSelfTest.run_suite(suite)
+
+  expect(status).to eq(1)
+  expect(output).to include("RuntimeError: primary suite failure")
+  expect(output).to include("teardown failed: Smartest::SimpleStub::NotAppliedError")
+  expect(SimpleStubSelfTestClock.now).to eq(:original_now)
+end
+
 test("with_stub_const applies and resets existing constants in test body blocks") do
   result = with_stub_const("SimpleStubSelfTestConfig::PROVIDER", :stubbed_provider) do
     expect(SimpleStubSelfTestConfig::PROVIDER).to eq(:stubbed_provider)
