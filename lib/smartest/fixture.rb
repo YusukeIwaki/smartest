@@ -2,7 +2,7 @@
 
 module Smartest
   class Fixture
-    include SimpleStubHelpers
+    include SimpleStubDSL
 
     RESERVED_CONTEXT_METHODS = %i[skip pending with_stub_const].freeze
 
@@ -67,8 +67,8 @@ module Smartest
       @fixture_set.add_teardown(&block)
     end
 
-    def register_simple_stub_teardown(&block)
-      on_teardown(&block)
+    def register_simple_stub(stub)
+      on_teardown { stub.reset }
     end
 
     def method_missing(method_name, *args, &block)

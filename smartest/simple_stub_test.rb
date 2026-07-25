@@ -106,6 +106,34 @@ test("simple stub reset requires the applied stub object") do
   expect(SimpleStubSelfTestSubject.new("Alice").greeting("Hi")).to eq("Hi, Alice")
 end
 
+test("simple stub teardown scope resets registered stubs in reverse order and collects errors") do
+  resettable_stub_class = Class.new do
+    def initialize(name, events, error: nil)
+      @name = name
+      @events = events
+      @error = error
+    end
+
+    def reset
+      @events << @name
+      raise @error if @error
+    end
+  end
+
+  events = []
+  reset_error = RuntimeError.new("inner reset failed")
+  outer_stub = resettable_stub_class.new(:outer, events)
+  inner_stub = resettable_stub_class.new(:inner, events, error: reset_error)
+  scope = Smartest::SimpleStubTeardownScope.new
+
+  expect(scope.register(outer_stub)).to eq(outer_stub)
+  expect(scope.register(inner_stub)).to eq(inner_stub)
+
+  expect(scope.reset_registered_stubs).to eq([reset_error])
+  expect(events).to eq(%i[inner outer])
+  expect(scope.reset_registered_stubs).to eq([])
+end
+
 test("simple_stub_any_instance_of applies and resets from fixture teardown") do
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :stubbed_name do

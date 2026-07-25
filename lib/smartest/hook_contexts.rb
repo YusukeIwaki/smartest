@@ -3,11 +3,12 @@
 module Smartest
   class AroundSuiteContext
     include ConstantStubHelpers
-    include HookScopedSimpleStubHelpers
+    include SimpleStubDSL
 
     def initialize(suite, teardown_errors:)
       @suite = suite
       @teardown_errors = teardown_errors
+      @simple_stub_teardown_scope = SimpleStubTeardownScope.new
     end
 
     def call(hook, suite_run)
@@ -15,10 +16,14 @@ module Smartest
         instance_exec(suite_run, &hook)
       end
     ensure
-      @teardown_errors.concat(run_simple_stub_teardowns)
+      @teardown_errors.concat(@simple_stub_teardown_scope.reset_registered_stubs)
     end
 
     private
+
+    def register_simple_stub(stub)
+      @simple_stub_teardown_scope.register(stub)
+    end
 
     def use_fixture(klass)
       @suite.fixture_classes.add(klass)
@@ -37,21 +42,26 @@ module Smartest
 
   class AroundTestContext
     include ConstantStubHelpers
-    include HookScopedSimpleStubHelpers
+    include SimpleStubDSL
 
     def initialize(test_run, run_state:, teardown_errors:)
       @test_run = test_run
       @run_state = run_state
       @teardown_errors = teardown_errors
+      @simple_stub_teardown_scope = SimpleStubTeardownScope.new
     end
 
     def call(hook, run_target = @test_run)
       instance_exec(run_target, &hook)
     ensure
-      @teardown_errors.concat(run_simple_stub_teardowns)
+      @teardown_errors.concat(@simple_stub_teardown_scope.reset_registered_stubs)
     end
 
     private
+
+    def register_simple_stub(stub)
+      @simple_stub_teardown_scope.register(stub)
+    end
 
     def use_fixture(klass)
       @test_run.add_fixture_class(klass)

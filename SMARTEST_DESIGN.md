@@ -1032,6 +1032,14 @@ target. Nested hook, test fixture, and suite fixture stubs use the
 `Smartest::SimpleStub` stack, so removing an inner stub restores the previous
 active implementation.
 
+`Smartest::SimpleStubDSL` owns only the user-facing operations that create and
+apply method stubs. Fixture instances register those stubs directly with
+fixture teardown. Each hook context instead owns an explicit
+`Smartest::SimpleStubTeardownScope`, which records applied stubs and returns
+reset errors to the runner when `reset_registered_stubs` runs. This keeps the
+mutable lifecycle state out of the DSL module and lets the runner report a
+primary failure separately from teardown failures.
+
 Method stub helpers are intentionally not top-level DSL methods. Without a hook
 or fixture owner, Smartest would have no safe lifecycle in which to reset them.
 
