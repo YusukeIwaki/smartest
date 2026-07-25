@@ -58,7 +58,14 @@ module Smartest
         run_around_suite_hooks(hooks, suite_teardown_errors, index + 1, &block)
       end
 
-      AroundSuiteContext.new(@suite, teardown_errors: suite_teardown_errors).call(hook, suite_run)
+      context = AroundSuiteContext.new(@suite)
+
+      begin
+        context.call(hook, suite_run)
+      ensure
+        suite_teardown_errors.concat(context.close)
+      end
+
       raise AroundSuiteRunError, "around_suite hook did not call suite.run" unless suite_run.ran?
 
       suite_run.result
@@ -143,11 +150,14 @@ module Smartest
         run_around_test_hooks(hooks, test_run, run_state, teardown_errors, index + 1)
       end
 
-      AroundTestContext.new(
-        test_run,
-        run_state: run_state,
-        teardown_errors: teardown_errors
-      ).call(hook, next_run)
+      context = AroundTestContext.new(test_run, run_state: run_state)
+
+      begin
+        context.call(hook, next_run)
+      ensure
+        teardown_errors.concat(context.close)
+      end
+
       raise AroundTestRunError, "around_test hook did not call test.run" unless next_run.ran?
 
       next_run.result

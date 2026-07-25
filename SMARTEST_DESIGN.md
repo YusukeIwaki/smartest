@@ -1034,11 +1034,13 @@ active implementation.
 
 `Smartest::SimpleStubDSL` owns only the user-facing operations that create and
 apply method stubs. Fixture instances register those stubs directly with
-fixture teardown. Each hook context instead owns an explicit
-`Smartest::SimpleStubTeardownScope`, which records applied stubs and returns
-reset errors to the runner when `reset_registered_stubs` runs. This keeps the
-mutable lifecycle state out of the DSL module and lets the runner report a
-primary failure separately from teardown failures.
+fixture teardown. The common `Smartest::HookContext` owns a
+`Smartest::SimpleStubTeardownScope` for one hook invocation. Around-suite and
+around-test contexts inherit that lifecycle without receiving reporter error
+collections as initialization arguments. The runner closes each context in
+`ensure` and adds the returned reset errors to the appropriate test or suite
+result. This keeps mutable lifecycle state out of the DSL module and reporting
+concerns out of hook contexts.
 
 Method stub helpers are intentionally not top-level DSL methods. Without a hook
 or fixture owner, Smartest would have no safe lifecycle in which to reset them.

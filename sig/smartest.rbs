@@ -66,6 +66,13 @@ module Smartest
     def reset_registered_stubs: () -> Array[Exception]
   end
 
+  class HookContext
+    include SimpleStubDSL
+
+    def initialize: () -> void
+    def close: () -> Array[Exception]
+  end
+
   class Fixture
     include SimpleStubDSL
 
@@ -83,8 +90,9 @@ module Smartest
     def on_teardown: () { () -> untyped } -> untyped
   end
 
-  class AroundSuiteContext
-    include SimpleStubDSL
+  class AroundSuiteContext < HookContext
+    def initialize: (Suite) -> void
+    def call: (Proc, SuiteRun) -> untyped
 
     private
 
@@ -94,8 +102,9 @@ module Smartest
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
   end
 
-  class AroundTestContext
-    include SimpleStubDSL
+  class AroundTestContext < HookContext
+    def initialize: (TestRun, run_state: untyped) -> void
+    def call: (Proc, ?TestRun) -> untyped
 
     private
 
