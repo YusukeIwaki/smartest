@@ -73,7 +73,7 @@ Top-level categories should answer "what reader goal is this for?", not
 | `running-test-suites.md` (Running Tests) | `autorun` and the CLI. |
 | `skipping-tests.md` | `skip` / `pending`. |
 | `fixtures.md` | The class-based fixture model in depth — test-scoped, suite-scoped, dependencies, teardown. |
-| `stubs.md` | Method stubs that reset from fixture teardown. |
+| `stubs.md` | Fixture-scoped method stubs, plus optional autouse-style hook setup, with automatic teardown. |
 | `matchers.md` | Built-in and custom matchers. |
 | `helpers.md` | Registering helper modules via `around_test`. |
 | `playwright-browser-tests.md` (Why Smartest browser tests) | Browser Tests entry. Why-style positioning followed by Quick Start and "How it works" for the generic Playwright scaffold. |

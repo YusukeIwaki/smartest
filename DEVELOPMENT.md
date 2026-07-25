@@ -46,6 +46,7 @@ smartest/
       expectation_target.rb
       matchers.rb
       simple_stub.rb
+      simple_stub_helpers.rb
       constant_stub_helpers.rb
 
       runner.rb
@@ -132,9 +133,11 @@ around_suite(&block)
 around_test(&block)
 ```
 
-`use_fixture(klass)` and `use_matcher(matcher_module)` are not top-level DSL
-methods. They are available only from hook execution contexts: `around_suite`
-and `around_test`.
+`use_fixture(klass)`, `use_matcher(matcher_module)`,
+`simple_stub_any_instance_of`, and `simple_stub` are not top-level DSL methods.
+They are available only from the relevant hook execution contexts:
+`around_suite` and `around_test`. Method stub helpers are also available from
+fixture blocks, where fixture teardown owns their reset.
 
 Possible later methods:
 
@@ -327,6 +330,7 @@ Responsibilities:
 
 - iterate over registered test cases
 - run registered `around_suite` hooks around the suite body
+- reset method stubs registered by each hook when that hook exits
 - create a lazy suite-scoped `FixtureSet`
 - create a fresh `ExecutionContext` per test
 - create a fresh `FixtureSet` per test
@@ -671,6 +675,7 @@ A practical approach:
 - snapshot file-local hooks when each test is registered
 - run hooks around fixture setup, test body, and fixture teardown
 - expose `use_fixture` and `use_matcher` only inside hook contexts
+- expose method stub helpers inside hook contexts with automatic hook-scoped reset
 - make `around_test` registered from `around_suite` suite-wide
 
 ### Phase 9: Skipped and pending tests

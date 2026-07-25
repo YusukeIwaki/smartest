@@ -1015,6 +1015,26 @@ end
 For `around_test`, those registrations are test-run local and must happen before
 `test.run`.
 
+`simple_stub_any_instance_of` and `simple_stub` are also available inside both
+hook contexts:
+
+```ruby
+around_test do |test|
+  simple_stub(NotificationClient, :push) { :ok }
+  test.run
+end
+```
+
+Each hook invocation owns the stubs it applies and resets them in reverse order
+when the hook exits. Cleanup runs when the wrapped suite or test fails, when the
+hook itself raises, and when the hook returns without calling its required run
+target. Nested hook, test fixture, and suite fixture stubs use the
+`Smartest::SimpleStub` stack, so removing an inner stub restores the previous
+active implementation.
+
+Method stub helpers are intentionally not top-level DSL methods. Without a hook
+or fixture owner, Smartest would have no safe lifecycle in which to reset them.
+
 Fixture classes registered from `around_test` must not define `suite_fixture`.
 Suite-scoped fixtures need suite-level cache and teardown ownership, so classes
 with suite-scoped fixtures must be registered from `around_suite`.

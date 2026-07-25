@@ -2,6 +2,12 @@
 
 ## 0.7.0
 
+### New Features
+
+- Allow `simple_stub_any_instance_of` and `simple_stub` inside `around_suite`
+  and `around_test`, with automatic hook-scoped reset and nested stub
+  restoration.
+
 ### Breaking Changes
 
 - Rename the Rails test server to a Rack test server. Replace

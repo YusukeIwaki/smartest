@@ -99,6 +99,39 @@ end
 Teardown runs even if a later setup step or the test body fails. Regular fixture
 teardown runs after the test. `suite_fixture` teardown runs after the suite.
 
+## Optional Autouse-Style Setup
+
+Smartest normally keeps method stubs in explicitly requested fixtures, just like
+the fixture examples above. When Pytest would use an autouse fixture because
+broad setup should apply without appearing in every test signature, Smartest
+can use a hook-scoped method stub:
+
+```python title="pytest"
+@pytest.fixture(autouse=True)
+def stub_payment_gateway(monkeypatch):
+    monkeypatch.setattr(
+        PaymentGateway,
+        "charge",
+        lambda self, *args, **kwargs: "approved",
+    )
+```
+
+```ruby title="Smartest"
+around_test do |test|
+  simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
+  test.run
+end
+```
+
+Neither test signature needs a stub-only dependency. Pytest undoes the
+monkeypatch when the autouse fixture finishes; Smartest resets the method stub
+when the hook exits. Use `around_suite` instead when one stub should cover the
+whole Smartest suite.
+
+Keep scenario-specific stubs and all stubs that need fixture data in regular
+Smartest fixtures. Use this hook form only when intentionally implicit,
+autouse-style setup is clearer than a fixture keyword.
+
 ## Concept Map
 
 | Pytest concept | Smartest equivalent | Notes |
@@ -107,6 +140,7 @@ teardown runs after the test. `suite_fixture` teardown runs after the suite.
 | Test function parameter | Required keyword argument | `test("name") do |user:|` requests `fixture :user`. |
 | Fixture parameter | Fixture block keyword argument | `fixture :client do |server:|` depends on `server`. |
 | `scope="session"` | `suite_fixture` | Created lazily and reused for the suite. |
+| `autouse=True` setup with `monkeypatch` | Optional `around_test` or `around_suite` method stub | Intentionally broad setup applies without a stub-only test keyword. |
 | `yield` teardown or finalizer | `on_teardown` | Register teardown immediately after acquiring the resource. |
 | `conftest.py` discovery | `require` fixture files and `use_fixture` | Smartest registers fixture classes explicitly. |
 

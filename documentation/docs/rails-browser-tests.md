@@ -226,7 +226,8 @@ several of those into a named test state.
 | --- | --- |
 | `let(:user) { create(:user) }` | `fixture :user do create(:user) end` |
 | `before { login_as(user) }` | `fixture :signed_in_page do |page:, user:| ...; page end` |
-| `before { allow(...).to receive(...) }` | `fixture :stubbed_page do |page:| simple_stub(...); page end` |
+| stub depending on `let` data | `fixture :stubbed_page do |page:, user:| simple_stub(...); page end` |
+| autouse-style broad `before { allow(...).to receive(...) }` | `around_test do |test| simple_stub(...); test.run end` |
 | `scenario "..." do ... end` | `test("...") do |page:| ... end` |
 | hidden setup | explicit keyword fixture dependencies |
 
@@ -252,7 +253,10 @@ Rails browser tests are often easier to read when user state, stubs, and the
 browser page are combined into a named page fixture.
 
 `simple_stub` and `simple_stub_any_instance_of` are Smartest stub helpers.
-Stubs installed inside fixtures are automatically reset during fixture teardown.
+Put them in fixtures by default so the stubbed state stays visible in the test
+signature. For intentionally broad setup that should not add a stub-only
+dependency to every test, they can also be used from `around_test` or
+`around_suite`, like an autouse fixture. Both forms reset automatically.
 
 ```ruby
 class ApplicationFixture < Smartest::Fixture
@@ -279,12 +283,16 @@ class ApplicationFixture < Smartest::Fixture
 
     page
   end
+end
+```
 
-  fixture :page_with_push_stubbed do |page:|
-    simple_stub(PushNotifier, :deliver_later) { :stubbed }
+If push delivery must be disabled for every applicable test, it is an example
+of intentionally broad setup that can instead live in an `around_test` hook:
 
-    page
-  end
+```ruby
+around_test do |test|
+  simple_stub(PushNotifier, :deliver_later) { :stubbed }
+  test.run
 end
 ```
 
@@ -310,10 +318,10 @@ test("suspended user sees account restriction page") do |suspended_user_page:|
   ).to be_visible
 end
 
-test("push failure banner is not shown when push is stubbed") do |page_with_push_stubbed:|
-  page_with_push_stubbed.goto("/settings/notifications")
+test("push failure banner is not shown when push is stubbed") do |page:|
+  page.goto("/settings/notifications")
 
-  expect(page_with_push_stubbed.get_by_text("Push failed")).not_to be_visible
+  expect(page.get_by_text("Push failed")).not_to be_visible
 end
 ```
 
@@ -508,8 +516,8 @@ Rails browser tests often need to stub methods that are called inside the Rails
 server thread.
 
 Because the generated Rails server runs in the same Ruby process as the test
-runner, method stubs installed by Smartest fixtures are visible to the Rails
-server thread.
+runner, method stubs installed by Smartest fixtures or hooks are visible to the
+Rails server thread.
 
 ```ruby
 fixture :suspended_user_page do |page:, suspended_user:|
@@ -521,7 +529,12 @@ fixture :suspended_user_page do |page:, suspended_user:|
 end
 ```
 
-The stub is applied during fixture setup and reset from fixture teardown.
+This stub depends on `suspended_user`, so fixture scope keeps the relationship
+explicit. Keep fixtures as the default even when a stub has no fixture
+dependencies. For an intentionally broad external-service rule that should be
+implicit for every applicable test, use `simple_stub` or
+`simple_stub_any_instance_of` before `test.run` in `around_test`; Smartest
+resets it when the hook exits.
 
 :::warning
 

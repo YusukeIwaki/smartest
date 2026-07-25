@@ -1196,10 +1196,12 @@ test("pending around_test hooks must still call test.run") do
   expect(output).to include("1 test, 0 passed, 1 failed")
 end
 
-test("use_fixture and use_matcher are only available inside hooks") do
+test("hook registration and method stub helpers are not top-level DSL methods") do
   {
     "use_fixture Object" => "use_fixture",
-    "use_matcher Module.new" => "use_matcher"
+    "use_matcher Module.new" => "use_matcher",
+    "simple_stub(Object, :name) { :stubbed }" => "simple_stub",
+    "simple_stub_any_instance_of(Object, :to_s) { :stubbed }" => "simple_stub_any_instance_of"
   }.each do |registration, method_name|
     Dir.mktmpdir do |dir|
       smartest_dir = File.join(dir, "smartest")

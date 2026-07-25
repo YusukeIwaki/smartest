@@ -52,7 +52,16 @@ module Smartest
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
   end
 
+  module SimpleStubHelpers
+    private
+
+    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+  end
+
   class Fixture
+    include SimpleStubHelpers
+
     # Define a test-scoped fixture by default. Fixture dependencies are requested
     # from the block with required keyword arguments.
     def self.fixture: (String | Symbol, ?scope: Symbol) { (*untyped, **untyped) -> untyped } -> FixtureDefinition
@@ -65,11 +74,11 @@ module Smartest
     private
 
     def on_teardown: () { () -> untyped } -> untyped
-    def simple_stub_any_instance_of: (Class | Module, String | Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
-    def simple_stub: (untyped, String | Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
   end
 
   class AroundSuiteContext
+    include SimpleStubHelpers
+
     private
 
     def use_fixture: (Class | Module) -> untyped
@@ -79,6 +88,8 @@ module Smartest
   end
 
   class AroundTestContext
+    include SimpleStubHelpers
+
     private
 
     def use_fixture: (Class | Module) -> untyped

@@ -3,15 +3,19 @@
 module Smartest
   class AroundSuiteContext
     include ConstantStubHelpers
+    include HookScopedSimpleStubHelpers
 
     def initialize(suite)
       @suite = suite
+      initialize_simple_stub_teardowns
     end
 
     def call(hook, suite_run)
       @suite.around_suite_hook do
         instance_exec(suite_run, &hook)
       end
+    ensure
+      run_simple_stub_teardowns
     end
 
     private
@@ -33,14 +37,18 @@ module Smartest
 
   class AroundTestContext
     include ConstantStubHelpers
+    include HookScopedSimpleStubHelpers
 
     def initialize(test_run, run_state:)
       @test_run = test_run
       @run_state = run_state
+      initialize_simple_stub_teardowns
     end
 
     def call(hook, run_target = @test_run)
       instance_exec(run_target, &hook)
+    ensure
+      run_simple_stub_teardowns
     end
 
     private
