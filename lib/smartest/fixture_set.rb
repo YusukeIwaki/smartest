@@ -13,6 +13,7 @@ module Smartest
       @setup_errors = {}
       @teardowns = []
       @teardown_errors = []
+      @teardowns_started = false
       @resolving = []
 
       build_fixture_index
@@ -59,9 +60,13 @@ module Smartest
     end
 
     def run_teardowns
-      @teardown_errors.clear
+      return self if @teardowns_started
 
-      @teardowns.reverse_each do |teardown|
+      @teardowns_started = true
+      teardowns = @teardowns
+      @teardowns = []
+
+      teardowns.reverse_each do |teardown|
         teardown.call
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)

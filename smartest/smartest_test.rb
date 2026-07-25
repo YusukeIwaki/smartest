@@ -1276,6 +1276,26 @@ test("suite teardown failures fail the run") do
   expect(output).to include("1 test, 1 passed, 0 failed, 1 suite teardown failed")
 end
 
+test("fixture set teardown is idempotent during reentry") do
+  events = []
+  teardown_error = RuntimeError.new("inner teardown failed")
+  fixture_set = Smartest::FixtureSet.new([], context: Object.new)
+  fixture_set.add_teardown { events << :outer_teardown }
+  fixture_set.add_teardown do
+    events << :inner_teardown_started
+    fixture_set.run_teardowns
+    events << :inner_teardown_finished
+    raise teardown_error
+  end
+
+  expect(fixture_set.run_teardowns).to eq(fixture_set)
+  expect(fixture_set.teardown_errors).to eq([teardown_error])
+  expect(events).to eq(%i[inner_teardown_started inner_teardown_finished outer_teardown])
+  expect(fixture_set.run_teardowns).to eq(fixture_set)
+  expect(fixture_set.teardown_errors).to eq([teardown_error])
+  expect(events).to eq(%i[inner_teardown_started inner_teardown_finished outer_teardown])
+end
+
 test("runs teardown in reverse order after failures") do
   events = []
 

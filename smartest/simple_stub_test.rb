@@ -133,7 +133,30 @@ test("simple stub teardown scope resets registered stubs in reverse order and co
   expect(scope.teardown_errors).to eq([reset_error])
   expect(events).to eq(%i[inner outer])
   expect(scope.reset_registered_stubs).to eq(scope)
-  expect(scope.teardown_errors).to eq([])
+  expect(scope.teardown_errors).to eq([reset_error])
+  expect(events).to eq(%i[inner outer])
+end
+
+test("hook context teardown is idempotent during reentry") do
+  events = []
+  reset_error = RuntimeError.new("reset failed")
+  context = Smartest::HookContext.new
+  reentrant_stub = Object.new
+  reentrant_stub.define_singleton_method(:reset) do
+    events << :reset_started
+    context.run_teardowns
+    events << :reset_finished
+    raise reset_error
+  end
+
+  context.__send__(:register_simple_stub, reentrant_stub)
+
+  expect(context.run_teardowns).to eq(context)
+  expect(context.teardown_errors).to eq([reset_error])
+  expect(events).to eq(%i[reset_started reset_finished])
+  expect(context.run_teardowns).to eq(context)
+  expect(context.teardown_errors).to eq([reset_error])
+  expect(events).to eq(%i[reset_started reset_finished])
 end
 
 test("teardown error aggregator reads and combines errors from teardown sources") do

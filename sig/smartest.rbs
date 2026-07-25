@@ -52,45 +52,7 @@ module Smartest
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
   end
 
-  module SimpleStubDSL
-    private
-
-    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
-    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
-    def register_simple_stub: (SimpleStub) -> untyped
-  end
-
-  class SimpleStubTeardownScope
-    attr_reader teardown_errors: Array[Exception]
-
-    def initialize: () -> void
-    def register: (SimpleStub) -> SimpleStub
-    def reset_registered_stubs: () -> self
-  end
-
-  interface _TeardownErrorSource
-    def teardown_errors: () -> Array[Exception]
-  end
-
-  class TeardownErrorAggregator
-    attr_reader teardown_errors: Array[Exception]
-
-    def initialize: () -> void
-    def collect: (_TeardownErrorSource) -> self
-  end
-
-  class HookContext
-    include SimpleStubDSL
-
-    attr_reader teardown_errors: Array[Exception]
-
-    def initialize: () -> void
-    def run_teardowns: () -> self
-  end
-
   class Fixture
-    include SimpleStubDSL
-
     # Define a test-scoped fixture by default. Fixture dependencies are requested
     # from the block with required keyword arguments.
     def self.fixture: (String | Symbol, ?scope: Symbol) { (*untyped, **untyped) -> untyped } -> FixtureDefinition
@@ -103,24 +65,22 @@ module Smartest
     private
 
     def on_teardown: () { () -> untyped } -> untyped
+    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
   end
 
-  class AroundSuiteContext < HookContext
-    def initialize: (Suite) -> void
-    def call: (Proc, SuiteRun) -> untyped
-
+  class AroundSuiteContext
     private
 
     def use_fixture: (Class | Module) -> untyped
     def use_matcher: (Module) -> untyped
     def around_test: () { (TestRun) -> untyped } -> void
+    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
   end
 
-  class AroundTestContext < HookContext
-    def initialize: (TestRun, run_state: untyped) -> void
-    def call: (Proc, ?TestRun) -> untyped
-
+  class AroundTestContext
     private
 
     def use_fixture: (Class | Module) -> untyped
@@ -128,21 +88,9 @@ module Smartest
     def use_helper: (Module) -> untyped
     def skip: (?String) -> void
     def pending: (?String) -> void
+    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
-  end
-
-  class AroundSuiteHookChain
-    attr_reader teardown_errors: Array[Exception]
-
-    def initialize: (suite: Suite, hooks: Array[Proc]) -> void
-    def run: () { () -> untyped } -> untyped
-  end
-
-  class AroundTestHookChain
-    attr_reader teardown_errors: Array[Exception]
-
-    def initialize: (hooks: Array[Proc], test_run: TestRun, run_state: untyped) -> void
-    def run: () -> untyped
   end
 
   class ExecutionContext
@@ -187,10 +135,6 @@ module Smartest
     attr_reader location: Thread::Backtrace::Location?
     attr_reader scope: Symbol
     attr_reader dependencies: Array[Symbol]
-  end
-
-  class FixtureSet
-    attr_reader teardown_errors: Array[Exception]
   end
 
   class SimpleStub

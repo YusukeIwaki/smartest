@@ -42,6 +42,7 @@ module Smartest
     def initialize
       @registered_stubs = []
       @teardown_errors = []
+      @teardowns_started = false
     end
 
     def register(stub)
@@ -50,7 +51,9 @@ module Smartest
     end
 
     def reset_registered_stubs
-      @teardown_errors.clear
+      return self if @teardowns_started
+
+      @teardowns_started = true
       stubs = @registered_stubs
       @registered_stubs = []
 

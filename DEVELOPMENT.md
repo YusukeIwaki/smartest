@@ -303,6 +303,7 @@ Responsibilities:
 - cache fixture values for its scope
 - collect teardown blocks
 - run teardown blocks in reverse order
+- drain the teardown queue before callbacks and run it at most once
 - expose teardown failures through `teardown_errors`
 - detect duplicate fixture names
 - detect circular dependencies
@@ -314,7 +315,9 @@ values are intentionally shared across the run.
 
 `AroundSuiteContext` and `AroundTestContext` own the state for one hook
 invocation. Their common `HookContext` resets method stubs from
-`run_teardowns` and exposes any cleanup failures through `teardown_errors`.
+`run_teardowns` at most once and exposes any cleanup failures through
+`teardown_errors`. Repeated or reentrant teardown calls preserve the errors
+recorded by the first call.
 
 `AroundSuiteHookChain` and `AroundTestHookChain` own hook composition and the
 required `suite.run` / `test.run` protocol. Each chain runs its contexts'
@@ -327,6 +330,8 @@ runner.
 Collects teardown failures from completed lifecycle owners. Sources expose
 `teardown_errors`; the aggregator reads that state after cleanup instead of
 passing a shared mutable error array into the operation that performs cleanup.
+These lifecycle implementation classes are intentionally omitted from the
+public DSL RBS.
 
 ### `Smartest::ExecutionContext`
 
