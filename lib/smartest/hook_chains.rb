@@ -27,7 +27,7 @@ module Smartest
       begin
         context.call(hook, suite_run)
       ensure
-        context.close
+        context.run_teardowns
         @teardown_error_aggregator.collect(context)
       end
 
@@ -69,7 +69,7 @@ module Smartest
       begin
         context.call(hook, next_run)
       ensure
-        context.close
+        context.run_teardowns
         @teardown_error_aggregator.collect(context)
       end
 

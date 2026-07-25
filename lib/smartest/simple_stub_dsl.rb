@@ -14,8 +14,21 @@ module Smartest
 
     def apply_simple_stub(stub)
       stub.apply
-      register_simple_stub(stub)
+
+      begin
+        register_simple_stub(stub)
+      rescue Exception
+        rollback_simple_stub(stub)
+        raise
+      end
+
       stub
+    end
+
+    def rollback_simple_stub(stub)
+      stub.reset
+    rescue Exception => error
+      raise if Smartest.fatal_exception?(error)
     end
 
     def register_simple_stub(_stub)

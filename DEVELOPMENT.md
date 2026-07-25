@@ -141,6 +141,8 @@ around_test(&block)
 They are available only from the relevant hook execution contexts:
 `around_suite` and `around_test`. Method stub helpers are also available from
 fixture blocks, where fixture teardown owns their reset.
+If a lifecycle owner cannot register an applied stub for teardown, the helper
+immediately resets it before propagating the registration error.
 
 Possible later methods:
 
@@ -311,13 +313,14 @@ values are intentionally shared across the run.
 ### Hook contexts and chains
 
 `AroundSuiteContext` and `AroundTestContext` own the state for one hook
-invocation. Their common `HookContext` resets method stubs when closed and
-exposes any cleanup failures through `teardown_errors`.
+invocation. Their common `HookContext` resets method stubs from
+`run_teardowns` and exposes any cleanup failures through `teardown_errors`.
 
 `AroundSuiteHookChain` and `AroundTestHookChain` own hook composition and the
-required `suite.run` / `test.run` protocol. Each chain closes its contexts in
-`ensure` and uses `TeardownErrorAggregator` to collect their cleanup failures.
-The chain then acts as one teardown error source for the runner.
+required `suite.run` / `test.run` protocol. Each chain runs its contexts'
+teardowns in `ensure` and uses `TeardownErrorAggregator` to collect their
+cleanup failures. The chain then acts as one teardown error source for the
+runner.
 
 ### `Smartest::TeardownErrorAggregator`
 

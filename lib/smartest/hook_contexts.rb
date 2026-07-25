@@ -11,7 +11,7 @@ module Smartest
       @teardown_errors = []
     end
 
-    def close
+    def run_teardowns
       @simple_stub_teardown_scope.reset_registered_stubs
       @teardown_errors = @simple_stub_teardown_scope.teardown_errors.dup
       self

@@ -85,7 +85,7 @@ module Smartest
     attr_reader teardown_errors: Array[Exception]
 
     def initialize: () -> void
-    def close: () -> self
+    def run_teardowns: () -> self
   end
 
   class Fixture

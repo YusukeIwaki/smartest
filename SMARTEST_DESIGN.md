@@ -1037,16 +1037,18 @@ apply method stubs. Fixture instances register those stubs directly with
 fixture teardown. The common `Smartest::HookContext` owns a
 `Smartest::SimpleStubTeardownScope` for one hook invocation. Around-suite and
 around-test contexts inherit that lifecycle and expose cleanup failures through
-`teardown_errors`.
+`teardown_errors`. If registering an already-applied stub with its lifecycle
+owner fails, the DSL immediately resets that stub before propagating the
+registration error.
 
 `Smartest::AroundSuiteHookChain` and `Smartest::AroundTestHookChain` own hook
-composition, close every context in `ensure`, and aggregate the errors exposed
-by those contexts. `FixtureSet` likewise exposes errors after running its
-teardowns. The runner uses `Smartest::TeardownErrorAggregator` to pull errors
-from the completed fixture set and hook chain into the appropriate test or
-suite result. No lifecycle operation receives a shared mutable reporter error
-array. This keeps lifecycle state out of the DSL module and reporting concerns
-out of hook contexts.
+composition, run every context's teardowns in `ensure`, and aggregate the
+errors exposed by those contexts. `FixtureSet` likewise exposes errors after
+running its teardowns. The runner uses `Smartest::TeardownErrorAggregator` to
+pull errors from the completed fixture set and hook chain into the appropriate
+test or suite result. No lifecycle operation receives a shared mutable reporter
+error array. This keeps lifecycle state out of the DSL module and reporting
+concerns out of hook contexts.
 
 Method stub helpers are intentionally not top-level DSL methods. Without a hook
 or fixture owner, Smartest would have no safe lifecycle in which to reset them.

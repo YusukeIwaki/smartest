@@ -1,17 +1,15 @@
 # Changelog
 
-## 0.7.0
+## Unreleased
 
 ### New Features
 
 - Allow `simple_stub_any_instance_of` and `simple_stub` inside `around_suite`
   and `around_test`, with automatic hook-scoped reset and nested stub
-  restoration.
+  restoration. If the wrapped operation and stub teardown both fail, report
+  both errors without replacing the primary failure.
 
-### Bug Fixes
-
-- Preserve the primary test or hook failure when hook-scoped method-stub
-  teardown also fails, and report the reset error separately.
+## 0.7.0
 
 ### Breaking Changes
 

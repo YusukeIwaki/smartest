@@ -158,6 +158,55 @@ test("teardown error aggregator reads and combines errors from teardown sources"
   expect(hook_source.teardown_errors).to eq([hook_error])
 end
 
+test("simple stub rolls back when lifecycle registration fails") do
+  observed_values = []
+  registration_error = RuntimeError.new("registration failed")
+  dsl_host_class = Class.new do
+    include Smartest::SimpleStubDSL
+
+    define_method(:initialize) do |values, error|
+      @values = values
+      @error = error
+    end
+
+    def apply_clock_stub
+      simple_stub(SimpleStubSelfTestClock, :now) { :stubbed_now }
+    end
+
+    private
+
+    def register_simple_stub(_stub)
+      @values << SimpleStubSelfTestClock.now
+      raise @error
+    end
+  end
+
+  error = SimpleStubSelfTest.capture_error(RuntimeError) do
+    dsl_host_class.new(observed_values, registration_error).apply_clock_stub
+  end
+
+  expect(error).to eq(registration_error)
+  expect(observed_values).to eq([:stubbed_now])
+  expect(SimpleStubSelfTestClock.now).to eq(:original_now)
+end
+
+test("simple stub rolls back when SimpleStubDSL has no lifecycle owner") do
+  dsl_host_class = Class.new do
+    include Smartest::SimpleStubDSL
+
+    def apply_clock_stub
+      simple_stub(SimpleStubSelfTestClock, :now) { :stubbed_now }
+    end
+  end
+
+  error = SimpleStubSelfTest.capture_error(NotImplementedError) do
+    dsl_host_class.new.apply_clock_stub
+  end
+
+  expect(error.message).to include("must implement #register_simple_stub")
+  expect(SimpleStubSelfTestClock.now).to eq(:original_now)
+end
+
 test("simple_stub_any_instance_of applies and resets from fixture teardown") do
   fixture_class = Class.new(Smartest::Fixture) do
     fixture :stubbed_name do
