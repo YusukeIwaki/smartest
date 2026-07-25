@@ -129,9 +129,33 @@ test("simple stub teardown scope resets registered stubs in reverse order and co
   expect(scope.register(outer_stub)).to eq(outer_stub)
   expect(scope.register(inner_stub)).to eq(inner_stub)
 
-  expect(scope.reset_registered_stubs).to eq([reset_error])
+  expect(scope.reset_registered_stubs).to eq(scope)
+  expect(scope.teardown_errors).to eq([reset_error])
   expect(events).to eq(%i[inner outer])
-  expect(scope.reset_registered_stubs).to eq([])
+  expect(scope.reset_registered_stubs).to eq(scope)
+  expect(scope.teardown_errors).to eq([])
+end
+
+test("teardown error aggregator reads and combines errors from teardown sources") do
+  teardown_source_class = Class.new do
+    attr_reader :teardown_errors
+
+    def initialize(teardown_errors)
+      @teardown_errors = teardown_errors
+    end
+  end
+
+  fixture_error = RuntimeError.new("fixture teardown failed")
+  hook_error = RuntimeError.new("hook teardown failed")
+  fixture_source = teardown_source_class.new([fixture_error])
+  hook_source = teardown_source_class.new([hook_error])
+  aggregator = Smartest::TeardownErrorAggregator.new
+
+  expect(aggregator.collect(fixture_source)).to eq(aggregator)
+  expect(aggregator.collect(hook_source)).to eq(aggregator)
+  expect(aggregator.teardown_errors).to eq([fixture_error, hook_error])
+  expect(fixture_source.teardown_errors).to eq([fixture_error])
+  expect(hook_source.teardown_errors).to eq([hook_error])
 end
 
 test("simple_stub_any_instance_of applies and resets from fixture teardown") do
@@ -605,6 +629,35 @@ test("around_test stub teardown failures do not replace primary test failures") 
   expect(status).to eq(1)
   expect(output).to include("RuntimeError: primary test failure")
   expect(output).to include("teardown failed: Smartest::SimpleStub::NotAppliedError")
+  expect(SimpleStubSelfTestClock.now).to eq(:original_now)
+end
+
+test("aggregates fixture and hook teardown failures in cleanup order") do
+  fixture_class = Class.new(Smartest::Fixture) do
+    fixture :value do
+      on_teardown { raise "fixture teardown failure" }
+      :value
+    end
+  end
+  suite = Smartest::Suite.new
+  suite.fixture_classes.add(fixture_class)
+  suite.around_test_hooks << proc do |test_run|
+    manually_reset_stub = simple_stub(SimpleStubSelfTestClock, :now) { :stubbed_now }
+    manually_reset_stub.reset
+    test_run.run
+  end
+  suite.tests.add(
+    SimpleStubSelfTest.test_case("has two teardown failures", proc { |value:| expect(value).to eq(:value) })
+  )
+
+  status, output = SimpleStubSelfTest.run_suite(suite)
+  fixture_error_index = output.index("teardown failed: RuntimeError: fixture teardown failure")
+  hook_error_index = output.index("teardown failed: Smartest::SimpleStub::NotAppliedError")
+
+  expect(status).to eq(1)
+  expect(fixture_error_index.nil?).to eq(false)
+  expect(hook_error_index.nil?).to eq(false)
+  expect(fixture_error_index < hook_error_index).to eq(true)
   expect(SimpleStubSelfTestClock.now).to eq(:original_now)
 end
 

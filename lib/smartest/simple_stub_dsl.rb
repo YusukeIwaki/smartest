@@ -24,8 +24,11 @@ module Smartest
   end
 
   class SimpleStubTeardownScope
+    attr_reader :teardown_errors
+
     def initialize
       @registered_stubs = []
+      @teardown_errors = []
     end
 
     def register(stub)
@@ -34,7 +37,7 @@ module Smartest
     end
 
     def reset_registered_stubs
-      errors = []
+      @teardown_errors.clear
       stubs = @registered_stubs
       @registered_stubs = []
 
@@ -43,10 +46,10 @@ module Smartest
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)
 
-        errors << error
+        @teardown_errors << error
       end
 
-      errors
+      self
     end
   end
 end

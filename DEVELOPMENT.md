@@ -41,12 +41,15 @@ smartest/
       parameter_extractor.rb
 
       execution_context.rb
+      hook_contexts.rb
+      hook_chains.rb
 
       expectations.rb
       expectation_target.rb
       matchers.rb
       simple_stub.rb
       simple_stub_dsl.rb
+      teardown_error_aggregator.rb
       constant_stub_helpers.rb
 
       runner.rb
@@ -298,11 +301,29 @@ Responsibilities:
 - cache fixture values for its scope
 - collect teardown blocks
 - run teardown blocks in reverse order
+- expose teardown failures through `teardown_errors`
 - detect duplicate fixture names
 - detect circular dependencies
 
 Important: regular fixture values must not leak across tests. Suite fixture
 values are intentionally shared across the run.
+
+### Hook contexts and chains
+
+`AroundSuiteContext` and `AroundTestContext` own the state for one hook
+invocation. Their common `HookContext` resets method stubs when closed and
+exposes any cleanup failures through `teardown_errors`.
+
+`AroundSuiteHookChain` and `AroundTestHookChain` own hook composition and the
+required `suite.run` / `test.run` protocol. Each chain closes its contexts in
+`ensure` and uses `TeardownErrorAggregator` to collect their cleanup failures.
+The chain then acts as one teardown error source for the runner.
+
+### `Smartest::TeardownErrorAggregator`
+
+Collects teardown failures from completed lifecycle owners. Sources expose
+`teardown_errors`; the aggregator reads that state after cleanup instead of
+passing a shared mutable error array into the operation that performs cleanup.
 
 ### `Smartest::ExecutionContext`
 
@@ -329,8 +350,7 @@ Runs tests.
 Responsibilities:
 
 - iterate over registered test cases
-- run registered `around_suite` hooks around the suite body
-- reset method stubs registered by each hook when that hook exits
+- run registered hooks through their hook chain
 - create a lazy suite-scoped `FixtureSet`
 - create a fresh `ExecutionContext` per test
 - create a fresh `FixtureSet` per test
@@ -339,6 +359,7 @@ Responsibilities:
 - run teardown in `ensure`
 - track skipped and pending test state
 - run suite fixture teardown after all tests
+- aggregate teardown errors from fixture sets and hook chains
 - produce `TestResult`
 - notify reporter
 

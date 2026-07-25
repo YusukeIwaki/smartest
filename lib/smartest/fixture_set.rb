@@ -2,6 +2,8 @@
 
 module Smartest
   class FixtureSet
+    attr_reader :teardown_errors
+
     def initialize(fixture_classes, context:, scope: :test, parent: nil)
       @fixture_classes = fixture_classes.to_a
       @context = context
@@ -10,6 +12,7 @@ module Smartest
       @cache = {}
       @setup_errors = {}
       @teardowns = []
+      @teardown_errors = []
       @resolving = []
 
       build_fixture_index
@@ -56,17 +59,17 @@ module Smartest
     end
 
     def run_teardowns
-      errors = []
+      @teardown_errors.clear
 
       @teardowns.reverse_each do |teardown|
         teardown.call
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)
 
-        errors << error
+        @teardown_errors << error
       end
 
-      errors
+      self
     end
 
     private

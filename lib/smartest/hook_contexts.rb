@@ -4,12 +4,17 @@ module Smartest
   class HookContext
     include SimpleStubDSL
 
+    attr_reader :teardown_errors
+
     def initialize
       @simple_stub_teardown_scope = SimpleStubTeardownScope.new
+      @teardown_errors = []
     end
 
     def close
       @simple_stub_teardown_scope.reset_registered_stubs
+      @teardown_errors = @simple_stub_teardown_scope.teardown_errors.dup
+      self
     end
 
     private

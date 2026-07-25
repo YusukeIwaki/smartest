@@ -61,16 +61,31 @@ module Smartest
   end
 
   class SimpleStubTeardownScope
+    attr_reader teardown_errors: Array[Exception]
+
     def initialize: () -> void
     def register: (SimpleStub) -> SimpleStub
-    def reset_registered_stubs: () -> Array[Exception]
+    def reset_registered_stubs: () -> self
+  end
+
+  interface _TeardownErrorSource
+    def teardown_errors: () -> Array[Exception]
+  end
+
+  class TeardownErrorAggregator
+    attr_reader teardown_errors: Array[Exception]
+
+    def initialize: () -> void
+    def collect: (_TeardownErrorSource) -> self
   end
 
   class HookContext
     include SimpleStubDSL
 
+    attr_reader teardown_errors: Array[Exception]
+
     def initialize: () -> void
-    def close: () -> Array[Exception]
+    def close: () -> self
   end
 
   class Fixture
@@ -116,6 +131,20 @@ module Smartest
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
   end
 
+  class AroundSuiteHookChain
+    attr_reader teardown_errors: Array[Exception]
+
+    def initialize: (suite: Suite, hooks: Array[Proc]) -> void
+    def run: () { () -> untyped } -> untyped
+  end
+
+  class AroundTestHookChain
+    attr_reader teardown_errors: Array[Exception]
+
+    def initialize: (hooks: Array[Proc], test_run: TestRun, run_state: untyped) -> void
+    def run: () -> untyped
+  end
+
   class ExecutionContext
     include Expectations
     include Matchers
@@ -158,6 +187,10 @@ module Smartest
     attr_reader location: Thread::Backtrace::Location?
     attr_reader scope: Symbol
     attr_reader dependencies: Array[Symbol]
+  end
+
+  class FixtureSet
+    attr_reader teardown_errors: Array[Exception]
   end
 
   class SimpleStub
