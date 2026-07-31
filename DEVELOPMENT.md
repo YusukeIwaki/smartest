@@ -41,11 +41,15 @@ smartest/
       parameter_extractor.rb
 
       execution_context.rb
+      hook_contexts.rb
+      hook_chains.rb
 
       expectations.rb
       expectation_target.rb
       matchers.rb
       simple_stub.rb
+      simple_stub_dsl.rb
+      teardown_error_aggregator.rb
       constant_stub_helpers.rb
 
       runner.rb
@@ -132,9 +136,13 @@ around_suite(&block)
 around_test(&block)
 ```
 
-`use_fixture(klass)` and `use_matcher(matcher_module)` are not top-level DSL
-methods. They are available only from hook execution contexts: `around_suite`
-and `around_test`.
+`use_fixture(klass)`, `use_matcher(matcher_module)`,
+`simple_stub_any_instance_of`, and `simple_stub` are not top-level DSL methods.
+They are available only from the relevant hook execution contexts:
+`around_suite` and `around_test`. Method stub helpers are also available from
+fixture blocks, where fixture teardown owns their reset.
+If a lifecycle owner cannot register an applied stub for teardown, the helper
+immediately resets it before propagating the registration error.
 
 Possible later methods:
 
@@ -295,11 +303,35 @@ Responsibilities:
 - cache fixture values for its scope
 - collect teardown blocks
 - run teardown blocks in reverse order
+- drain the teardown queue before callbacks and run it at most once
+- expose teardown failures through `teardown_errors`
 - detect duplicate fixture names
 - detect circular dependencies
 
 Important: regular fixture values must not leak across tests. Suite fixture
 values are intentionally shared across the run.
+
+### Hook contexts and chains
+
+`AroundSuiteContext` and `AroundTestContext` own the state for one hook
+invocation. Their common `HookContext` resets method stubs from
+`run_teardowns` at most once and exposes any cleanup failures through
+`teardown_errors`. Repeated or reentrant teardown calls preserve the errors
+recorded by the first call.
+
+`AroundSuiteHookChain` and `AroundTestHookChain` own hook composition and the
+required `suite.run` / `test.run` protocol. Each chain runs its contexts'
+teardowns in `ensure` and uses `TeardownErrorAggregator` to collect their
+cleanup failures. The chain then acts as one teardown error source for the
+runner.
+
+### `Smartest::TeardownErrorAggregator`
+
+Collects teardown failures from completed lifecycle owners. Sources expose
+`teardown_errors`; the aggregator reads that state after cleanup instead of
+passing a shared mutable error array into the operation that performs cleanup.
+These lifecycle implementation classes are intentionally omitted from the
+public DSL RBS.
 
 ### `Smartest::ExecutionContext`
 
@@ -326,7 +358,7 @@ Runs tests.
 Responsibilities:
 
 - iterate over registered test cases
-- run registered `around_suite` hooks around the suite body
+- run registered hooks through their hook chain
 - create a lazy suite-scoped `FixtureSet`
 - create a fresh `ExecutionContext` per test
 - create a fresh `FixtureSet` per test
@@ -335,6 +367,7 @@ Responsibilities:
 - run teardown in `ensure`
 - track skipped and pending test state
 - run suite fixture teardown after all tests
+- aggregate teardown errors from fixture sets and hook chains
 - produce `TestResult`
 - notify reporter
 
@@ -671,6 +704,7 @@ A practical approach:
 - snapshot file-local hooks when each test is registered
 - run hooks around fixture setup, test body, and fixture teardown
 - expose `use_fixture` and `use_matcher` only inside hook contexts
+- expose method stub helpers inside hook contexts with automatic hook-scoped reset
 - make `around_test` registered from `around_suite` suite-wide
 
 ### Phase 9: Skipped and pending tests

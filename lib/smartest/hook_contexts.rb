@@ -1,10 +1,34 @@
 # frozen_string_literal: true
 
 module Smartest
-  class AroundSuiteContext
+  class HookContext
+    include SimpleStubDSL
+
+    attr_reader :teardown_errors
+
+    def initialize
+      @simple_stub_teardown_scope = SimpleStubTeardownScope.new
+      @teardown_errors = []
+    end
+
+    def run_teardowns
+      @simple_stub_teardown_scope.reset_registered_stubs
+      @teardown_errors = @simple_stub_teardown_scope.teardown_errors.dup
+      self
+    end
+
+    private
+
+    def register_simple_stub(stub)
+      @simple_stub_teardown_scope.register(stub)
+    end
+  end
+
+  class AroundSuiteContext < HookContext
     include ConstantStubHelpers
 
     def initialize(suite)
+      super()
       @suite = suite
     end
 
@@ -31,10 +55,11 @@ module Smartest
     end
   end
 
-  class AroundTestContext
+  class AroundTestContext < HookContext
     include ConstantStubHelpers
 
     def initialize(test_run, run_state:)
+      super()
       @test_run = test_run
       @run_state = run_state
     end

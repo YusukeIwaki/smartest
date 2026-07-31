@@ -722,18 +722,23 @@ Register teardown immediately after acquiring the resource, before later setup s
 
 ## Stubs
 
-Use simple stub helpers when a fixture needs to temporarily replace a Ruby
-method and reset it during teardown:
+Put method stubs in fixtures by default so the stubbed state is visible in the
+test signature:
 
 ```ruby
 class ApplicationTestFixture < Smartest::Fixture
-  fixture :payment_gateway_stub do
-    simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
+  fixture :user do
+    User.create!(name: "Alice")
+  end
+
+  fixture :logged_in_user do |user:|
+    simple_stub_any_instance_of(ApplicationController, :current_user) { user }
+    user
   end
 end
 ```
 
-Register the fixture class from `around_suite` before tests request the fixture:
+Register the fixture class with `use_fixture` before tests request it:
 
 ```ruby
 around_suite do |suite|
@@ -743,16 +748,36 @@ end
 ```
 
 `use_fixture` is available inside `around_suite` or `around_test` blocks, not as
-a top-level method in a test file.
+a top-level method.
 
 The stub affects existing instances and new instances of the target class until
 it is reset. Method stubs are shared across Fibers and Threads, including a
-Rails test server running in another thread. Tests can request the fixture to
-make the side effect explicit:
+Rails test server running in another thread. Tests can request a data-dependent
+fixture to make the side effect explicit:
 
 ```ruby
-test("checkout succeeds") do |payment_gateway_stub:|
-  expect(Checkout.call).to eq(:paid)
+test("shows the dashboard") do |logged_in_user:|
+  expect(Dashboard.call.user).to eq(logged_in_user)
+end
+```
+
+For intentionally broad setup that does not depend on fixture data, hooks offer
+an autouse-fixture-style alternative. This keeps an environment-wide rule from
+adding a stub-only keyword to every test:
+
+```ruby
+around_test do |test|
+  simple_stub(PushNotifier, :deliver_later) { :stubbed }
+  test.run
+end
+```
+
+Use `around_suite` instead when one replacement should cover the whole suite:
+
+```ruby
+around_suite do |suite|
+  simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
+  suite.run
 end
 ```
 
@@ -768,7 +793,12 @@ test. They do not provide isolation for multi-threaded parallel test execution:
 one test can observe or reset another test's method or constant stub.
 
 The method stub helpers call `Smartest::SimpleStub` internally, apply the stub,
-register `on_teardown { stub.reset }`, and return the stub object.
+register `stub.reset` with the current fixture or hook teardown scope, and
+return the stub object. Hook cleanup still runs when the suite, test, or hook
+fails. Nested hook, fixture, and suite fixture stubs restore the previous active
+stub when the inner scope exits.
+If the test or hook and its stub cleanup both fail, Smartest reports the primary
+failure and the teardown failure separately.
 `with_stub_const` records the previous constant value, replaces it, yields to
 the block, and restores or removes the constant with `ensure`.
 
@@ -1002,7 +1032,7 @@ Smartest currently focuses on a small runner API:
 - fixture dependencies through keyword arguments
 - fixture teardown
 - suite-scoped fixtures through `suite_fixture`
-- fixture-scoped method stubs and block-scoped constant stubs
+- fixture-scoped method stubs, optional hook-scoped broad setup, and block-scoped constant stubs
 - suite hooks with `around_suite`
 - test hooks with `around_test`
 - skipped and pending tests through `skip` and `pending`

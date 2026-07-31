@@ -65,8 +65,8 @@ module Smartest
     private
 
     def on_teardown: () { () -> untyped } -> untyped
-    def simple_stub_any_instance_of: (Class | Module, String | Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
-    def simple_stub: (untyped, String | Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
   end
 
   class AroundSuiteContext
@@ -75,6 +75,8 @@ module Smartest
     def use_fixture: (Class | Module) -> untyped
     def use_matcher: (Module) -> untyped
     def around_test: () { (TestRun) -> untyped } -> void
+    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
   end
 
@@ -86,6 +88,8 @@ module Smartest
     def use_helper: (Module) -> untyped
     def skip: (?String) -> void
     def pending: (?String) -> void
+    def simple_stub_any_instance_of: (Class, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
+    def simple_stub: (untyped, Symbol) { (*untyped, **untyped) -> untyped } -> SimpleStub
     def with_stub_const: (String | Symbol, untyped) { () -> untyped } -> untyped
   end
 

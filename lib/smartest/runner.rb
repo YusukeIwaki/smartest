@@ -10,21 +10,28 @@ module Smartest
 
     def run
       results = []
-      suite_teardown_errors = []
       suite_errors = []
       @suite_fixture_set = nil
+      hook_chain = AroundSuiteHookChain.new(
+        suite: @suite,
+        hooks: @suite.around_suite_hooks.dup
+      )
 
       @reporter.start(@tests.count)
 
       begin
-        run_around_suite_hooks(@suite.around_suite_hooks.dup) do
-          run_tests(results, suite_teardown_errors)
-        end
+        hook_chain.run { run_tests(results) }
       rescue Exception => error
         raise if Smartest.fatal_exception?(error)
 
         suite_errors << error
       end
+
+      teardown_error_aggregator = TeardownErrorAggregator.new
+      teardown_error_aggregator.collect(@suite_fixture_set) if @suite_fixture_set
+      teardown_error_aggregator.collect(hook_chain)
+      suite_teardown_errors = teardown_error_aggregator.teardown_errors
+      @suite_fixture_set = nil
 
       @reporter.finish(
         results,
@@ -37,7 +44,7 @@ module Smartest
 
     private
 
-    def run_tests(results, suite_teardown_errors)
+    def run_tests(results)
       begin
         @tests.each do |test_case|
           result = run_one(test_case)
@@ -45,40 +52,32 @@ module Smartest
           @reporter.record(result)
         end
       ensure
-        suite_teardown_errors.concat(@suite_fixture_set.run_teardowns) if @suite_fixture_set
-        @suite_fixture_set = nil
+        @suite_fixture_set.run_teardowns if @suite_fixture_set
       end
-    end
-
-    def run_around_suite_hooks(hooks, index = 0, &block)
-      return yield if index >= hooks.length
-
-      hook = hooks[index]
-      suite_run = SuiteRun.new do
-        run_around_suite_hooks(hooks, index + 1, &block)
-      end
-
-      AroundSuiteContext.new(@suite).call(hook, suite_run)
-      raise AroundSuiteRunError, "around_suite hook did not call suite.run" unless suite_run.ran?
-
-      suite_run.result
     end
 
     def run_one(test_case)
       started_at = now
       error = nil
       skipped = nil
-      teardown_errors = []
       run_state = TestRunState.new
+      fixture_set = nil
       test_run = TestRun.new(
         fixture_classes: @suite.fixture_classes,
         matcher_modules: @suite.matcher_modules
       ) do |fixture_classes:, matcher_modules:, helper_modules:|
-        run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, teardown_errors)
+        context = build_context(matcher_modules, run_state, helper_modules)
+        fixture_set = FixtureSet.new(fixture_classes, context: context, parent: suite_fixture_set)
+        run_test_body(test_case, fixture_set, context)
       end
+      hook_chain = AroundTestHookChain.new(
+        hooks: @suite.around_test_hooks + test_case.around_test_hooks,
+        test_run: test_run,
+        run_state: run_state
+      )
 
       begin
-        run_around_test_hooks(@suite.around_test_hooks + test_case.around_test_hooks, test_run, run_state)
+        hook_chain.run
       rescue Skipped => skipped_error
         skipped = skipped_error
       rescue Exception => rescued_error
@@ -87,6 +86,10 @@ module Smartest
         error = rescued_error
       end
 
+      teardown_error_aggregator = TeardownErrorAggregator.new
+      teardown_error_aggregator.collect(fixture_set) if fixture_set
+      teardown_error_aggregator.collect(hook_chain)
+      teardown_errors = teardown_error_aggregator.teardown_errors
       duration = now - started_at
 
       return TestResult.failed(test_case: test_case, error: nil, duration: duration, teardown_errors: teardown_errors) if skipped && teardown_errors.any?
@@ -114,34 +117,13 @@ module Smartest
       end
     end
 
-    def run_test_body(test_case, fixture_classes, matcher_modules, helper_modules, run_state, teardown_errors)
-      context = build_context(matcher_modules, run_state, helper_modules)
-      fixture_set = nil
-
+    def run_test_body(test_case, fixture_set, context)
       begin
-        fixture_set = FixtureSet.new(fixture_classes, context: context, parent: suite_fixture_set)
         fixtures = fixture_set.resolve_keywords(test_case.fixture_names)
         context.instance_exec(**fixtures, &test_case.block)
       ensure
-        teardown_errors.concat(fixture_set.run_teardowns) if fixture_set
+        fixture_set.run_teardowns
       end
-    end
-
-    def run_around_test_hooks(hooks, test_run, run_state, index = 0)
-      return test_run.run if index >= hooks.length
-
-      hook = hooks[index]
-      next_run = TestRun.new(
-        fixture_classes: [],
-        matcher_modules: []
-      ) do |**_keywords|
-        run_around_test_hooks(hooks, test_run, run_state, index + 1)
-      end
-
-      AroundTestContext.new(test_run, run_state: run_state).call(hook, next_run)
-      raise AroundTestRunError, "around_test hook did not call test.run" unless next_run.ran?
-
-      next_run.result
     end
 
     def suite_fixture_set

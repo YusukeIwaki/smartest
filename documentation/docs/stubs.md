@@ -1,36 +1,19 @@
 ---
 title: Stubs
-description: Stub Ruby methods from Smartest fixtures with automatic teardown.
+description: Stub Ruby methods from Smartest fixtures, with optional autouse-style hook setup and automatic teardown.
 ---
 
 # Stubs
 
 Smartest provides small stub helpers for replacing Ruby methods during a test.
-They are useful when a test depends on stubbed behavior and you want that
-dependency to be visible in the test signature:
+Put method stubs in fixtures by default. The fixture keyword makes the test
+state visible in the test signature, and Smartest resets the stub
+automatically when the fixture is torn down.
 
-```ruby
-test("shows the suspended account state") do |suspended_user_logged_in:|
-  expect(AccountStatus.call).to eq(:suspended)
-end
-```
+## Fixture-Scoped Method Stubs
 
-The fixture name makes it clear that this test depends on an authenticated
-suspended user.
-
-If you are familiar with RSpec, this is similar to putting a stub in `before`:
-
-```ruby
-let(:suspended_user) { create(:user, :suspended) }
-
-before do
-  allow_any_instance_of(ApplicationController)
-    .to receive(:current_user)
-    .and_return(suspended_user)
-end
-```
-
-In Smartest, the same idea is expressed as a fixture:
+Define the stub in a fixture and request that fixture from each test that needs
+the replacement:
 
 ```ruby
 class EdgeCaseFixture < Smartest::Fixture
@@ -54,12 +37,36 @@ around_suite do |suite|
 end
 ```
 
+Then request the fixture from the test:
+
+```ruby
+test("shows the suspended account state") do |suspended_user_logged_in:|
+  expect(AccountStatus.call).to eq(:suspended)
+end
+```
+
+The fixture name makes it clear that this test depends on an authenticated
+suspended user.
+
 `use_fixture` is available inside `around_suite` or `around_test` blocks, not as
 a top-level method in a test file.
 
 The stub is automatically reset when the fixture is torn down. Because the stub
 fixture depends on `suspended_user:`, the user record and authenticated state
 stay tied together in one fixture dependency graph.
+
+If you are familiar with RSpec, the fixture replaces setup that might otherwise
+live in a `before` hook:
+
+```ruby
+let(:suspended_user) { create(:user, :suspended) }
+
+before do
+  allow_any_instance_of(ApplicationController)
+    .to receive(:current_user)
+    .and_return(suspended_user)
+end
+```
 
 ## Instance Method Stubs
 
@@ -74,17 +81,6 @@ teardown resets it. Method stubs are shared across Fibers and Threads, so a
 stub applied by test setup is also visible to a Rails test server running in
 another thread.
 
-You can also use method stubs for external services that should not run during
-tests, such as push notifications or payment processing:
-
-```ruby
-class ApplicationTestFixture < Smartest::Fixture
-  fixture :payment_gateway_stub do
-    simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
-  end
-end
-```
-
 ## Class Method Stubs
 
 Use `simple_stub` for singleton methods, including class methods:
@@ -97,6 +93,11 @@ class TimeFixture < Smartest::Fixture
     frozen_time
   end
 end
+
+around_suite do |suite|
+  use_fixture TimeFixture
+  suite.run
+end
 ```
 
 ```ruby
@@ -104,6 +105,42 @@ test("uses fixed time") do |fixed_time:|
   expect(Time.now).to eq(fixed_time)
 end
 ```
+
+## Optional Autouse-Style Setup From Hooks
+
+Most method stubs should remain in fixtures. When a replacement is an
+intentional rule for every applicable test and does not depend on fixture data,
+you can put it in a hook instead. This is similar to a Pytest autouse fixture:
+the setup applies without adding a fixture keyword to every test signature.
+
+Use `around_test` when the replacement should be applied and reset for each
+applicable test:
+
+```ruby
+around_test do |test|
+  simple_stub(NotificationClient, :push) { :ok }
+  test.run
+end
+```
+
+Use `around_suite` when an external service should stay stubbed for the whole
+suite:
+
+```ruby
+around_suite do |suite|
+  simple_stub_any_instance_of(PaymentGateway, :charge) { :approved }
+  suite.run
+end
+```
+
+Call the stub helper before `suite.run` or `test.run`. Smartest resets the stub
+when that hook invocation exits, including when the suite, test, or hook fails.
+An `around_test` written directly in a test file applies to later tests in that
+file. Register it inside `around_suite` when it should apply suite-wide.
+
+Use this style for broad test-environment rules such as "never contact the
+payment gateway." Keep scenario-specific or data-dependent stubs in fixtures so
+their side effects remain visible at the test boundary.
 
 ## Constant Stubs
 
@@ -145,7 +182,7 @@ Constant stubs are process-global until the block exits.
 ## How Method Stub Teardown Works
 
 You do not need to call `reset` manually when using method stub helpers inside
-fixtures. The helper internally:
+fixtures or hooks. The helper internally:
 
 1. creates the stub state
 2. applies the replacement
@@ -157,26 +194,35 @@ Conceptually, this:
 simple_stub_any_instance_of(ApplicationController, :current_user) { user }
 ```
 
-behaves like:
+behaves like applying a `Smartest::SimpleStub` and registering its `reset` with
+the current fixture or hook teardown owner:
 
 ```ruby
 stub = Smartest::SimpleStub.new(ApplicationController, :current_user) { user }
 stub.apply
-on_teardown { stub.reset }
+# The current fixture or hook scope registers: stub.reset
 ```
 
-Teardown is tied to the fixture lifecycle:
+Teardown is tied to the scope that applies the stub:
 
 - `fixture` method stubs reset after each test.
 - `suite_fixture` method stubs reset after the suite fixture scope ends.
+- `around_test` method stubs reset when that hook invocation exits.
+- `around_suite` method stubs reset when that hook invocation exits.
+
+Hook cleanup runs even when a test fails, is skipped from the hook, or a hook
+fails to call its required run target.
+If a test or hook and its method-stub cleanup both fail, Smartest preserves the
+primary failure and reports the reset error separately as a teardown failure.
 
 When method stubs for the same class and method overlap, the most recently
 applied stub wins. Resetting that stub restores the previous stub instead of
-resetting the whole stack. This lets a test-scoped stub temporarily override a
-suite-scoped stub.
+resetting the whole stack. Hook, fixture, and suite fixture stubs can therefore
+nest without discarding an outer replacement.
 
-In most cases, prefer the fixture helpers so stub lifetime is automatically tied
-to the fixture lifecycle.
+Prefer fixture-scoped stubs so the stubbed state stays explicit in a test's
+keyword dependencies. Use hook-scoped stubs only for intentionally broad,
+autouse-style setup that does not need fixture data.
 
 ## How Constant Stub Blocks Work
 
@@ -238,8 +284,9 @@ end
 `Smartest::SimpleStub` object. `with_stub_const` returns the block result.
 
 `simple_stub_any_instance_of` and `simple_stub` are available inside
-`Smartest::Fixture` fixture blocks, including `fixture` and `suite_fixture`,
-because they need `on_teardown` to keep the stub lifetime tied to the fixture scope.
+`Smartest::Fixture` fixture blocks, including `fixture` and `suite_fixture`, as
+well as `around_test` and `around_suite`. They are not top-level DSL methods and
+are not available in test bodies because method stubs require a teardown owner.
 `with_stub_const` is available in test bodies, `around_test`, and
 `around_suite`.
 

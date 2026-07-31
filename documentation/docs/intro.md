@@ -51,7 +51,7 @@ end
 - [Skipping Tests](./skipping-tests.md) covers skipped tests and expected failures.
 - [Running Tests](./running-test-suites.md) covers autorun and the CLI.
 - [Fixtures](./fixtures.md) explains class-based fixtures, dependencies, and teardown.
-- [Stubs](./stubs.md) shows method stubs that reset from fixture teardown.
+- [Stubs](./stubs.md) shows fixture-scoped method stubs, plus optional autouse-style hook setup.
 - [Helpers](./helpers.md) explains registering helper modules from `around_test`.
 - [Why Smartest browser tests](./playwright-browser-tests.md) explains why pytest-style fixtures change Ruby browser testing, and walks through the Playwright-powered scaffold.
 - [Test a Rails app locally](./rails-browser-tests.md) shows the generated same-process Rails server fixture.
@@ -66,7 +66,7 @@ Smartest currently focuses on a small runner API:
 - fixture dependencies through keyword arguments
 - fixture teardown
 - suite-scoped fixtures through `suite_fixture`
-- fixture-scoped method stubs and block-scoped constant stubs
+- fixture-scoped method stubs, optional hook-scoped broad setup, and block-scoped constant stubs
 - suite hooks through `around_suite`
 - test hooks through `around_test`
 - skipped and pending tests through `skip` and `pending`

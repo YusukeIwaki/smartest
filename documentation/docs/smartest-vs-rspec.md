@@ -106,8 +106,8 @@ RSpec.describe Checkout do
 end
 ```
 
-In Smartest, put the stub in a fixture and request that fixture from tests that
-depend on it:
+Smartest keeps the stub in a fixture by default, so the test signature shows
+that fixed time is part of its setup:
 
 ```ruby title="Smartest"
 class TimeFixture < Smartest::Fixture
@@ -128,10 +128,9 @@ test("uses the fixed time") do |fixed_now:|
 end
 ```
 
-The fixture signature makes the stubbed dependency explicit, and Smartest resets
-the method stub from fixture teardown.
-
-For `allow_any_instance_of`, use `simple_stub_any_instance_of`:
+Smartest resets the stub when the fixture is torn down, including when the test
+fails. For `allow_any_instance_of`, use `simple_stub_any_instance_of` in the
+same fixture-first style:
 
 ```ruby title="RSpec"
 before do
@@ -157,6 +156,21 @@ test("uses the current user") do |logged_in_as_user1:|
   expect(call_api.user).to eq(logged_in_as_user1)
 end
 ```
+
+If a replacement is an intentional rule for every applicable test and does not
+depend on fixture data, `around_test` is available as an autouse-fixture-style
+alternative:
+
+```ruby title="Smartest"
+around_test do |test|
+  simple_stub(PushNotifier, :deliver_later) { :stubbed }
+  test.run
+end
+```
+
+The tests do not need a stub-only keyword. Smartest resets the method stub when
+the hook exits; use `around_suite` when one replacement should cover the whole
+suite.
 
 Constant stubs are different from method stubs. Use `with_stub_const` with a
 block in a test body, `around_test`, or `around_suite`; it is intentionally not

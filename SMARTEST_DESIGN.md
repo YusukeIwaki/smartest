@@ -1015,6 +1015,48 @@ end
 For `around_test`, those registrations are test-run local and must happen before
 `test.run`.
 
+`simple_stub_any_instance_of` and `simple_stub` are also available inside both
+hook contexts:
+
+```ruby
+around_test do |test|
+  simple_stub(NotificationClient, :push) { :ok }
+  test.run
+end
+```
+
+Each hook invocation owns the stubs it applies and resets them in reverse order
+when the hook exits. Cleanup runs when the wrapped suite or test fails, when the
+hook itself raises, and when the hook returns without calling its required run
+target. Nested hook, test fixture, and suite fixture stubs use the
+`Smartest::SimpleStub` stack, so removing an inner stub restores the previous
+active implementation.
+
+`Smartest::SimpleStubDSL` owns only the user-facing operations that create and
+apply method stubs. Fixture instances register those stubs directly with
+fixture teardown. The common `Smartest::HookContext` owns a
+`Smartest::SimpleStubTeardownScope` for one hook invocation. Around-suite and
+around-test contexts inherit that lifecycle and expose cleanup failures through
+`teardown_errors`. If registering an already-applied stub with its lifecycle
+owner fails, the DSL immediately resets that stub before propagating the
+registration error. Hook and fixture lifecycle owners drain their teardown
+queues before invoking callbacks, run teardown at most once, and preserve the
+first call's `teardown_errors` on repeated or reentrant calls.
+
+`Smartest::AroundSuiteHookChain` and `Smartest::AroundTestHookChain` own hook
+composition, run every context's teardowns in `ensure`, and aggregate the
+errors exposed by those contexts. `FixtureSet` likewise exposes errors after
+running its teardowns. The runner uses `Smartest::TeardownErrorAggregator` to
+pull errors from the completed fixture set and hook chain into the appropriate
+test or suite result. No lifecycle operation receives a shared mutable reporter
+error array. This keeps lifecycle state out of the DSL module and reporting
+concerns out of hook contexts. The lifecycle owners, hook chains, and teardown
+error aggregator remain internal implementation types; public RBS lists the
+stub helper methods directly on fixtures and hook contexts.
+
+Method stub helpers are intentionally not top-level DSL methods. Without a hook
+or fixture owner, Smartest would have no safe lifecycle in which to reset them.
+
 Fixture classes registered from `around_test` must not define `suite_fixture`.
 Suite-scoped fixtures need suite-level cache and teardown ownership, so classes
 with suite-scoped fixtures must be registered from `around_suite`.
